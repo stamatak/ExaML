@@ -12,12 +12,12 @@ RM = rm -f
 
 objs    = axml.o  randomTree.o optimizeModel.o trash.o searchAlgo.o topologies.o fastDNAparsimony.o treeIO.o models.o evaluatePartialGenericSpecial.o evaluateGenericSpecial.o newviewGenericSpecial.o makenewzGenericSpecial.o bipartitionList.o restartHashTable.o 
 
-all : raxmlLight
+all : examl
 
 GLOBAL_DEPS = axml.h globalVariables.h
 
-raxmlLight : $(objs)
-	$(CC) -o raxmlLight $(objs) $(LIBRARIES) 
+examl : $(objs)
+	$(CC) -o examl $(objs) $(LIBRARIES) 
 
 bipartitionList.o : bipartitionList.c $(GLOBAL_DEPS)
 evaluatePartialSpecialGeneric.o : evaluatePartialSpecialGeneric.c $(GLOBAL_DEPS)
@@ -37,4 +37,4 @@ randomTree.o : randomTree.c $(GLOBAL_DEPS)
 fastDNAparsimony.o : fastDNAparsimony.c  $(GLOBAL_DEPS)
 
 clean : 
-	$(RM) *.o raxmlLight
+	$(RM) *.o examl

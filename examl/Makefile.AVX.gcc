@@ -12,12 +12,12 @@ RM = rm -f
 
 objs    = axml.o  randomTree.o optimizeModel.o trash.o searchAlgo.o topologies.o fastDNAparsimony.o treeIO.o models.o evaluatePartialGenericSpecial.o evaluateGenericSpecial.o newviewGenericSpecial.o makenewzGenericSpecial.o bipartitionList.o restartHashTable.o avxLikelihood.o
 
-all : raxmlLight-AVX
+all : examl-AVX
 
 GLOBAL_DEPS = axml.h globalVariables.h
 
-raxmlLight-AVX : $(objs)
-	$(CC) -o raxmlLight-AVX $(objs) $(LIBRARIES) 
+examl-AVX : $(objs)
+	$(CC) -o examl-AVX $(objs) $(LIBRARIES) 
 
 avxLikelihood.o : avxLikelihood.c $(GLOBAL_DEPS)
 	$(CC) $(CFLAGS) -mavx -c -o avxLikelihood.o avxLikelihood.c
@@ -42,4 +42,4 @@ randomTree.o : randomTree.c $(GLOBAL_DEPS)
 
 
 clean : 
-	$(RM) *.o raxmlLight-AVX
+	$(RM) *.o examl-AVX

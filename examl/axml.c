@@ -374,7 +374,7 @@ FILE *myfopen(const char *path, const char *mode)
       else
 	{
 	  if(processID == 0)
-	    printf("The file %s RAxML wants to open for writing or appending can not be opened [mode: %s], exiting ...\n",
+	    printf("The file %s ExaML wants to open for writing or appending can not be opened [mode: %s], exiting ...\n",
 		   path, mode);
 	  errorExit(-1);
 	  return (FILE *)NULL;
@@ -801,7 +801,7 @@ static void printREADME(void)
   printf("Please send me all input files, the exact invocation, details of the HW and operating system,\n");
   printf("as well as all error messages printed to screen.\n\n\n");
 
-  printf("raxmlLight|raxmlLight-PTHREADS|raxmlLight-MPI\n");
+  printf("examl|examl-AVX\n");
   printf("      -s sequenceFileName| -G binarySequnceFile\n");
   printf("      -n outputFileName\n");
   printf("      -m substitutionModel\n");
@@ -830,7 +830,7 @@ static void printREADME(void)
   printf("\n");
   printf("      -B     specify the number of best ML trees to save and print to file\n");
   printf("\n");
-  printf("      -c      Specify number of distinct rate catgories for RAxML when modelOfEvolution\n");
+  printf("      -c      Specify number of distinct rate catgories for ExaML when modelOfEvolution\n");
   printf("              is set to GTRPSR\n");
   printf("              Individual per-site rates are categorized into numberOfCategories rate \n");
   printf("              categories to accelerate computations. \n");
@@ -886,7 +886,7 @@ static void printREADME(void)
   printf("                Please note that for mixed models you can in addition specify the per-gene AA model in\n");
   printf("                the mixed model file (see manual for details). Also note that if you estimate AA GTR parameters on a partitioned\n");
   printf("                dataset, they will be linked (estimated jointly) across all partitions to avoid over-parametrization\n");
-  printf("                When AUTO is used RAxML will conduct an ML estimate of all available pre-defined AA models (excluding GTR) every time the model parameters\n");
+  printf("                When AUTO is used ExaML will conduct an ML estimate of all available pre-defined AA models (excluding GTR) every time the model parameters\n");
   printf("                are optimized during the tree search.\n");
   printf("                WARNING: we have not figured out yet how to best do this for partitioned analyses, so don't use AUTO for datasets with partitions\n");
   printf("\n");
@@ -909,7 +909,7 @@ static void printREADME(void)
   printf("      -Q      Enable alternative data/load distribution algorithm for datasets with many partitions\n");
   printf("              In particular under PSR this can lead to parallel performance improvements of over 50 per cent\n");
   printf("\n");
-  printf("      -R      read in a binary checkpoint file called RAxML_binaryCheckpoint.RUN_ID_number\n");
+  printf("      -R      read in a binary checkpoint file called ExaML_binaryCheckpoint.RUN_ID_number\n");
   printf("\n");
   printf("      -s      Specify the name of the alignment data file in PHYLIP format\n");
   printf("\n");
@@ -925,7 +925,7 @@ static void printREADME(void)
   printf("\n");  
   printf("      -v      Display version information\n");
   printf("\n");
-  printf("      -w      FULL (!) path to the directory into which RAxML shall write its output files\n");
+  printf("      -w      FULL (!) path to the directory into which ExaML shall write its output files\n");
   printf("\n");
   printf("              DEFAULT: current directory\n"); 
   printf("\n");
@@ -1264,11 +1264,11 @@ static void makeFileNames(void)
   strcpy(randomFileName,       workdir);  
   strcpy(binaryCheckpointName, workdir);
    
-  strcat(resultFileName,       "RAxML_result.");
-  strcat(logFileName,          "RAxML_log.");  
-  strcat(infoFileName,         "RAxML_info.");
-  strcat(randomFileName,       "RAxML_randomTree.");  
-  strcat(binaryCheckpointName, "RAxML_binaryCheckpoint.");
+  strcat(resultFileName,       "ExaML_result.");
+  strcat(logFileName,          "ExaML_log.");  
+  strcat(infoFileName,         "ExaML_info.");
+  strcat(randomFileName,       "ExaML_randomTree.");  
+  strcat(binaryCheckpointName, "ExaML_binaryCheckpoint.");
   
   strcat(resultFileName,       run_id);
   strcat(logFileName,          run_id);  
@@ -1285,7 +1285,7 @@ static void makeFileNames(void)
 
       if(infoFileExists)
 	{
-	  printf("RAxML output files with the run ID <%s> already exist \n", run_id);
+	  printf("ExaML output files with the run ID <%s> already exist \n", run_id);
 	  printf("in directory %s ...... exiting\n", workdir);
 
 	  exit(-1);
@@ -1336,7 +1336,7 @@ static void printModelAndProgramInfo(tree *tr, analdef *adef, int argc, char *ar
       switch(adef->mode)
 	{	
 	case  BIG_RAPID_MODE:	 
-	  printBoth(infoFile, "\nRAxML rapid hill-climbing mode\n\n");
+	  printBoth(infoFile, "\nExaML rapid hill-climbing mode\n\n");
 	  break;	
 	default:
 	  assert(0);
@@ -1356,7 +1356,7 @@ static void printModelAndProgramInfo(tree *tr, analdef *adef, int argc, char *ar
 
       
       
-      printBoth(infoFile, "All free model parameters will be estimated by RAxML\n");
+      printBoth(infoFile, "All free model parameters will be estimated by ExaML\n");
       
      
 	
@@ -1440,7 +1440,7 @@ static void printModelAndProgramInfo(tree *tr, analdef *adef, int argc, char *ar
       
       printBoth(infoFile, "\n");
 
-      printBoth(infoFile, "RAxML was called as follows:\n\n");
+      printBoth(infoFile, "ExaML was called as follows:\n\n");
       for(i = 0; i < argc; i++)
 	printBoth(infoFile,"%s ", argv[i]);
       printBoth(infoFile,"\n\n\n");
@@ -2139,7 +2139,7 @@ static void initializeTree(tree *tr, analdef *adef)
     tr->numBranches = 1;
   
   /* If we use the RF-based convergence criterion we will need to allocate some hash tables.
-     let's not worry about this right now, because it is indeed RAxML-specific */
+     let's not worry about this right now, because it is indeed ExaML-specific */
   
  
     
@@ -2229,7 +2229,7 @@ int main (int argc, char *argv[])
   MPI_Init(&argc, &argv);
   MPI_Comm_rank(MPI_COMM_WORLD, &processID);
   MPI_Comm_size(MPI_COMM_WORLD, &processes);
-  printf("\nThis is RAxML FINE-GRAIN MPI Process Number: %d\n", processID);   
+  printf("\nThis is ExaML FINE-GRAIN MPI Process Number: %d\n", processID);   
   MPI_Barrier(MPI_COMM_WORLD);
   
   {
@@ -2259,7 +2259,7 @@ int main (int argc, char *argv[])
   
     get_args(argc, argv, adef, tr); 
   
-  /* generate the RAxML output file names and store them in strings */
+  /* generate the ExaML output file names and store them in strings */
 
     if(processID == 0)
       makeFileNames();
@@ -2273,18 +2273,14 @@ int main (int argc, char *argv[])
       }  
                          
     /* 
-       this will re-start RAxML exactly where it has left off from a checkpoint file,
+       this will re-start ExaML exactly where it has left off from a checkpoint file,
        while checkpointing is important and has to be implemented for the library we should not worry about this right now 
     */
   
    
 
     if(adef->useCheckpoint)
-      {
-#ifdef _BAYESIAN
-	assert(0);
-#endif
-      
+      {      
 	/* read checkpoint file */
 	restart(tr);       	
 	
@@ -2340,25 +2336,16 @@ int main (int argc, char *argv[])
 
 	/* now start the ML search algorithm */
       
-#ifdef _BAYESIAN 
-	if(adef->bayesian)
-	  {
-	    /* allocate parsimony data structures for parsimony-biased SPRs */
-	    
-	    allocateParsimonyDataStructures(tr);
-	    mcmc(tr, adef);
-	    freeParsimonyDataStructures(tr);
-	  }
-	else
-#endif	 
+
 	  computeBIGRAPID(tr, adef, TRUE); 			     
       }            
       
-    /* print som more nonsense into the RAxML_info file */
+    /* print som more nonsense into the ExaML_info file */
   
     if(processID == 0)
       finalizeInfoFile(tr, adef);
   }
+  
   /* return 0 which means that our unix program terminated correctly, the return value is not 1 here */
 
   MPI_Barrier(MPI_COMM_WORLD);
