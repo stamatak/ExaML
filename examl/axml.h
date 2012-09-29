@@ -637,9 +637,7 @@ typedef  struct  {
 
   boolean useGappedImplementation;
   boolean saveMemory;  
-  int              startingTree;
   int              saveBestTrees;
-  long             randomNumberSeed;
 
   double          *lhs;
   double          *patrat;      /* rates per pattern */

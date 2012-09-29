@@ -10,7 +10,7 @@ LIBRARIES = -lm -mavx
 
 RM = rm -f
 
-objs    = axml.o  randomTree.o optimizeModel.o trash.o searchAlgo.o topologies.o fastDNAparsimony.o treeIO.o models.o evaluatePartialGenericSpecial.o evaluateGenericSpecial.o newviewGenericSpecial.o makenewzGenericSpecial.o bipartitionList.o restartHashTable.o avxLikelihood.o
+objs    = axml.o optimizeModel.o trash.o searchAlgo.o topologies.o treeIO.o models.o evaluatePartialGenericSpecial.o evaluateGenericSpecial.o newviewGenericSpecial.o makenewzGenericSpecial.o bipartitionList.o restartHashTable.o avxLikelihood.o
 
 all : examl-AVX
 
@@ -21,8 +21,7 @@ examl-AVX : $(objs)
 
 avxLikelihood.o : avxLikelihood.c $(GLOBAL_DEPS)
 	$(CC) $(CFLAGS) -mavx -c -o avxLikelihood.o avxLikelihood.c
-fastDNAparsimony.o : fastDNAparsimony.c  $(GLOBAL_DEPS)
-		   $(CC) $(CFLAGS) -mavx -c -o fastDNAparsimony.o fastDNAparsimony.c		   
+		   
 
 bipartitionList.o : bipartitionList.c $(GLOBAL_DEPS)
 evaluatePartialSpecialGeneric.o : evaluatePartialSpecialGeneric.c $(GLOBAL_DEPS)
@@ -38,7 +37,7 @@ evaluateGenericSpecial.o : evaluateGenericSpecial.c $(GLOBAL_DEPS)
 newviewGenericSpecial.o : newviewGenericSpecial.c $(GLOBAL_DEPS)
 makenewzGenericSpecial.o : makenewzGenericSpecial.c $(GLOBAL_DEPS)
 restartHashTable.o : restartHashTable.c $(GLOBAL_DEPS)
-randomTree.o : randomTree.c $(GLOBAL_DEPS)
+
 
 
 clean : 

@@ -335,8 +335,12 @@ double randum (long  *seed)
 
 static int filexists(char *filename)
 {
-  FILE *fp;
-  int res;
+  FILE 
+    *fp;
+  
+  int 
+    res;
+  
   fp = fopen(filename,"rb");
 
   if(fp)
@@ -770,7 +774,8 @@ static int mygetopt(int argc, char **argv, char *opts, int *optind, char **optar
 
 static void printVersionInfo(void)
 {
-  printf("\n\nThis is %s version %s released by Alexandros Stamatakis on %s.\n\n",  programName, programVersion, programDate); 
+  if(processID == 0)
+    printf("\n\nThis is %s version %s released by Alexandros Stamatakis on %s.\n\n",  programName, programVersion, programDate); 
 }
 
 static void printMinusFUsage(void)
@@ -795,147 +800,102 @@ static void printMinusFUsage(void)
 
 static void printREADME(void)
 {
-  printVersionInfo();
-  printf("\n");  
-  printf("\nTo report bugs send an email to raxml@h-its.org\n");
-  printf("Please send me all input files, the exact invocation, details of the HW and operating system,\n");
-  printf("as well as all error messages printed to screen.\n\n\n");
-
-  printf("examl|examl-AVX\n");
-  printf("      -s sequenceFileName| -G binarySequnceFile\n");
-  printf("      -n outputFileName\n");
-  printf("      -m substitutionModel\n");
-  printf("      -t userStartingTree| -R binaryCheckpointFile\n");
-  printf("      [-a]\n");
-  printf("      [-B numberOfMLtreesToSave]\n"); 
-  printf("      [-c numberOfCategories]\n");
-  printf("      [-D]\n");
-  printf("      [-e likelihoodEpsilon] \n");
-  printf("      [-f d|o]\n");    
-  printf("      [-h] \n");
-  printf("      [-i initialRearrangementSetting] \n");
-  printf("      [-M]\n");
-  printf("      [-P proteinModel]\n");
-  printf("      [-q multipleModelFileName] \n");
-  printf("      [-Q]\n");
-  printf("      [-S]\n");
-  printf("      [-T numberOfThreads]\n");  
-  printf("      [-v]\n"); 
-  printf("      [-w outputDirectory] \n"); 
-  printf("      [-X]\n");
-  printf("\n");  
-  printf("      -a      use the median for the discrete approximation of the GAMMA model of rate heterogeneity\n");
-  printf("\n");
-  printf("              DEFAULT: OFF\n");
-  printf("\n");
-  printf("      -B     specify the number of best ML trees to save and print to file\n");
-  printf("\n");
-  printf("      -c      Specify number of distinct rate catgories for ExaML when modelOfEvolution\n");
-  printf("              is set to GTRPSR\n");
-  printf("              Individual per-site rates are categorized into numberOfCategories rate \n");
-  printf("              categories to accelerate computations. \n");
-  printf("\n");
-  printf("              DEFAULT: 25\n");
-  printf("\n");
-  printf("      -D      ML search convergence criterion. This will break off ML searches if the relative \n");
-  printf("              Robinson-Foulds distance between the trees obtained from two consecutive lazy SPR cycles\n");
-  printf("              is smaller or equal to 1%s. Usage recommended for very large datasets in terms of taxa.\n", "%");
-  printf("              On trees with more than 500 taxa this will yield execution time improvements of approximately 50%s\n",  "%");
-  printf("              While yielding only slightly worse trees.\n");
-  printf("\n");
-  printf("              DEFAULT: OFF\n");    
-  printf("\n");
-  printf("      -e      set model optimization precision in log likelihood units for final\n");
-  printf("              optimization of model parameters\n");
-  printf("\n");
-  printf("              DEFAULT: 0.1 \n"); 
-  printf("\n");
-  printf("      -f      select algorithm:\n");
-
-  printMinusFUsage();
+  if(processID == 0)
+    {
+      printVersionInfo();
+      printf("\n");  
+      printf("\nTo report bugs use the RAxML google group\n");
+      printf("Please send me all input files, the exact invocation, details of the HW and operating system,\n");
+      printf("as well as all error messages printed to screen.\n\n\n");
+      
+      printf("examl|examl-AVX\n");
+      printf("      -s binarySequenceFileName\n");
+      printf("      -n outputFileNames\n");
+      printf("      -m rateHeterogeneityModel\n");
+      printf("      -t userStartingTree|-R binaryCheckpointFile\n");
+      printf("      [-a]\n");
+      printf("      [-B numberOfMLtreesToSave]\n"); 
+      printf("      [-c numberOfCategories]\n");
+      printf("      [-D]\n");
+      printf("      [-e likelihoodEpsilon] \n");
+      printf("      [-f d|o]\n");    
+      printf("      [-h] \n");
+      printf("      [-i initialRearrangementSetting] \n");
+      printf("      [-M]\n");
+      printf("      [-Q]\n");
+      printf("      [-S]\n");
+      printf("      [-v]\n"); 
+      printf("      [-w outputDirectory] \n"); 
+      printf("\n");  
+      printf("      -a      use the median for the discrete approximation of the GAMMA model of rate heterogeneity\n");
+      printf("\n");
+      printf("              DEFAULT: OFF\n");
+      printf("\n");
+      printf("      -B      specify the number of best ML trees to save and print to file\n");
+      printf("\n");
+      printf("      -c      Specify number of distinct rate catgories for ExaML when modelOfEvolution\n");
+      printf("              is set to GTRPSR\n");
+      printf("              Individual per-site rates are categorized into numberOfCategories rate \n");
+      printf("              categories to accelerate computations. \n");
+      printf("\n");
+      printf("              DEFAULT: 25\n");
+      printf("\n");
+      printf("      -D      ML search convergence criterion. This will break off ML searches if the relative \n");
+      printf("              Robinson-Foulds distance between the trees obtained from two consecutive lazy SPR cycles\n");
+      printf("              is smaller or equal to 1%s. Usage recommended for very large datasets in terms of taxa.\n", "%");
+      printf("              On trees with more than 500 taxa this will yield execution time improvements of approximately 50%s\n",  "%");
+      printf("              While yielding only slightly worse trees.\n");
+      printf("\n");
+      printf("              DEFAULT: OFF\n");    
+      printf("\n");
+      printf("      -e      set model optimization precision in log likelihood units for final\n");
+      printf("              optimization of model parameters\n");
+      printf("\n");
+      printf("              DEFAULT: 0.1 \n"); 
+      printf("\n");
+      printf("      -f      select algorithm:\n");
+      
+      printMinusFUsage();
  
-  printf("\n");
-  printf("      -G      Read in a binary alignment file (instead of a text-based phylip file with \"-s\") that was previsouly\n");
-  printf("              generated with the \"-B\" option. This can substantially save time spent in input parsing \n");
-  printf("              for very large parallel runs\n");
-  printf("\n");
-  printf("      -h      Display this help message.\n");
-  printf("\n");  
-  printf("      -i      Initial rearrangement setting for the subsequent application of topological \n");
-  printf("              changes phase\n");
-  printf("\n");
-  printf("      -m      Model of  Nucleotide or Amino Acid Substitution: \n");
-  printf("\n"); 
-  printf("              NUCLEOTIDES:\n\n");
-  printf("                \"-m GTRPSR\"         : GTR + Optimization of substitution rates + Optimization of site-specific\n");
-  printf("                                      evolutionary rates which are categorized into numberOfCategories distinct \n");
-  printf("                                      rate categories for greater computational efficiency.\n");
-  printf("                \"-m GTRGAMMA\"       : GTR + GAMMA model of rate heterogeneity. This uses 4 hard-coded discrete rates\n");
-  printf("                                      to discretize the GAMMA distribution.\n");
-  printf("\n");
-  printf("              AMINO ACIDS:\n\n");
-  printf("                \"-m PROTPSRmatrixName[F]\"         : specified AA matrix + Optimization of substitution rates + Optimization of site-specific\n");
-  printf("                                                    evolutionary rates which are categorized into numberOfCategories distinct \n");
-  printf("                                                    rate categories for greater computational efficiency.\n");  
-  printf("                \"-m PROTGAMMAmatrixName[F]\"       : specified AA matrix + GAMMA model of rate heterogeneity. This uses 4 hard-coded discrete rates\n");
-  printf("                                                    to discretize the GAMMA distribution.\n");
-  printf("\n");
-  printf("                Available AA substitution models: DAYHOFF, DCMUT, JTT, MTREV, WAG, RTREV, CPREV, VT, BLOSUM62, MTMAM, LG, MTART, MTZOA,\n");
-  printf("                PMB, HIVB, HIVW, JTTDCMUT, FLU, AUTO, GTR\n");
-  printf("                With the optional \"F\" appendix you can specify if you want to use empirical base frequencies\n");
-  printf("                Please note that for mixed models you can in addition specify the per-gene AA model in\n");
-  printf("                the mixed model file (see manual for details). Also note that if you estimate AA GTR parameters on a partitioned\n");
-  printf("                dataset, they will be linked (estimated jointly) across all partitions to avoid over-parametrization\n");
-  printf("                When AUTO is used ExaML will conduct an ML estimate of all available pre-defined AA models (excluding GTR) every time the model parameters\n");
-  printf("                are optimized during the tree search.\n");
-  printf("                WARNING: we have not figured out yet how to best do this for partitioned analyses, so don't use AUTO for datasets with partitions\n");
-  printf("\n");
-  printf("      -M      Switch on estimation of individual per-partition branch lengths. Only has effect when used in combination with \"-q\"\n");
-  printf("              Branch lengths for individual partitions will be printed to separate files\n");
-  printf("              A weighted average of the branch lengths is computed by using the respective partition lengths\n");
-  printf("\n"),
-  printf("              DEFAULT: OFF\n");
-  printf("\n");
-  printf("      -n      Specifies the name of the output file.\n");
-  printf("\n"); 
-  printf("      -P      Specify the file name of a user-defined AA (Protein) substitution model. This file must contain\n");
-  printf("              420 entries, the first 400 being the AA substitution rates (this must be a symmetric matrix) and the\n");
-  printf("              last 20 are the empirical base frequencies\n");
-  printf("\n");
-  printf("      -q      Specify the file name which contains the assignment of models to alignment\n");
-  printf("              partitions for multiple models of substitution. For the syntax of this file\n");
-  printf("              please consult the manual.\n");  
-  printf("\n");
-  printf("      -Q      Enable alternative data/load distribution algorithm for datasets with many partitions\n");
-  printf("              In particular under PSR this can lead to parallel performance improvements of over 50 per cent\n");
-  printf("\n");
-  printf("      -R      read in a binary checkpoint file called ExaML_binaryCheckpoint.RUN_ID_number\n");
-  printf("\n");
-  printf("      -s      Specify the name of the alignment data file in PHYLIP format\n");
-  printf("\n");
-  printf("      -S      turn on memory saving option for gappy multi-gene alignments. For large and gappy datasets specify -S to save memory\n");
-  printf("              This will produce slightly different likelihood values, may be a bit slower but can reduce memory consumption\n");
-  printf("              from 70GB to 19GB on very large and gappy datasets\n");
-  printf("\n");
-  printf("      -t      Specify a user starting tree file name in Newick format\n");
-  printf("\n");
-  printf("      -T      PTHREADS VERSION ONLY! Specify the number of threads you want to run.\n");
-  printf("              Make sure to set \"-T\" to at most the number of CPUs you have on your machine,\n");
-  printf("              otherwise, there will be a huge performance decrease!\n");
-  printf("\n");  
-  printf("      -v      Display version information\n");
-  printf("\n");
-  printf("      -w      FULL (!) path to the directory into which ExaML shall write its output files\n");
-  printf("\n");
-  printf("              DEFAULT: current directory\n"); 
-  printf("\n");
-  printf("      -X      EXPERIMENTAL OPTION: This option will do a per-site estimate of protein substitution models\n");
-  printf("              by looping over all given, fixed models LG, WAG, JTT, etc and using their respective base frequencies to independently\n");
-  printf("              assign a prot subst. model to each site via ML optimization\n");
-  printf("              At present this option only works with the GTR+GAMMA model, unpartitioned datasets, and in the sequential\n");
-  printf("              version only.\n");
-  printf("\n\n\n\n");
-
+      printf("\n");
+      printf("      -h      Display this help message.\n");
+      printf("\n");  
+      printf("      -i      Initial rearrangement setting for the subsequent application of topological \n");
+      printf("              changes phase\n");
+      printf("\n");
+      printf("      -m      Model of rate heterogeneity\n");
+      printf("\n"); 
+      printf("              select \"-m PSR\" for the per-site rate category model (this used to be called CAT in RAxML)\n");
+      printf("              select \"-m GAMMA\" for the gamma model of rate heterogeneity with 4 discrete rates\n");
+      printf("\n");
+      printf("      -M      Switch on estimation of individual per-partition branch lengths. Only has effect when used in combination with \"-q\"\n");
+      printf("              Branch lengths for individual partitions will be printed to separate files\n");
+      printf("              A weighted average of the branch lengths is computed by using the respective partition lengths\n");
+      printf("\n");
+      printf("              DEFAULT: OFF\n");
+      printf("\n");
+      printf("      -n      Specifies the name of the output file.\n"); 
+      printf("\n");
+      printf("      -Q      Enable alternative data/load distribution algorithm for datasets with many partitions\n");
+      printf("              In particular under PSR this can lead to parallel performance improvements of up to factor 10!\n");
+      printf("\n");
+      printf("      -R      read in a binary checkpoint file called ExaML_binaryCheckpoint.RUN_ID_number\n");
+      printf("\n");
+      printf("      -s      Specify the name of the BINARY alignment data file generated by the parser component\n");
+      printf("\n");
+      printf("      -S      turn on memory saving option for gappy multi-gene alignments. For large and gappy datasets specify -S to save memory\n");
+      printf("              This will produce slightly different likelihood values, may be a bit slower but can reduce memory consumption\n");
+      printf("              from 70GB to 19GB on very large and gappy datasets\n");
+      printf("\n");
+      printf("      -t      Specify a user starting tree file name in Newick format\n");
+      printf("\n");
+      printf("      -v      Display version information\n");
+      printf("\n");
+      printf("      -w      FULL (!) path to the directory into which ExaML shall write its output files\n");
+      printf("\n");
+      printf("              DEFAULT: current directory\n");  
+      printf("\n\n\n\n");
+    }
 }
 
 
@@ -991,14 +951,9 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
     c,
     nameSet = 0,
     treeSet = 0,   
-    modelSet = 0;
+    modelSet = 0, 
+    byteFileSet = 0;
 
-  boolean 
-    byteFileSet = FALSE;
-
-
- 
- 
 
   /*********** tr inits **************/ 
  
@@ -1012,9 +967,6 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
   tr->saveMemory = FALSE;
 
   tr->manyPartitions = FALSE;
-  
-  tr->startingTree = randomTree;
-  tr->randomNumberSeed = 12345;
 
   tr->categories             = 25;
 
@@ -1031,7 +983,7 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 
 
 
-  while(!bad_opt && ((c = mygetopt(argc,argv,"T:R:B:e:c:f:i:m:r:t:w:n:s:vhMSDQXbpa", &optind, &optarg))!=-1))
+  while(!bad_opt && ((c = mygetopt(argc,argv,"R:B:e:c:f:i:m:t:w:n:s:vhMSDQa", &optind, &optarg))!=-1))
     {
     switch(c)
       {    
@@ -1045,18 +997,7 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	    printf("Number of best trees to save must be greater than 0!\n");
 	    errorExit(-1);	 
 	  }
-	break;
-      case 'p':
-	tr->startingTree = parsimonyTree;
-	break;
-      case 'r':
-	sscanf(optarg,"%ld", &(tr->randomNumberSeed));	
-	if(tr->randomNumberSeed <= 0)
-	  {
-	    printf("Random number seed specified via -r must be greater than zero\n");
-	    errorExit(-1);
-	  }
-	break;
+	break;       
       case 'Q':
 	tr->manyPartitions = TRUE;   	
 	break;
@@ -1089,8 +1030,7 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
       
       case 'h':
 	printREADME();
-	errorExit(0);
-     
+	errorExit(0);     
       case 'c':
 	sscanf(optarg, "%d", &tr->categories);
 	break;     
@@ -1131,8 +1071,7 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	resultDirSet = TRUE;
         break;
       case 't':
-	strcpy(tree_file, optarg);
-	tr->startingTree = givenTree;
+	strcpy(tree_file, optarg);       
 	treeSet = 1;       
 	break;     
       case 'm':
@@ -1149,17 +1088,7 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	  }
 	else
 	  modelSet = 1;
-	break;
-      case 'b':
-#ifdef _BAYESIAN 	
-	adef->bayesian = TRUE;
-	printf("EXPERIMENTAL BAYESIAN ANALYSIS\n");
-	break;
-#else
-	printf("recompile with Bayesian Makefile to use the -b option \n");
-	errorExit(-1);
-	break;
-#endif
+	break;     
       default:
 	errorExit(-1);
       }
@@ -1172,46 +1101,48 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
   if(!byteFileSet)
     {
       if(processID == 0)
-	printf("\n Error, you must specify a binary format data file with the \"-s\" option\n");
+	printf("\nError, you must specify a binary format data file with the \"-s\" option\n");
       errorExit(-1);
     }
 
   if(!modelSet)
     {
       if(processID == 0)
-	printf("\n Error, you must specify a model of rate heterogeneity with the \"-m\" option\n");
+	printf("\nError, you must specify a model of rate heterogeneity with the \"-m\" option\n");
       errorExit(-1);
     }
 
   if(!nameSet)
     {
       if(processID == 0)
-	printf("\n Error: please specify a name for this run with -n\n");
+	printf("\nError: please specify a name for this run with -n\n");
       errorExit(-1);
     }
 
-  
-  
-  
+  if(!treeSet && !adef->useCheckpoint)
+    {
+      if(processID == 0)
+	{
+	  printf("\nError: please either specify a starting tree for this run with -t\n");
+	  printf("or re-start the run from a checkpoint with -R\n");
+	}
+      
+      errorExit(-1);
+    }
   
    {
-#ifdef WIN32
-    const 
-      char *separator = "\\";
-#else
+
     const 
       char *separator = "/";
-#endif
 
     if(resultDirSet)
       {
 	char 
 	  dir[1024] = "";
 	
-#ifndef WIN32
+
 	if(resultDir[0] != separator[0])
 	  strcat(dir, separator);
-#endif
 	
 	strcat(dir, resultDir);
 	
@@ -1234,9 +1165,6 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
       }
    }
 
-
-  
-
   return;
 }
 
@@ -1245,51 +1173,44 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 
 void errorExit(int e)
 {
+  MPI_Finalize();
 
   exit(e);
-
 }
 
 
 
 static void makeFileNames(void)
 {
-  int infoFileExists = 0;
-
-
-  
+  int 
+    infoFileExists = 0;
+    
   strcpy(resultFileName,       workdir);
   strcpy(logFileName,          workdir);  
   strcpy(infoFileName,         workdir);
-  strcpy(randomFileName,       workdir);  
   strcpy(binaryCheckpointName, workdir);
    
   strcat(resultFileName,       "ExaML_result.");
   strcat(logFileName,          "ExaML_log.");  
   strcat(infoFileName,         "ExaML_info.");
-  strcat(randomFileName,       "ExaML_randomTree.");  
   strcat(binaryCheckpointName, "ExaML_binaryCheckpoint.");
   
   strcat(resultFileName,       run_id);
   strcat(logFileName,          run_id);  
-  strcat(infoFileName,         run_id);
-  strcat(randomFileName,       run_id);  
+  strcat(infoFileName,         run_id); 
   strcat(binaryCheckpointName, run_id);
-  
 
+  infoFileExists = filexists(infoFileName);
 
-
-  if(processID == 0)
+  if(infoFileExists)
     {
-      infoFileExists = filexists(infoFileName);
-
-      if(infoFileExists)
+      if(processID == 0)
 	{
 	  printf("ExaML output files with the run ID <%s> already exist \n", run_id);
 	  printf("in directory %s ...... exiting\n", workdir);
-
-	  exit(-1);
 	}
+
+      errorExit(-1);	
     }
 }
 
@@ -2260,9 +2181,8 @@ int main (int argc, char *argv[])
     get_args(argc, argv, adef, tr); 
   
   /* generate the ExaML output file names and store them in strings */
-
-    if(processID == 0)
-      makeFileNames();
+    
+    makeFileNames();
 
     initializeTree(tr, adef);                               
     
@@ -2277,8 +2197,6 @@ int main (int argc, char *argv[])
        while checkpointing is important and has to be implemented for the library we should not worry about this right now 
     */
   
-   
-
     if(adef->useCheckpoint)
       {      
 	/* read checkpoint file */
@@ -2298,31 +2216,9 @@ int main (int argc, char *argv[])
 	/* get the starting tree: here we just parse the tree passed via the command line 
 	   and do an initial likelihood computation traversal 
 	   which we maybe should skeip, TODO */
-	
-	
-	switch(tr->startingTree)
-	  {
-	  case randomTree:
-	    assert(0);
-	    makeRandomTree(tr);
-	    break;
-	  case givenTree:
-	    getStartingTree(tr);     
-	    break;
-	  case parsimonyTree:	     
-	    /* runs only on process/thread 0 ! */
-	    assert(0);
-	    allocateParsimonyDataStructures(tr);
-	    makeParsimonyTreeFast(tr);
-	    freeParsimonyDataStructures(tr);
-	  break;
-	default:
-	  assert(0);
-	}
-
-	
-    
-      
+	       	
+	getStartingTree(tr);     
+	   	          
 	/* 
 	   here we do an initial full tree traversal on the starting tree using the Felsenstein pruning algorithm 
 	   This should basically be the first call to the library that actually computes something :-)
@@ -2337,10 +2233,10 @@ int main (int argc, char *argv[])
 	/* now start the ML search algorithm */
       
 
-	  computeBIGRAPID(tr, adef, TRUE); 			     
+	computeBIGRAPID(tr, adef, TRUE); 			     
       }            
       
-    /* print som more nonsense into the ExaML_info file */
+    /* print some more nonsense into the ExaML_info file */
   
     if(processID == 0)
       finalizeInfoFile(tr, adef);
