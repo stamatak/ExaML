@@ -151,6 +151,8 @@ static void getVects(tree *tr, unsigned char **tipX1, unsigned char **tipX2, dou
    So if we want to do a Newton-Rpahson optimization we only execute this function once in the beginning for each new branch we are considering !
 */
 
+#ifndef _OPTIMIZED_FUNCTIONS
+
 static void sumCAT_FLEX(int tipCase, double *sumtable, double *x1, double *x2, double *tipVector,
 			unsigned char *tipX1, unsigned char *tipX2, int n, const int states)
 {
@@ -303,6 +305,7 @@ static void sumGAMMA_FLEX(int tipCase, double *sumtable, double *x1, double *x2,
     }
 }
 
+#endif
 
 /* optimized functions for branch length optimization */
 
@@ -352,6 +355,8 @@ static void coreGTRCATPROT(double *EIGN, double lz, int numberOfCategories, doub
 
 #endif
 
+
+#ifndef _OPTIMIZED_FUNCTIONS
 
 /* now this is the core function of the newton-Raphson based branch length optimization that actually computes 
    the first and second derivative of the likelihood given a new proposed branch length lz */
@@ -574,6 +579,7 @@ static void coreGAMMA_FLEX(int upper, double *sumtable, volatile double *ext_dln
   
 }
 
+#endif
 
 /* the function below is called only once at the very beginning of each Newton-Raphson procedure for optimizing barnch lengths.
    It initially invokes an iterative newview call to get a consistent pair of vectors at the left and the right end of the 
@@ -957,29 +963,20 @@ static void topLevelMakenewz(tree *tr, double *z0, int _maxiter, double *result)
 	    send[model * 2 + 1]   = d2lnLdlz2[model];	    
 	  }
 	
-	if(0)
-	  {
-	    /* MPI_Allreduce is apparently not deterministic */
+#ifdef _USE_ALLREDUCE	  
+	/* the MPI_Allreduce implementation is apparently sometimes not deterministic */
 
-	    MPI_Allreduce(send, recv, tr->numBranches * 2, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);	    	    
-	    
-	    for(model = 0; model < tr->numBranches; model++)
-	      {	     
-		dlnLdlz[model]  = recv[model * 2 + 0];
-		d2lnLdlz2[model] =  recv[model * 2 + 1];
-	      }	
-	  }
-	else
-	  {
-	    MPI_Reduce(send, recv, tr->numBranches * 2, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-	    MPI_Bcast(recv, tr->numBranches * 2, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-
-	    for(model = 0; model < tr->numBranches; model++)
-	      {	     	
-		dlnLdlz[model]  = recv[model * 2 + 0];
-		d2lnLdlz2[model] =  recv[model * 2 + 1];	       
-	      }	
-	  }
+	MPI_Allreduce(send, recv, tr->numBranches * 2, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);	    	    
+#else
+	MPI_Reduce(send, recv, tr->numBranches * 2, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+	MPI_Bcast(recv, tr->numBranches * 2, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+#endif
+   
+	for(model = 0; model < tr->numBranches; model++)
+	  {	     
+	    dlnLdlz[model]  = recv[model * 2 + 0];
+	    d2lnLdlz2[model] =  recv[model * 2 + 1];
+	  }	
 
 	free(send);
 	free(recv);

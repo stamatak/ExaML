@@ -87,13 +87,7 @@ void storeValuesInTraversalDescriptor(tree *tr, double *value)
      tr->td[0].parameterValues[model] = value[model];
 }
 
-static void myBinFwrite(const void *ptr, size_t size, size_t nmemb, FILE *byteFile)
-{ 
-  size_t  
-    bytes_written = fwrite(ptr, size, nmemb, byteFile);
 
-  assert(bytes_written == nmemb);
-}
 
 
 static void myBinFread(void *ptr, size_t size, size_t nmemb, FILE *byteFile)
@@ -1247,7 +1241,7 @@ static void printModelAndProgramInfo(tree *tr, analdef *adef, int argc, char *ar
       
       
      
-      printBoth(infoFile, "\nAlignment has %d distinct alignment patterns\n\n",  tr->originalCrunchedLength);
+      printBoth(infoFile, "\nAlignment has %z distinct alignment patterns\n\n",  tr->originalCrunchedLength);
       
      
       
@@ -1597,16 +1591,19 @@ static void computeFractionMany(tree *tr, int tid)
 static void computeFraction(tree *tr, int tid, int n)
 {
   int
-    i,
     model;
+
+  size_t 
+    i;
 
   for(model = 0; model < tr->NumberOfModels; model++)
     {
-      int width = 0;
+      size_t 
+	width = 0;
 
       for(i = tr->partitionData[model].lower; i < tr->partitionData[model].upper; i++)
-	if(i % n == tid)
-	      width++;
+	if(i % n == (size_t)tid)
+	  width++;
 
       tr->partitionData[model].width = width;
     }
@@ -1831,11 +1828,11 @@ static void initializePartitions(tree *tr, FILE *byteFile)
   maxCategories = tr->maxCategories;
 
   for(model = 0; model < (size_t)tr->NumberOfModels; model++)
-    {            
-      width = tr->partitionData[model].width;
-      
+    {                       
       const partitionLengths 
-	*pl = getPartitionLengths(&(tr->partitionData[model]));
+	*pl = getPartitionLengths(&(tr->partitionData[model])); 
+
+      width = tr->partitionData[model].width;
 
       tr->partitionData[model].wr = (double *)malloc(sizeof(double) * width);
       tr->partitionData[model].wr2 = (double *)malloc(sizeof(double) * width);     
@@ -2048,7 +2045,7 @@ static void initializeTree(tree *tr, analdef *adef)
     **empiricalFrequencies;	 
   
   myBinFread(&(tr->mxtips),                 sizeof(int), 1, byteFile);
-  myBinFread(&(tr->originalCrunchedLength), sizeof(int), 1, byteFile);
+  myBinFread(&(tr->originalCrunchedLength), sizeof(size_t), 1, byteFile);
   myBinFread(&(tr->NumberOfModels),         sizeof(int), 1, byteFile);
   myBinFread(&(tr->gapyness),            sizeof(double), 1, byteFile);
    
@@ -2108,9 +2105,9 @@ static void initializeTree(tree *tr, analdef *adef)
       
       myBinFread(&(p->states),             sizeof(int), 1, byteFile);
       myBinFread(&(p->maxTipStates),       sizeof(int), 1, byteFile);
-      myBinFread(&(p->lower),              sizeof(int), 1, byteFile);
-      myBinFread(&(p->upper),              sizeof(int), 1, byteFile);
-      myBinFread(&(p->width),              sizeof(int), 1, byteFile);
+      myBinFread(&(p->lower),              sizeof(size_t), 1, byteFile);
+      myBinFread(&(p->upper),              sizeof(size_t), 1, byteFile);
+      myBinFread(&(p->width),              sizeof(size_t), 1, byteFile);
       myBinFread(&(p->dataType),           sizeof(int), 1, byteFile);
       myBinFread(&(p->protModels),         sizeof(int), 1, byteFile);
       myBinFread(&(p->autoProtModels),     sizeof(int), 1, byteFile);

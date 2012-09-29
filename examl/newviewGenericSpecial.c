@@ -167,7 +167,7 @@ static void makeP(double z1, double z2, double *rptr, double *EI,  double *EIGN,
    conditional likelihood arrays at p, given child nodes q and r. Once again we need 
    two generic function implementations, one for CAT and one for GAMMA */
 
-
+#ifndef _OPTIMIZED_FUNCTIONS
 
 static void newviewCAT_FLEX(int tipCase, double *extEV,
 			    int *cptr,
@@ -636,7 +636,7 @@ static void newviewGAMMA_FLEX(int tipCase,
   *scalerIncrement = addScale;
 }
 
-
+#endif
 
 
     

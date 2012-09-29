@@ -1406,23 +1406,35 @@ static void categorizePartition(tree *tr, rateCategorize *rc, int model, int low
 static void optRateCatPthreads(tree *tr, double lower_spacing, double upper_spacing, double *lhs, int n, int tid)
 {
   int 
-    model, 
+    model;
+
+  size_t
     i;
 
   for(model = 0; model < tr->NumberOfModels; model++)
     {      
-      int 
+      size_t
 	localIndex = 0;
      
       for(i = tr->partitionData[model].lower;  i < tr->partitionData[model].upper; i++)
 	{
-	  if(i % n == tid)
+	  if(i % n == (size_t)tid)
 	    {
 	      
-	      double initialRate, initialLikelihood, 
-		leftLH, rightLH, leftRate, rightRate, v;
-	      const double epsilon = 0.00001;
-	      int k;	      
+	      double 
+		initialRate, 
+		initialLikelihood, 
+		leftLH, 
+		rightLH, 
+		leftRate, 
+		rightRate, 
+		v;
+	      
+	      const double 
+		epsilon = 0.00001;
+	      
+	      int 
+		k;	      
 	      
 	      tr->patrat[i] = tr->patratStored[i];     
 	      initialRate = tr->patrat[i];
@@ -1734,14 +1746,16 @@ static void gatherCatsMaster(tree *tr, int tid, int n)
       
       {	
 	int 	  
-	  *numCAT = (int *)calloc(tr->maxCategories, sizeof(int)),
-	  k, 
+	  *numCAT = (int *)calloc(tr->maxCategories, sizeof(int)),	 
 	  numCats = 0;
+
+	size_t
+	  k;
 
 	for(k = tr->partitionData[model].lower; k < tr->partitionData[model].upper; k++)
 	  numCAT[tr->rateCategory[k]] = 1;
 
-	for(k = 0; k < tr->maxCategories; k++)
+	for(k = 0; k < (size_t)tr->maxCategories; k++)
 	  if(numCAT[k] == 1)
 	    numCats++;
 	
@@ -1749,9 +1763,7 @@ static void gatherCatsMaster(tree *tr, int tid, int n)
 	  assert(tr->partitionData[model].numberOfCategories == numCats);
 
 	tr->partitionData[model].numberOfCategories = numCats;
-
-	
-
+       
 	free(numCAT);
       }
 
@@ -2112,16 +2124,19 @@ static void updatePerSiteRatesManyPartitions(tree *tr, boolean scaleRates)
 
 static void gatherRatesFewPartitions(tree *tr, int tid)
 {
-  int n = processes;
+  size_t
+    n = (size_t)processes;
 
   if(tid == 0)
     {
-       int
-          localCounter,
-          model,
-          i,
-          sendBufferSize = (tr->originalCrunchedLength / n) + 1,
-          recvBufferSize = sendBufferSize * n;
+      int 
+	model;
+
+      size_t
+	localCounter,
+	i,         
+	sendBufferSize = (tr->originalCrunchedLength / n) + 1,
+	recvBufferSize = sendBufferSize * n;
 
         double 	  	
           *patBufSend = (double *)malloc(sendBufferSize * sizeof(double)),
@@ -2134,7 +2149,7 @@ static void gatherRatesFewPartitions(tree *tr, int tid)
         for(model = 0, localCounter = 0; model < tr->NumberOfModels; model++)
 	  {               	      	     
 	    for(i = tr->partitionData[model].lower;  i < tr->partitionData[model].upper; i++)
-	      if(i % n == tid)
+	      if(i % n == (size_t)tid)
 		{
 		  patBufSend[localCounter] = tr->patrat[i];
 		  patStoredBufSend[localCounter] = tr->patratStored[i];
@@ -2171,7 +2186,9 @@ static void gatherRatesFewPartitions(tree *tr, int tid)
   else
     {
       int 
-	model,
+	model;
+      
+      size_t
 	i,
 	localCounter,
 	sendBufferSize = (tr->originalCrunchedLength / n) + 1;
@@ -2185,7 +2202,7 @@ static void gatherRatesFewPartitions(tree *tr, int tid)
       for(model = 0, localCounter = 0; model < tr->NumberOfModels; model++)
 	{               		  		  
 	  for(i = tr->partitionData[model].lower; i < tr->partitionData[model].upper; i++)
-	    if(i % n == tid)
+	    if(i % n == (size_t)tid)
 	      {
 		patBufSend[localCounter] = tr->patrat[i];
 		patStoredBufSend[localCounter] = tr->patratStored[i];
@@ -2207,8 +2224,10 @@ static void gatherRatesFewPartitions(tree *tr, int tid)
 static void broadcastRatesFewPartitions(tree *tr, int tid)
 { 
   int 
-    model,
-    n = processes;
+    model;
+  
+  size_t
+    n = (size_t)processes;
   
   MPI_Bcast(tr->patrat, tr->originalCrunchedLength, MPI_DOUBLE, 0, MPI_COMM_WORLD);
   MPI_Bcast(tr->patratStored, tr->originalCrunchedLength, MPI_DOUBLE, 0, MPI_COMM_WORLD);
@@ -2226,13 +2245,13 @@ static void broadcastRatesFewPartitions(tree *tr, int tid)
   
   for(model = 0; model < tr->NumberOfModels; model++)
     {
-      int
+      size_t
 	i,
 	localCounter;
 
       for(localCounter = 0, i = tr->partitionData[model].lower;  i < tr->partitionData[model].upper; i++)
 	{
-	  if(i % n == tid)
+	  if(i % n == (size_t)tid)
 	    {		 
 	      tr->partitionData[model].rateCategory[localCounter] = tr->rateCategory[i];
 	      tr->partitionData[model].wr[localCounter]             = tr->wr[i];

@@ -79,6 +79,8 @@ static double evaluatePartialGTRCAT(int i, double ki, int counter,  traversalInf
 
 #endif
 
+#ifndef _OPTIMIZED_FUNCTIONS
+
 static inline void computeVectorCAT_FLEX(double *lVector, int *eVector, double ki, int i, double qz, double rz,
 					 traversalInfo *ti, double *EIGN, double *EI, double *EV, double *tipVector, 
 					 unsigned char **yVector, int mxtips, const int states)
@@ -244,7 +246,7 @@ static double evaluatePartialCAT_FLEX(int i, double ki, int counter,  traversalI
   return  term;
 }
 
-
+#endif
 
 double evaluatePartialGeneric (tree *tr, int i, double ki, int _model)
 {

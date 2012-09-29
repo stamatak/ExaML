@@ -447,35 +447,14 @@ static void getyspace (rawdata *rdta)
 }
 
 
-static unsigned int KISS32(void)
-{
-  static unsigned int 
-    x = 123456789, 
-    y = 362436069,
-    z = 21288629,
-    w = 14921776,
-    c = 0;
 
-  unsigned int t;
-
-  x += 545925293;
-  y ^= (y<<13); 
-  y ^= (y>>17); 
-  y ^= (y<<5);
-  t = z + w + c; 
-  z = w; 
-  c = (t>>31); 
-  w = t & 2147483647;
-
-  return (x+y+w);
-}
 
 static boolean setupTree (tree *tr, analdef *adef)
 {
-  nodeptr  p0, p, q;
+  nodeptr  
+    p0;
+  
   int
-    i,
-    j,   
     tips,
     inter; 
 
@@ -561,16 +540,7 @@ static boolean setupTree (tree *tr, analdef *adef)
       return  FALSE;
     }
   
-  /*  tr->nodeBaseAddress = p0;
-
-
-  if (!(tr->nodep = (nodeptr *) malloc((2*tr->mxtips) * sizeof(nodeptr))))
-    {
-      printf("\n Error: unable to obtain sufficient tree memory, too\n\n");
-      return  FALSE;
-      }*/
-
-  //tr->nodep[0] = (node *) NULL;    /* Use as 1-based array */
+ 
 
   
 
@@ -1732,8 +1702,8 @@ static boolean makevalues(rawdata *rdta, cruncheddata *cdta, tree *tr, analdef *
 	{
 	  if(tr->model[i] != model)
 	    {
-	      tr->partitionData[modelCounter].upper     = i;
-	      tr->partitionData[modelCounter + 1].lower = i;
+	      tr->partitionData[modelCounter].upper     = (size_t)i;
+	      tr->partitionData[modelCounter + 1].lower = (size_t)i;
 
 	      model = tr->model[i];	     
 	      modelCounter++;
@@ -1742,7 +1712,7 @@ static boolean makevalues(rawdata *rdta, cruncheddata *cdta, tree *tr, analdef *
 	}
 
 
-      tr->partitionData[tr->NumberOfModels - 1].upper = cdta->endsite;      
+      tr->partitionData[tr->NumberOfModels - 1].upper = (size_t)cdta->endsite;      
     
       for(i = 0; i < tr->NumberOfModels; i++)		  
 	tr->partitionData[i].width      = tr->partitionData[i].upper -  tr->partitionData[i].lower;
@@ -1768,7 +1738,7 @@ static boolean makevalues(rawdata *rdta, cruncheddata *cdta, tree *tr, analdef *
   else
     {
       tr->partitionData[0].lower = 0;
-      tr->partitionData[0].upper = cdta->endsite;
+      tr->partitionData[0].upper = (size_t)cdta->endsite;
       tr->partitionData[0].width =  tr->partitionData[0].upper -  tr->partitionData[0].lower;
     }
 
@@ -1778,7 +1748,7 @@ static boolean makevalues(rawdata *rdta, cruncheddata *cdta, tree *tr, analdef *
   tr->originalCrunchedLength = tr->cdta->endsite;
     
   for(i = 0; i < rdta->numsp; i++)
-    tr->yVector[i + 1] = &(rdta->y0[((size_t)tr->originalCrunchedLength) * ((size_t)i)]);
+    tr->yVector[i + 1] = &(rdta->y0[(tr->originalCrunchedLength) * ((size_t)i)]);
 
   return TRUE;
 }
@@ -1844,9 +1814,6 @@ static void initAdef(analdef *adef)
 
 static int dataExists(char *model, analdef *adef)
 {
-  int i;
-  char thisModel[1024];
-
   /********** BINARY ********************/
 
    if(strcmp(model, "BIN\0") == 0)
@@ -2064,24 +2031,17 @@ static void analyzeRunId(char id[128])
 static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 {
   boolean
-    bad_opt    =FALSE,
-    resultDirSet = FALSE;
+    bad_opt    =FALSE;
 
   char
-    resultDir[1024] = "",          
-    *optarg,
-    model[2048] = "",       
-    modelChar;
-
-  double 
-    likelihoodEpsilon;
+    *optarg = (char*)NULL,
+    model[2048] = "";
   
   int  
     optind = 1,        
     c,
     nameSet = 0,
-    alignmentSet = 0,    
-    treeSet = 0,   
+    alignmentSet = 0,     
     modelSet = 0;
 
 
@@ -2450,7 +2410,7 @@ static void genericBaseFrequencies(tree *tr, const int numFreqs, rawdata *rdta, 
 	      
       for (i = 0; i < rdta->numsp; i++) 
 	{		 
-	  yptr =  &(rdta->y0[((size_t)i) * ((size_t)tr->originalCrunchedLength)]);
+	  yptr =  &(rdta->y0[((size_t)i) * (tr->originalCrunchedLength)]);
 	  
 	  for(j = lower; j < upper; j++) 
 	    {
@@ -2533,10 +2493,14 @@ static void genericBaseFrequencies(tree *tr, const int numFreqs, rawdata *rdta, 
 
 static void baseFrequenciesGTR(rawdata *rdta, cruncheddata *cdta, tree *tr)
 {  
-  int 
-    model,
+  int
+    model;
+
+  size_t
     lower,
-    upper,
+    upper;
+  
+  int
     states;
 
   for(model = 0; model < tr->NumberOfModels; model++)
@@ -2553,7 +2517,8 @@ static void baseFrequenciesGTR(rawdata *rdta, cruncheddata *cdta, tree *tr)
 	    case ORDERED_MULTI_STATE:
 	    case MK_MULTI_STATE:	   
 	      {	       
-		int i;
+		int 
+		  i;
 		double 
 		  freq = 1.0 / (double)states,
 		  acc = 0.0;
@@ -2690,15 +2655,13 @@ int main (int argc, char *argv[])
       i,
       model;
     
-    unsigned char *y;
-    
     myBinFwrite(&(tr->mxtips),                 sizeof(int), 1);
-    myBinFwrite(&(tr->originalCrunchedLength), sizeof(int), 1);
+    myBinFwrite(&(tr->originalCrunchedLength), sizeof(size_t), 1);
     myBinFwrite(&(tr->NumberOfModels),         sizeof(int), 1);
     myBinFwrite(&(adef->gapyness),             sizeof(double), 1);
     myBinFwrite(tr->cdta->aliaswgt,               sizeof(int), tr->originalCrunchedLength);	  	  	       	
 	
-    for(i = 1; i <= tr->mxtips; i++)
+    for(i = 1; i <= (size_t)tr->mxtips; i++)
       {
 	int len = strlen(tr->nameList[i]) + 1;
 	myBinFwrite(&len, sizeof(int), 1);
@@ -2715,9 +2678,9 @@ int main (int argc, char *argv[])
 	
 	myBinFwrite(&(p->states),             sizeof(int), 1);
 	myBinFwrite(&(p->maxTipStates),       sizeof(int), 1);
-	myBinFwrite(&(p->lower),              sizeof(int), 1);
-	myBinFwrite(&(p->upper),              sizeof(int), 1);
-	myBinFwrite(&(p->width),              sizeof(int), 1);
+	myBinFwrite(&(p->lower),              sizeof(size_t), 1);
+	myBinFwrite(&(p->upper),              sizeof(size_t), 1);
+	myBinFwrite(&(p->width),              sizeof(size_t), 1);
 	myBinFwrite(&(p->dataType),           sizeof(int), 1);
 	myBinFwrite(&(p->protModels),         sizeof(int), 1);
 	myBinFwrite(&(p->autoProtModels),     sizeof(int), 1);
@@ -2738,7 +2701,7 @@ int main (int argc, char *argv[])
       }	            
       
     
-    myBinFwrite(rdta->y0, sizeof(unsigned char), ((size_t)tr->originalCrunchedLength) * ((size_t)tr->mxtips));          
+    myBinFwrite(rdta->y0, sizeof(unsigned char), (tr->originalCrunchedLength) * ((size_t)tr->mxtips));          
   }
 
 

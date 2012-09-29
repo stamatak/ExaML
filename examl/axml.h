@@ -501,9 +501,9 @@ typedef unsigned int parsimonyNumber;
 typedef struct {
   int     states;
   int     maxTipStates;
-  int     lower;
-  int     upper;
-  int     width;
+  size_t     lower;
+  size_t     upper;
+  size_t     width;
   int     dataType;
   int     protModels;
   int     autoProtModels;
@@ -698,7 +698,7 @@ typedef  struct  {
 
   unsigned char             **yVector;
   int              secondaryStructureModel;
-  int              originalCrunchedLength;
+  size_t           originalCrunchedLength;
  
  
   int              *secondaryStructurePairs;
@@ -1167,11 +1167,11 @@ extern void newviewGTRCAT_AVX(int tipCase,  double *EV,  int *cptr,
 			      int n,  double *left, double *right, int *wgt, int *scalerIncrement);
 
 
-extern void newviewGenericCATPROT_AVX(int tipCase, double *extEV,
-				      int *cptr,
-				      double *x1, double *x2, double *x3, double *tipVector,
-				      unsigned char *tipX1, unsigned char *tipX2,
-				      int n, double *left, double *right, int *wgt, int *scalerIncrement);
+extern void newviewGTRCATPROT_AVX(int tipCase, double *extEV,
+				  int *cptr,
+				  double *x1, double *x2, double *x3, double *tipVector,
+				  unsigned char *tipX1, unsigned char *tipX2,
+				  int n, double *left, double *right, int *wgt, int *scalerIncrement);
 
 
 extern void newviewGTRGAMMA_AVX(int tipCase,

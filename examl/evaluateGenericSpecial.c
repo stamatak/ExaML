@@ -114,6 +114,8 @@ static void calcDiagptable(const double z, const int states, const int numberOfC
 }
 
 
+#ifndef _OPTIMIZED_FUNCTIONS
+
 /* below a a slow generic implementation of the likelihood computation at the root under the GAMMA model */
 
 static double evaluateGAMMA_FLEX(int *wptr,
@@ -273,6 +275,8 @@ static double evaluateCAT_FLEX (int *cptr, int *wptr,
   return  sum;         
 } 
 
+#endif
+
 /* below are the function headers for unreadeble highly optimized versions of the above functions 
    for DNA and protein data that also use SSE3 intrinsics and implement some memory saving tricks.
    The actual functions can be found at the end of this source file. 
@@ -289,8 +293,8 @@ static double evaluateCAT_FLEX (int *cptr, int *wptr,
 */
    
 
-
 #ifdef _OPTIMIZED_FUNCTIONS
+
 /* GAMMA for proteins with memory saving */
 
 static double evaluateGTRGAMMAPROT_GAPPED_SAVE (int *wptr,
@@ -730,41 +734,25 @@ void evaluateGeneric (tree *tr, nodeptr p, boolean fullTraversal)
 
   evaluateIterative(tr);  
     		
-
-
-  if(0)
-    {
-      double 
-	*recv = (double *)malloc(sizeof(double) * tr->NumberOfModels);
-      
-      MPI_Allreduce(tr->perPartitionLH, recv, tr->NumberOfModels, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-      
-      for(model = 0; model < tr->NumberOfModels; model++)
-	{
-	  /* TODO ??? */
-	  /*tr->perPartitionLH[model] = recv[model];	*/
-	  result += recv[model];
-	}
-      
-      free(recv);
-    }
-  else
-    {
-      double 
-	*recv = (double *)malloc(sizeof(double) * tr->NumberOfModels);
-      
-      MPI_Reduce(tr->perPartitionLH, recv, tr->NumberOfModels, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-      MPI_Bcast(recv, tr->NumberOfModels, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-      
-      for(model = 0; model < tr->NumberOfModels; model++)
-	{
-	  /* TODO ??? */
-	  tr->perPartitionLH[model] = recv[model];
-	  result += recv[model];
-	}           
-      
-      free(recv);      
-    }
+  {
+    double 
+      *recv = (double *)malloc(sizeof(double) * tr->NumberOfModels);
+    
+#ifdef _USE_ALLREDUCE   
+    MPI_Allreduce(tr->perPartitionLH, recv, tr->NumberOfModels, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+#else
+    MPI_Reduce(tr->perPartitionLH, recv, tr->NumberOfModels, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Bcast(recv, tr->NumberOfModels, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+#endif
+    
+    for(model = 0; model < tr->NumberOfModels; model++)
+      {	 
+	tr->perPartitionLH[model] = recv[model];
+	result += recv[model];
+      }
+    
+    free(recv);
+  }
 
 
   /* set the tree data structure likelihood value to the total likelihood */

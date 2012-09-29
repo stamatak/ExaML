@@ -3793,7 +3793,12 @@ static void initializeBaseFreqs(tree *tr, double **empiricalFrequencies)
 
 void initModel(tree *tr, double **empiricalFrequencies)
 {  
-  int model, j;
+  int 
+    model;
+  
+  size_t
+    j;
+  
   double  temp;  
      
   optimizeRateCategoryInvocations = 1;      
