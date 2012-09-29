@@ -1876,15 +1876,15 @@ static int dataExists(char *model, analdef *adef)
 
 static void printVersionInfo(void)
 {
-  printf("\n\nThis is %s version %s released by Alexandros Stamatakis on %s.\n\n",  programName, programVersion, programDate); 
+  printf("\n\nThis is %s version %s released by Alexandros Stamatakis in %s.\n\n",  programName, programVersion, programDate); 
 }
 
 static void printREADME(void)
 {
   printVersionInfo();
   printf("\n");  
-  printf("\nTo report bugs send an email to raxml@h-its.org\n");
-  printf("Please send me all input files, the exact invocation, details of the HW and operating system,\n");
+  printf("\nTo report bugs use the RAxML google group\n");
+  printf("Please send us all input files, the exact invocation, details of the HW and operating system,\n");
   printf("as well as all error messages printed to screen.\n\n\n");
 
   printf("parser\n");
