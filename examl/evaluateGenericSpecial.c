@@ -745,12 +745,11 @@ void evaluateGeneric (tree *tr, nodeptr p, boolean fullTraversal)
     MPI_Bcast(recv, tr->NumberOfModels, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 #endif
     
-    for(model = 0; model < tr->NumberOfModels; model++)
-      {	 
-	tr->perPartitionLH[model] = recv[model];
-	result += recv[model];
-      }
-    
+    memcpy(tr->perPartitionLH, recv, tr->NumberOfModels * sizeof(double));
+
+    for(model = 0; model < tr->NumberOfModels; model++)        
+      result += tr->perPartitionLH[model];
+         
     free(recv);
   }
 

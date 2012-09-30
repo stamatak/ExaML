@@ -3833,12 +3833,9 @@ void initModel(tree *tr, double **empiricalFrequencies)
       tr->partitionData[model].alpha = 1.0;    
       if(tr->partitionData[model].protModels == AUTO)
 	tr->partitionData[model].autoProtModels = WAG; /* initialize by WAG per default */
-      
-                     
-#ifndef _LOCAL_DISCRETIZATION      
+                         
       initReversibleGTR(tr, model);
-      makeGammaCats(tr->partitionData[model].alpha, tr->partitionData[model].gammaRates, 4, tr->useMedian);    
-#endif 
+      makeGammaCats(tr->partitionData[model].alpha, tr->partitionData[model].gammaRates, 4, tr->useMedian);     
     }                   		       
   
    

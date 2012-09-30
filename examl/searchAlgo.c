@@ -1307,9 +1307,8 @@ static void readCheckpoint(tree *tr)
       myfread(tr->partitionData[model].tipVector, sizeof(double),  pLengths[dataType].tipVectorLength, f);  
       myfread(tr->partitionData[model].substRates, sizeof(double),  pLengths[dataType].substRatesLength, f);  
       myfread(&(tr->partitionData[model].alpha), sizeof(double), 1, f);
-#ifndef _LOCAL_DISCRETIZATION
+
       makeGammaCats(tr->partitionData[model].alpha, tr->partitionData[model].gammaRates, 4, tr->useMedian);
-#endif
     }
     
 

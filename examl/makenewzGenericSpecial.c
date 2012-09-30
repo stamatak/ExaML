@@ -852,7 +852,7 @@ void execCore(tree *tr, volatile double *_dlnLdlz, volatile double *_d2lnLdlz2)
 static void topLevelMakenewz(tree *tr, double *z0, int _maxiter, double *result)
 {
   double   z[NUM_BRANCHES], zprev[NUM_BRANCHES], zstep[NUM_BRANCHES];
-  volatile double  dlnLdlz[NUM_BRANCHES], d2lnLdlz2[NUM_BRANCHES];
+  double  dlnLdlz[NUM_BRANCHES], d2lnLdlz2[NUM_BRANCHES];
   int i, maxiter[NUM_BRANCHES], model;
   boolean firstIteration = TRUE;
   boolean outerConverged[NUM_BRANCHES];
@@ -952,16 +952,10 @@ static void topLevelMakenewz(tree *tr, double *z0, int _maxiter, double *result)
       {
 	double 
 	  *send = (double *)malloc(sizeof(double) * tr->numBranches * 2),
-	  *recv = (double *)malloc(sizeof(double) * tr->numBranches * 2);
-
-	int
-	  model;		
+	  *recv = (double *)malloc(sizeof(double) * tr->numBranches * 2);		
   
-	for(model = 0; model < tr->numBranches; model++)
-	  {	     
-	    send[model * 2 + 0]   = dlnLdlz[model];
-	    send[model * 2 + 1]   = d2lnLdlz2[model];	    
-	  }
+	memcpy(&send[0],                dlnLdlz,   sizeof(double) * tr->numBranches);
+	memcpy(&send[tr->numBranches],  d2lnLdlz2, sizeof(double) * tr->numBranches);
 	
 #ifdef _USE_ALLREDUCE	  
 	/* the MPI_Allreduce implementation is apparently sometimes not deterministic */
@@ -969,14 +963,11 @@ static void topLevelMakenewz(tree *tr, double *z0, int _maxiter, double *result)
 	MPI_Allreduce(send, recv, tr->numBranches * 2, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);	    	    
 #else
 	MPI_Reduce(send, recv, tr->numBranches * 2, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-	MPI_Bcast(recv, tr->numBranches * 2, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-#endif
-   
-	for(model = 0; model < tr->numBranches; model++)
-	  {	     
-	    dlnLdlz[model]  = recv[model * 2 + 0];
-	    d2lnLdlz2[model] =  recv[model * 2 + 1];
-	  }	
+	MPI_Bcast(recv,        tr->numBranches * 2, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+#endif   
+
+	memcpy(dlnLdlz,   &recv[0],               sizeof(double) * tr->numBranches);
+	memcpy(d2lnLdlz2, &recv[tr->numBranches], sizeof(double) * tr->numBranches);
 
 	free(send);
 	free(recv);
@@ -996,7 +987,7 @@ static void topLevelMakenewz(tree *tr, double *z0, int _maxiter, double *result)
 	    }
 	}
 
-      /* do the standard NR step to obrain the next value, depending on the state for eahc partition */
+      /* do the standard NR step to obrain the next value, depending on the state for each partition */
 
       for(i = 0; i < tr->numBranches; i++)
 	{

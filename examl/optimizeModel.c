@@ -962,9 +962,8 @@ static void optAlpha(tree *tr, double modelEpsilon, linkageList *ll)
 	  for(k = 0; k < ll->ld[i].partitions; k++)
 	    {	      
 	      tr->partitionData[ll->ld[i].partitionList[k]].alpha = startAlpha[i];
-#ifndef _LOCAL_DISCRETIZATION
-	      makeGammaCats(tr->partitionData[ll->ld[i].partitionList[k]].alpha, tr->partitionData[ll->ld[i].partitionList[k]].gammaRates, 4, tr->useMedian); 	      
-#endif		
+
+	      makeGammaCats(tr->partitionData[ll->ld[i].partitionList[k]].alpha, tr->partitionData[ll->ld[i].partitionList[k]].gammaRates, 4, tr->useMedian); 	      	
 	    }
 
 	}  
@@ -1094,9 +1093,8 @@ static void optRates(tree *tr, double modelEpsilon, linkageList *ll, int numberO
 		    {
 		      int index = ll->ld[k].partitionList[j];
 		      tr->partitionData[index].substRates[i] = startRates[pos * numberOfRates + i];
-#ifndef _LOCAL_DISCRETIZATION 	             	  
+
 		      initReversibleGTR(tr, index);		     
-#endif
 		    }
 
 		}
@@ -2837,9 +2835,8 @@ static void autoProtein(tree *tr)
 	      if(tr->partitionData[model].protModels == AUTO)
 		{
 		  tr->partitionData[model].autoProtModels = i;
-#ifndef _LOCAL_DISCRETIZATION 
+
 		  initReversibleGTR(tr, model);  
-#endif
 		}
 	    }
 	  
@@ -2870,9 +2867,9 @@ static void autoProtein(tree *tr)
 	  if(tr->partitionData[model].protModels == AUTO)
 	    {
 	      tr->partitionData[model].autoProtModels = bestIndex[model];
-#ifndef _LOCAL_DISCRETIZATION 
+
 	      initReversibleGTR(tr, model);  
-#endif
+
 	      printBothOpen("Partition: %d best-scoring AA model: %s likelihood %f\n", model, protModels[tr->partitionData[model].autoProtModels], bestScores[model]);
 	    }	 
 	}
