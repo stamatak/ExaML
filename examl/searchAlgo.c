@@ -1061,7 +1061,7 @@ static void writeTree(tree *tr, FILE *f)
 
 int ckpCount = 0;
 
-static void writeCheckpoint(tree *tr)
+void writeCheckpoint(tree *tr)
 {
   int   
     model; 
@@ -1123,6 +1123,8 @@ static void writeCheckpoint(tree *tr)
       myfwrite(tr->partitionData[model].tipVector, sizeof(double),  pLengths[dataType].tipVectorLength, f);  
       myfwrite(tr->partitionData[model].substRates, sizeof(double),  pLengths[dataType].substRatesLength, f);    
       myfwrite(&(tr->partitionData[model].alpha), sizeof(double), 1, f);
+      myfwrite(&(tr->partitionData[model].protModels), sizeof(int), 1, f);
+      myfwrite(&(tr->partitionData[model].autoProtModels), sizeof(int), 1, f);
     }
     
  
@@ -1200,7 +1202,7 @@ static void readTree(tree *tr, FILE *f)
   
   evaluateGeneric(tr, tr->start, TRUE);  
 
-  printBothOpen("RAxML Restart with likelihood: %1.50f\n", tr->likelihood);
+  printBothOpen("ExaML Restart with likelihood: %1.50f\n", tr->likelihood);
 }
 
 
@@ -1308,7 +1310,10 @@ static void readCheckpoint(tree *tr)
       myfread(tr->partitionData[model].substRates, sizeof(double),  pLengths[dataType].substRatesLength, f);  
       myfread(&(tr->partitionData[model].alpha), sizeof(double), 1, f);
 
-      makeGammaCats(tr->partitionData[model].alpha, tr->partitionData[model].gammaRates, 4, tr->useMedian);
+      makeGammaCats(tr->partitionData[model].alpha, tr->partitionData[model].gammaRates, 4, tr->useMedian); 
+
+      myfread(&(tr->partitionData[model].protModels), sizeof(int), 1, f);
+      myfread(&(tr->partitionData[model].autoProtModels), sizeof(int), 1, f);
     }
     
 
@@ -1324,17 +1329,23 @@ static void readCheckpoint(tree *tr)
 }
 
 
-void restart(tree *tr)
+void restart(tree *tr, analdef *adef)
 {  
   readCheckpoint(tr);
 
   switch(ckp.state)
     {
     case REARR_SETTING:      
+      assert(adef->mode == BIG_RAPID_MODE);
       break;
     case FAST_SPRS:
+      assert(adef->mode == BIG_RAPID_MODE);
       break;
     case SLOW_SPRS:
+      assert(adef->mode == BIG_RAPID_MODE);
+      break;
+    case MOD_OPT:
+      assert(adef->mode == TREE_EVALUATION);
       break;
     default:
       assert(0);
@@ -1577,7 +1588,7 @@ void computeBIGRAPID (tree *tr, analdef *adef, boolean estimateModel)
   if(!adef->useCheckpoint)
     {
       if(estimateModel)
-	modOpt(tr, 10.0);
+	modOpt(tr, 10.0, adef);
       else
 	treeEvaluate(tr, 2);  
     }
@@ -1621,7 +1632,7 @@ void computeBIGRAPID (tree *tr, analdef *adef, boolean estimateModel)
 
       /* optimize model params more thoroughly or just optimize branch lengths */
       if(estimateModel)
-	modOpt(tr, 5.0);
+	modOpt(tr, 5.0, adef);
       else
 	treeEvaluate(tr, 1);   
     }
@@ -1918,7 +1929,7 @@ void computeBIGRAPID (tree *tr, analdef *adef, boolean estimateModel)
      alone */
 
   if(estimateModel)
-    modOpt(tr, 1.0);
+    modOpt(tr, 1.0, adef);
   else
     treeEvaluate(tr, 1.0);
 

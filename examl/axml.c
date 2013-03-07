@@ -1032,6 +1032,9 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	sscanf(optarg, "%c", &modelChar);
 	switch(modelChar)
 	  {	 
+	  case 'e':
+	    adef->mode = TREE_EVALUATION;
+	    break;
 	  case 'd':
 	    adef->mode = BIG_RAPID_MODE;
 	    tr->doCutoff = TRUE;
@@ -1241,7 +1244,7 @@ static void printModelAndProgramInfo(tree *tr, analdef *adef, int argc, char *ar
       
       
      
-      printBoth(infoFile, "\nAlignment has %z distinct alignment patterns\n\n",  tr->originalCrunchedLength);
+      printBoth(infoFile, "\nAlignment has %zu distinct alignment patterns\n\n",  tr->originalCrunchedLength);
       
      
       
@@ -1252,7 +1255,10 @@ static void printModelAndProgramInfo(tree *tr, analdef *adef, int argc, char *ar
 	{	
 	case  BIG_RAPID_MODE:	 
 	  printBoth(infoFile, "\nExaML rapid hill-climbing mode\n\n");
-	  break;	
+	  break;
+	case TREE_EVALUATION:
+	  printBoth(infoFile, "\nExaML tree evaluation mode\n\n");
+	  break;
 	default:
 	  assert(0);
 	}
@@ -1533,6 +1539,9 @@ static void finalizeInfoFile(tree *tr, analdef *adef)
 	  printBothOpen("Final tree written to:                 %s\n", resultFileName);
 	  printBothOpen("Execution Log File written to:         %s\n", logFileName);
 	  printBothOpen("Execution information file written to: %s\n",infoFileName);	
+	  break;
+	case TREE_EVALUATION:
+	  printBothOpen("\n\nOverall Time for tree evaluation %f\n", t);
 	  break;
 	default:
 	  assert(0);
@@ -2194,44 +2203,91 @@ int main (int argc, char *argv[])
        while checkpointing is important and has to be implemented for the library we should not worry about this right now 
     */
   
-    if(adef->useCheckpoint)
-      {      
-	/* read checkpoint file */
-	restart(tr);       	
-	
-	/* continue tree search where we left it off */
-	computeBIGRAPID(tr, adef, TRUE); 
-      }
-    else
+    switch(adef->mode)
       {
-	/* not important, only used to keep track of total accumulated exec time 
-	   when checkpointing and restarts were used */
-	
-	if(processID == 0)
-	  accumulatedTime = 0.0;
-	
-	/* get the starting tree: here we just parse the tree passed via the command line 
+      case TREE_EVALUATION:		
+	if(adef->useCheckpoint)
+	  {      
+	    /* read checkpoint file */
+	    restart(tr, adef);       		   	    
+	    
+	    modOpt(tr, 0.1, adef);
+	  }
+	else
+	  {
+	    /* not important, only used to keep track of total accumulated exec time 
+	       when checkpointing and restarts were used */
+	    
+	    if(processID == 0)
+	      accumulatedTime = 0.0;
+	    
+	    /* get the starting tree: here we just parse the tree passed via the command line 
 	   and do an initial likelihood computation traversal 
-	   which we maybe should skeip, TODO */
-	       	
-	getStartingTree(tr);     
-	   	          
-	/* 
-	   here we do an initial full tree traversal on the starting tree using the Felsenstein pruning algorithm 
-	   This should basically be the first call to the library that actually computes something :-)
-	*/
-      
-	evaluateGeneric(tr, tr->start, TRUE);	
-	
-	/* the treeEvaluate() function repeatedly iterates over the entire tree to optimize branch lengths until convergence */
-      	
-	treeEvaluate(tr, 1); 
+	   which we maybe should skip, TODO */
+	    
+	    getStartingTree(tr);     
+	    
+	    /* 
+	       here we do an initial full tree traversal on the starting tree using the Felsenstein pruning algorithm 
+	       This should basically be the first call to the library that actually computes something :-)
+	    */
+	    
+	    evaluateGeneric(tr, tr->start, TRUE);	
+	    
+	    treeEvaluate(tr, 1);
 
-	/* now start the ML search algorithm */
-      
+	    modOpt(tr, 0.1, adef);
+	  }
 
-	computeBIGRAPID(tr, adef, TRUE); 			     
-      }            
+	if(processID == 0)
+	  printBothOpen("final likelihood: %f\n", tr->likelihood);
+	    
+	    /* now start the ML search algorithm */      	    	    	           
+	break;
+      case BIG_RAPID_MODE:
+       
+	if(adef->useCheckpoint)
+	  {      
+	    /* read checkpoint file */
+	    restart(tr, adef);       	
+	    
+	    /* continue tree search where we left it off */
+	    computeBIGRAPID(tr, adef, TRUE); 
+	  }
+	else
+	  {
+	    /* not important, only used to keep track of total accumulated exec time 
+	       when checkpointing and restarts were used */
+	    
+	    if(processID == 0)
+	      accumulatedTime = 0.0;
+	    
+	    /* get the starting tree: here we just parse the tree passed via the command line 
+	   and do an initial likelihood computation traversal 
+	   which we maybe should skip, TODO */
+	    
+	    getStartingTree(tr);     
+	    
+	    /* 
+	       here we do an initial full tree traversal on the starting tree using the Felsenstein pruning algorithm 
+	       This should basically be the first call to the library that actually computes something :-)
+	    */
+	    
+	    evaluateGeneric(tr, tr->start, TRUE);	
+	    
+	    /* the treeEvaluate() function repeatedly iterates over the entire tree to optimize branch lengths until convergence */
+	    
+	    treeEvaluate(tr, 1); 
+	    
+	    /* now start the ML search algorithm */
+      
+	    
+	    computeBIGRAPID(tr, adef, TRUE); 			     
+	  }         
+	break;
+      default:
+	assert(0);
+      }
       
     /* print some more nonsense into the ExaML_info file */
   

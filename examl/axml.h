@@ -171,32 +171,13 @@
 #define PointGamma(prob,alpha,beta)  PointChi2(prob,2.0*(alpha))/(2.0*(beta))
 
 #define programName        "ExaML"
-#define programVersion     "1.0.0"
-#define programDate        "September 2012"
+#define programVersion     "1.0.1"
+#define programDate        "March 2013"
 
 
 #define  TREE_EVALUATION            0
 #define  BIG_RAPID_MODE             1
-#define  CALC_BIPARTITIONS          3
-#define  SPLIT_MULTI_GENE           4
-#define  CHECK_ALIGNMENT            5
-#define  PER_SITE_LL                6
-#define  PARSIMONY_ADDITION         7
-#define  CLASSIFY_ML                9
-#define  DISTANCE_MODE              11
-#define  GENERATE_BS                12
-#define  COMPUTE_ELW                13
-#define  BOOTSTOP_ONLY              14
-#define  COMPUTE_LHS                17
-#define  COMPUTE_BIPARTITION_CORRELATION 18
-#define  THOROUGH_PARSIMONY         19
-#define  COMPUTE_RF_DISTANCE        20
-#define  MORPH_CALIBRATOR           21
-#define  CONSENSUS_ONLY             22
-#define  MESH_TREE_SEARCH           23
-#define  FAST_SEARCH                24
-#define  MORPH_CALIBRATOR_PARSIMONY 25
-#define  SH_LIKE_SUPPORTS           28
+
 
 #define M_GTRCAT         1
 #define M_GTRGAMMA       2
@@ -574,10 +555,13 @@ typedef struct List_{
 #define REARR_SETTING 1
 #define FAST_SPRS     2
 #define SLOW_SPRS     3
+#define MOD_OPT       4
 
 typedef struct {
  
   int state;
+
+  /* search algorithm */
 
   unsigned int vLength;
   
@@ -615,6 +599,9 @@ typedef struct {
   int    tr_itCount;  
   int    tr_doCutoff;
 
+  /* modOpt */
+
+  int catOpt;
                                                                     
 } checkPointState;
 
@@ -966,7 +953,7 @@ extern void doAllInOne ( tree *tr, analdef *adef );
 extern void classifyML(tree *tr, analdef *adef);
 
 extern void resetBranches ( tree *tr );
-extern void modOpt ( tree *tr, double likelihoodEpsilon);
+extern void modOpt ( tree *tr, double likelihoodEpsilon, analdef *adef);
 
 
 
@@ -1153,8 +1140,9 @@ extern int *permutationSH(tree *tr, int nBootstrap, long _randomSeed);
 
 extern void updatePerSiteRates(tree *tr, boolean scaleRates);
 
-extern void restart(tree *tr);
+extern void restart(tree *tr, analdef *adef);
 
+extern void writeCheckpoint(tree *tr);
 
 
 

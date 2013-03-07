@@ -59,6 +59,7 @@ extern char lengthFileName[1024];
 extern char lengthFileNameModel[1024];
 extern char *protModels[20];
 
+extern checkPointState ckp;
 
 extern int processes;
 extern int processID;
@@ -2860,7 +2861,8 @@ static void autoProtein(tree *tr)
 	    }       
 	}
 
-      printBothOpen("\n\n");
+      if(processID == 0)
+	printBothOpen("\n\n");
       
       for(model = 0; model < tr->NumberOfModels; model++)
 	{	   
@@ -2869,12 +2871,14 @@ static void autoProtein(tree *tr)
 	      tr->partitionData[model].autoProtModels = bestIndex[model];
 
 	      initReversibleGTR(tr, model);  
-
-	      printBothOpen("Partition: %d best-scoring AA model: %s likelihood %f\n", model, protModels[tr->partitionData[model].autoProtModels], bestScores[model]);
+	      
+	      if(processID == 0)
+		printBothOpen("Partition: %d best-scoring AA model: %s likelihood %f\n", model, protModels[tr->partitionData[model].autoProtModels], bestScores[model]);
 	    }	 
 	}
       
-      printBothOpen("\n\n");
+      if(processID == 0)
+	printBothOpen("\n\n");
             
 
 
@@ -2891,7 +2895,7 @@ static void autoProtein(tree *tr)
 
 
 
-void modOpt(tree *tr, double likelihoodEpsilon)
+void modOpt(tree *tr, double likelihoodEpsilon, analdef *adef)
 { 
   int 
     i, 
@@ -2916,27 +2920,33 @@ void modOpt(tree *tr, double likelihoodEpsilon)
    
   tr->start = tr->nodep[1];
                  
+  if(adef->useCheckpoint && adef->mode == TREE_EVALUATION)
+    {
+      assert(ckp.state == MOD_OPT);
+          	
+      catOpt = ckp.catOpt;             
+    }
+
   do
-    {           
+    {    
+      if(adef->mode == TREE_EVALUATION)
+	{
+	  ckp.state = MOD_OPT;
+	  
+	  ckp.catOpt = catOpt;	  	 
+	  
+	  writeCheckpoint(tr);
+	}   
+      
       currentLikelihood = tr->likelihood;     
-     
-     
-
+          
       optRatesGeneric(tr, modelEpsilon, rateList);
-      
-      
-      
-      
-
-      evaluateGeneric(tr, tr->start, TRUE);                                       
-     
-      
-     
+                        
+      evaluateGeneric(tr, tr->start, TRUE);                                                       
 
       autoProtein(tr);
 
       treeEvaluate(tr, 0.0625);      
-
       
 
       switch(tr->rateHetModel)
@@ -2959,11 +2969,11 @@ void modOpt(tree *tr, double likelihoodEpsilon)
 	  break;	  
 	default:
 	  assert(0);
-	}                   
+	}                                
       
-       
+      printAAmatrix(tr, fabs(currentLikelihood - tr->likelihood));  
       
-      printAAmatrix(tr, fabs(currentLikelihood - tr->likelihood));    
+    
     }
   while(fabs(currentLikelihood - tr->likelihood) > likelihoodEpsilon);  
   
