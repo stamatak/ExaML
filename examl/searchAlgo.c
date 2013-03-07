@@ -1127,13 +1127,14 @@ void writeCheckpoint(tree *tr)
       myfwrite(&(tr->partitionData[model].autoProtModels), sizeof(int), 1, f);
     }
     
- 
+  if(ckp.state == MOD_OPT)
+    myfwrite(tr->likelihoods, sizeof(double), tr->numberOfTrees, f);
 
   writeTree(tr, f);
 
   fclose(f); 
 
-  printBothOpen("\nCheckpoint written to: %s likelihood: %f\n", extendedName, tr->likelihood);
+  /* printBothOpen("\nCheckpoint written to: %s likelihood: %f\n", extendedName, tr->likelihood); */
 }
 
 static void readTree(tree *tr, FILE *f)
@@ -1316,7 +1317,8 @@ static void readCheckpoint(tree *tr)
       myfread(&(tr->partitionData[model].autoProtModels), sizeof(int), 1, f);
     }
     
-
+  if(ckp.state == MOD_OPT)
+    myfread(tr->likelihoods, sizeof(double), tr->numberOfTrees, f);
 
   updatePerSiteRates(tr, FALSE); 
 
@@ -1588,7 +1590,7 @@ void computeBIGRAPID (tree *tr, analdef *adef, boolean estimateModel)
   if(!adef->useCheckpoint)
     {
       if(estimateModel)
-	modOpt(tr, 10.0, adef);
+	modOpt(tr, 10.0, adef, 0);
       else
 	treeEvaluate(tr, 2);  
     }
@@ -1632,7 +1634,7 @@ void computeBIGRAPID (tree *tr, analdef *adef, boolean estimateModel)
 
       /* optimize model params more thoroughly or just optimize branch lengths */
       if(estimateModel)
-	modOpt(tr, 5.0, adef);
+	modOpt(tr, 5.0, adef, 0);
       else
 	treeEvaluate(tr, 1);   
     }
@@ -1929,7 +1931,7 @@ void computeBIGRAPID (tree *tr, analdef *adef, boolean estimateModel)
      alone */
 
   if(estimateModel)
-    modOpt(tr, 1.0, adef);
+    modOpt(tr, 1.0, adef, 0);
   else
     treeEvaluate(tr, 1.0);
 

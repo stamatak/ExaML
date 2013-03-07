@@ -602,6 +602,7 @@ typedef struct {
   /* modOpt */
 
   int catOpt;
+  int treeIteration;
                                                                     
 } checkPointState;
 
@@ -764,6 +765,12 @@ typedef  struct  {
   char bits_in_16bits [0x1u << 16];
   
   boolean useMedian;
+
+  int numberOfTrees;
+
+  double *likelihoods;
+
+  boolean fastTreeEvaluation;
 } tree;
 
 
@@ -953,7 +960,7 @@ extern void doAllInOne ( tree *tr, analdef *adef );
 extern void classifyML(tree *tr, analdef *adef);
 
 extern void resetBranches ( tree *tr );
-extern void modOpt ( tree *tr, double likelihoodEpsilon, analdef *adef);
+extern void modOpt ( tree *tr, double likelihoodEpsilon, analdef *adef, int treeIteration);
 
 
 
@@ -1028,7 +1035,6 @@ extern void treeReadTopologyString(char *treeString, tree *tr);
 extern boolean treeReadLenMULT ( FILE *fp, tree *tr, analdef *adef );
 
 extern void getStartingTree ( tree *tr);
-extern double treeLength(tree *tr, int model);
 
 extern void computeBootStopOnly(tree *tr, char *bootStrapFileName, analdef *adef);
 extern boolean bootStop(tree *tr, hashtable *h, int numberOfTrees, double *pearsonAverage, unsigned int **bitVectors, int treeVectorLength, unsigned int vectorLength);
@@ -1121,8 +1127,6 @@ extern void bitVectorInitravSpecial(unsigned int **bitVectors, nodeptr p, int nu
 extern int getIncrement(tree *tr, int model);
 
 
-
-extern FILE *getNumberOfTrees(tree *tr, char *fileName, analdef *adef);
 
 extern void writeBinaryModel(tree *tr);
 extern void readBinaryModel(tree *tr);

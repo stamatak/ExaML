@@ -2895,7 +2895,7 @@ static void autoProtein(tree *tr)
 
 
 
-void modOpt(tree *tr, double likelihoodEpsilon, analdef *adef)
+void modOpt(tree *tr, double likelihoodEpsilon, analdef *adef, int treeIteration)
 { 
   int 
     i, 
@@ -2933,7 +2933,9 @@ void modOpt(tree *tr, double likelihoodEpsilon, analdef *adef)
 	{
 	  ckp.state = MOD_OPT;
 	  
-	  ckp.catOpt = catOpt;	  	 
+	  ckp.catOpt = catOpt;
+
+	  ckp.treeIteration = treeIteration;
 	  
 	  writeCheckpoint(tr);
 	}   

@@ -175,6 +175,23 @@ void printBothOpen(const char* format, ... )
     }
 }
 
+static void printBothOpenDifferentFile(char *fileName, const char* format, ... )
+{
+  if(processID == 0)
+    {
+      FILE 
+	*f = myfopen(fileName, "ab");
+      
+      va_list 
+	args;
+      
+      va_start(args, format);
+      vfprintf(f, format, args );
+      va_end(args);
+            
+      fclose(f);
+    }
+}
 
 
 
@@ -782,6 +799,18 @@ static void printMinusFUsage(void)
 
   printf("\n");
 
+  printf("               \"-f e\": compute the likelihood of a bunch of trees passed via -t\n");
+  printf("                this option will do a quick and dirty optimization without re-optimizng\n");
+  printf("                the model parameters for each tree\n");
+
+  printf("\n");
+
+  printf("               \"-f E\": compute the likelihood of a bunch of trees passed via -t\n");
+  printf("                this option will do a thorough optimization that re-optimizes\n");
+  printf("                the model parameters for each tree\n");
+
+  printf("\n");
+
   printf("              \"-f o\": old and slower rapid hill-climbing without heuristic cutoff\n");
   
   printf("\n");
@@ -812,7 +841,7 @@ static void printREADME(void)
       printf("      [-c numberOfCategories]\n");
       printf("      [-D]\n");
       printf("      [-e likelihoodEpsilon] \n");
-      printf("      [-f d|o]\n");    
+      printf("      [-f d|e|E|o]\n");    
       printf("      [-h] \n");
       printf("      [-i initialRearrangementSetting] \n");
       printf("      [-M]\n");
@@ -1034,6 +1063,11 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	  {	 
 	  case 'e':
 	    adef->mode = TREE_EVALUATION;
+	    tr->fastTreeEvaluation = TRUE;
+	    break;
+	  case 'E':
+	    adef->mode = TREE_EVALUATION;
+	    tr->fastTreeEvaluation = FALSE;
 	    break;
 	  case 'd':
 	    adef->mode = BIG_RAPID_MODE;
@@ -1186,16 +1220,19 @@ static void makeFileNames(void)
   strcpy(logFileName,          workdir);  
   strcpy(infoFileName,         workdir);
   strcpy(binaryCheckpointName, workdir);
+  strcpy(modelFileName, workdir);
    
   strcat(resultFileName,       "ExaML_result.");
   strcat(logFileName,          "ExaML_log.");  
   strcat(infoFileName,         "ExaML_info.");
   strcat(binaryCheckpointName, "ExaML_binaryCheckpoint.");
+  strcat(modelFileName,        "ExaML_modelFile.");
   
   strcat(resultFileName,       run_id);
   strcat(logFileName,          run_id);  
   strcat(infoFileName,         run_id); 
   strcat(binaryCheckpointName, run_id);
+  strcat(modelFileName,        run_id);
 
   infoFileExists = filexists(infoFileName);
 
@@ -1257,7 +1294,7 @@ static void printModelAndProgramInfo(tree *tr, analdef *adef, int argc, char *ar
 	  printBoth(infoFile, "\nExaML rapid hill-climbing mode\n\n");
 	  break;
 	case TREE_EVALUATION:
-	  printBoth(infoFile, "\nExaML tree evaluation mode\n\n");
+	  printBoth(infoFile, "\nExaML %s tree evaluation mode\n\n", (tr->fastTreeEvaluation)?"fast":"slow");
 	  break;
 	default:
 	  assert(0);
@@ -1516,8 +1553,179 @@ void getDataTypeString(tree *tr, int model, char typeOfData[1024])
       assert(0);
     }
 }
+static void printRatesDNA_BIN(int n, double *r, char **names, char *fileName)
+{
+  int i, j, c;
+
+  for(i = 0, c = 0; i < n; i++)
+    {
+      for(j = i + 1; j < n; j++)
+	{
+	  if(i == n - 2 && j == n - 1)
+	    printBothOpenDifferentFile(fileName, "rate %s <-> %s: %f\n", names[i], names[j], 1.0);
+	  else
+	    printBothOpenDifferentFile(fileName, "rate %s <-> %s: %f\n", names[i], names[j], r[c]);
+	  c++;
+	}
+    }
+}
+
+static void printRatesRest(int n, double *r, char **names, char *fileName)
+{
+  int i, j, c;
+
+  for(i = 0, c = 0; i < n; i++)
+    {
+      for(j = i + 1; j < n; j++)
+	{
+	  printBothOpenDifferentFile(fileName, "rate %s <-> %s: %f\n", names[i], names[j], r[c]);
+	  c++;
+	}
+    }
+}
+static double branchLength(int model, double *z, tree *tr)
+{
+  double x;
+  
+  x = z[model];
+  assert(x > 0);
+  if (x < zmin) 
+    x = zmin;  
+  
+ 
+  assert(x <= zmax);
+  
+  if(tr->numBranches == 1)             
+    x = -log(x) * tr->fracchange;       
+  else
+    x = -log(x) * tr->fracchanges[model];
+
+  return x;
+
+}
 
 
+static double treeLengthRec(nodeptr p, tree *tr, int model)
+{  
+  double 
+    x = branchLength(model, p->z, tr);
+
+  if(isTip(p->number, tr->mxtips))  
+    return x;    
+  else
+    {
+      double acc = 0;
+      nodeptr q;                
+     
+      q = p->next;      
+
+      while(q != p)
+	{
+	  acc += treeLengthRec(q->back, tr, model);
+	  q = q->next;
+	}
+
+      return acc + x;
+    }
+}
+
+static double treeLength(tree *tr, int model)
+{  
+  return treeLengthRec(tr->start->back, tr, model);
+}
+
+static void printFreqs(int n, double *f, char **names, char *fileName)
+{
+  int k;
+
+  for(k = 0; k < n; k++)
+    printBothOpenDifferentFile(fileName, "freq pi(%s): %f\n", names[k], f[k]);
+}
+
+static void printModelParams(tree *tr, analdef *adef, int treeIteration)
+{
+  int
+    model;
+
+  double
+    *f = (double*)NULL,
+    *r = (double*)NULL;
+
+  char 
+    fileName[2048],
+    buf[64];
+
+  strcpy(fileName, modelFileName);
+  strcat(fileName, ".");
+  sprintf(buf, "%d", treeIteration);
+  strcat(fileName, buf);
+
+  for(model = 0; model < tr->NumberOfModels; model++)
+    {
+      double tl;
+      char typeOfData[1024];
+
+      getDataTypeString(tr, model, typeOfData);      
+
+      printBothOpenDifferentFile(fileName, "\n\n");
+
+      printBothOpenDifferentFile(fileName, "Model Parameters of Partition %d, Name: %s, Type of Data: %s\n",
+				 model, tr->partitionData[model].partitionName, typeOfData);
+      
+      if(tr->rateHetModel == GAMMA)
+	printBothOpenDifferentFile(fileName, "alpha: %f\n", tr->partitionData[model].alpha);
+     
+
+      if(adef->perGeneBranchLengths)
+	tl = treeLength(tr, model);
+      else
+	tl = treeLength(tr, 0);
+
+      printBothOpenDifferentFile(fileName, "Tree-Length: %f\n", tl);
+
+      f = tr->partitionData[model].frequencies;
+      r = tr->partitionData[model].substRates;
+
+      switch(tr->partitionData[model].dataType)
+	{
+	case AA_DATA:
+	  {
+	    char *freqNames[20] = {"A", "R", "N ","D", "C", "Q", "E", "G",
+				   "H", "I", "L", "K", "M", "F", "P", "S",
+				   "T", "W", "Y", "V"};
+
+	    printRatesRest(20, r, freqNames, fileName);
+	    printBothOpenDifferentFile(fileName, "\n");
+	    printFreqs(20, f, freqNames, fileName);
+	  }
+	  break;
+	case DNA_DATA:
+	  {
+	    char *freqNames[4] = {"A", "C", "G", "T"};
+
+	    printRatesDNA_BIN(4, r, freqNames, fileName);
+	    printBothOpenDifferentFile(fileName, "\n");
+	    printFreqs(4, f, freqNames, fileName);
+	  }
+	  break;
+	case BINARY_DATA:
+	  {
+	    char *freqNames[2] = {"0", "1"};
+
+	    printRatesDNA_BIN(2, r, freqNames, fileName);
+	    printBothOpenDifferentFile(fileName, "\n");
+	    printFreqs(2, f, freqNames, fileName);
+	  }
+	  break;
+	default:
+	  assert(0);
+	}
+
+      printBothOpenDifferentFile(fileName, "\n");
+    }
+
+  printBothOpenDifferentFile(fileName, "\n");
+}
 
 
 static void finalizeInfoFile(tree *tr, analdef *adef)
@@ -1540,8 +1748,11 @@ static void finalizeInfoFile(tree *tr, analdef *adef)
 	  printBothOpen("Execution Log File written to:         %s\n", logFileName);
 	  printBothOpen("Execution information file written to: %s\n",infoFileName);	
 	  break;
-	case TREE_EVALUATION:
-	  printBothOpen("\n\nOverall Time for tree evaluation %f\n", t);
+	case TREE_EVALUATION:	
+	  printBothOpen("\n\nOverall Time for evaluating the likelihhod of %d trees: %f secs\n\n", tr->numberOfTrees, t); 
+	  printBothOpen("\n\nThe model parameters of the trees have been written to files called %s.i\n", modelFileName);
+	  printBothOpen("where i is the number of the tree\n\n");
+	  printBothOpen("Note that, in case of a restart from a checkpoint, some tree model files will have been produced by previous runs!\n\n");
 	  break;
 	default:
 	  assert(0);
@@ -2151,6 +2362,127 @@ static void initializeTree(tree *tr, analdef *adef)
 }
 
 
+static int getNumberOfTrees(char *fileName, boolean getOffsets, long *treeOffsets)
+{
+  FILE 
+    *f = myfopen(fileName, "r");
+
+  int 
+    trees = 0,
+    ch;
+
+  if(getOffsets)
+    treeOffsets[trees] = 0;
+
+  while((ch = fgetc(f)) != EOF)
+    {
+      if(ch == ';')
+	{
+	  trees++;
+	  if(getOffsets)	    
+	    treeOffsets[trees] = ftell(f) + 1;	 	      	   
+	}
+    }
+
+  assert(trees > 0);
+
+  fclose(f);
+
+  return trees;
+}
+
+static void optimizeTrees(tree *tr, double likelihoodEpsilon, analdef *adef)
+{
+  long 
+    *treeOffsets;
+
+  int 
+    i;   
+
+  tr->numberOfTrees = getNumberOfTrees(tree_file, FALSE, (long *)NULL);
+  
+
+  if(processID == 0)
+    accumulatedTime = 0.0;
+
+  treeOffsets = (long *)malloc(sizeof(long) * (tr->numberOfTrees + 1));
+
+  tr->likelihoods = (double *)malloc(sizeof(double) * tr->numberOfTrees);
+
+  getNumberOfTrees(tree_file, TRUE, treeOffsets);
+  
+  if(processID == 0)   
+    printBothOpen("\n\nFound %d trees to evaluate\n\n", tr->numberOfTrees);
+  
+  i = 0;
+
+  if(adef->useCheckpoint)
+    {      
+      restart(tr, adef);       		   	    
+	  
+      i = ckp.treeIteration;
+	       
+      if(tr->fastTreeEvaluation && i > 0)	
+	treeEvaluate(tr, 2);	
+      else
+	modOpt(tr, 0.1, adef, i);
+      
+      tr->likelihoods[i] = tr->likelihood;
+
+      if(processID == 0)
+	printModelParams(tr, adef, i);
+      
+      i++;
+    }
+       
+  for(; i < tr->numberOfTrees; i++)
+    {     
+      FILE 
+	*treeFile = myfopen(tree_file, "rb");
+	    
+      if(fseek(treeFile, treeOffsets[i], SEEK_SET) != 0)
+	assert(0);
+
+      tr->likelihood = unlikely;
+   
+      treeReadLen(treeFile, tr, FALSE, FALSE, FALSE);
+               
+      fclose(treeFile);
+ 
+      tr->start = tr->nodep[1];     
+	  
+      if(i > 0)
+	resetBranches(tr);
+      
+      evaluateGeneric(tr, tr->start, TRUE);	
+      	  
+      if(tr->fastTreeEvaluation && i > 0)
+	{
+	  ckp.state = MOD_OPT;	  	 
+
+	  ckp.treeIteration = i;
+	  
+	  writeCheckpoint(tr);
+
+	  treeEvaluate(tr, 2);
+	}
+      else
+	{
+	  treeEvaluate(tr, 1);      
+	  modOpt(tr, 0.1, adef, i);
+	}
+      
+      tr->likelihoods[i] = tr->likelihood;
+
+      if(processID == 0)
+	printModelParams(tr, adef, i);
+    }
+
+  if(processID == 0)
+    for(i = 0; i < tr->numberOfTrees; i++)
+      printBothOpen("Likelihood tree %d: %f \n", i, tr->likelihoods[i]);    
+}
+
 int main (int argc, char *argv[])
 { 
   MPI_Init(&argc, &argv);
@@ -2205,44 +2537,8 @@ int main (int argc, char *argv[])
   
     switch(adef->mode)
       {
-      case TREE_EVALUATION:		
-	if(adef->useCheckpoint)
-	  {      
-	    /* read checkpoint file */
-	    restart(tr, adef);       		   	    
-	    
-	    modOpt(tr, 0.1, adef);
-	  }
-	else
-	  {
-	    /* not important, only used to keep track of total accumulated exec time 
-	       when checkpointing and restarts were used */
-	    
-	    if(processID == 0)
-	      accumulatedTime = 0.0;
-	    
-	    /* get the starting tree: here we just parse the tree passed via the command line 
-	   and do an initial likelihood computation traversal 
-	   which we maybe should skip, TODO */
-	    
-	    getStartingTree(tr);     
-	    
-	    /* 
-	       here we do an initial full tree traversal on the starting tree using the Felsenstein pruning algorithm 
-	       This should basically be the first call to the library that actually computes something :-)
-	    */
-	    
-	    evaluateGeneric(tr, tr->start, TRUE);	
-	    
-	    treeEvaluate(tr, 1);
-
-	    modOpt(tr, 0.1, adef);
-	  }
-
-	if(processID == 0)
-	  printBothOpen("final likelihood: %f\n", tr->likelihood);
-	    
-	    /* now start the ML search algorithm */      	    	    	           
+      case TREE_EVALUATION:
+	optimizeTrees(tr, 0.1, adef);	
 	break;
       case BIG_RAPID_MODE:
        
