@@ -1085,11 +1085,19 @@ void newviewIterative (tree *tr, int startIndex)
 		    {		    		     
 		  
 		      if(tr->saveMemory)
+#ifdef __AVX
+			newviewGTRCAT_AVX_GAPPED_SAVE(tInfo->tipCase,  tr->partitionData[model].EV, tr->partitionData[model].rateCategory,
+						      x1_start, x2_start, x3_start, tr->partitionData[model].tipVector,
+						      (int*)NULL, tipX1, tipX2,
+						      width, left, right, wgt, &scalerIncrement, TRUE, x1_gap, x2_gap, x3_gap,
+						      x1_gapColumn, x2_gapColumn, x3_gapColumn, tr->maxCategories);
+#else
 			newviewGTRCAT_SAVE(tInfo->tipCase,  tr->partitionData[model].EV, tr->partitionData[model].rateCategory,
 					   x1_start, x2_start, x3_start, tr->partitionData[model].tipVector,
 					   tipX1, tipX2,
 					   width, left, right, wgt, &scalerIncrement, x1_gap, x2_gap, x3_gap,
 					   x1_gapColumn, x2_gapColumn, x3_gapColumn, tr->maxCategories);
+#endif
 		      else
 #ifdef __AVX
 			newviewGTRCAT_AVX(tInfo->tipCase,  tr->partitionData[model].EV, tr->partitionData[model].rateCategory,
@@ -1108,12 +1116,21 @@ void newviewIterative (tree *tr, int startIndex)
 		      
 		       
 		       if(tr->saveMemory)
-			 newviewGTRGAMMA_GAPPED_SAVE(tInfo->tipCase,
-						     x1_start, x2_start, x3_start, tr->partitionData[model].EV, tr->partitionData[model].tipVector,
-						     tipX1, tipX2,
-						     width, left, right, wgt, &scalerIncrement, 
-						     x1_gap, x2_gap, x3_gap, 
-						     x1_gapColumn, x2_gapColumn, x3_gapColumn);
+#ifdef __AVX
+			 newviewGTRGAMMA_AVX_GAPPED_SAVE(tInfo->tipCase,
+							 x1_start, x2_start, x3_start, tr->partitionData[model].EV, tr->partitionData[model].tipVector, (int*)NULL,
+							 tipX1, tipX2,
+							 width, left, right, wgt, &scalerIncrement, TRUE,
+							 x1_gap, x2_gap, x3_gap, 
+							 x1_gapColumn, x2_gapColumn, x3_gapColumn);
+#else
+		       newviewGTRGAMMA_GAPPED_SAVE(tInfo->tipCase,
+						   x1_start, x2_start, x3_start, tr->partitionData[model].EV, tr->partitionData[model].tipVector,
+						   tipX1, tipX2,
+						   width, left, right, wgt, &scalerIncrement, 
+						   x1_gap, x2_gap, x3_gap, 
+						   x1_gapColumn, x2_gapColumn, x3_gapColumn);
+#endif
 		       else
 #ifdef __AVX
 			 newviewGTRGAMMA_AVX(tInfo->tipCase,
@@ -1136,10 +1153,17 @@ void newviewIterative (tree *tr, int startIndex)
 		     
 		      
 		      if(tr->saveMemory)
+#ifdef __AVX
+			newviewGTRCATPROT_AVX_GAPPED_SAVE(tInfo->tipCase,  tr->partitionData[model].EV, tr->partitionData[model].rateCategory,
+							  x1_start, x2_start, x3_start, tr->partitionData[model].tipVector, (int*)NULL,
+							  tipX1, tipX2, width, left, right, wgt, &scalerIncrement, TRUE, x1_gap, x2_gap, x3_gap,
+							  x1_gapColumn, x2_gapColumn, x3_gapColumn, tr->maxCategories);
+#else
 			newviewGTRCATPROT_SAVE(tInfo->tipCase,  tr->partitionData[model].EV, tr->partitionData[model].rateCategory,
 					       x1_start, x2_start, x3_start, tr->partitionData[model].tipVector,
 					       tipX1, tipX2, width, left, right, wgt, &scalerIncrement, x1_gap, x2_gap, x3_gap,
 					       x1_gapColumn, x2_gapColumn, x3_gapColumn, tr->maxCategories);
+#endif
 		      else
 #ifdef __AVX
 			newviewGTRCATPROT_AVX(tInfo->tipCase,  tr->partitionData[model].EV, tr->partitionData[model].rateCategory,
@@ -1157,6 +1181,16 @@ void newviewIterative (tree *tr, int startIndex)
 			 
 			  
 			  if(tr->saveMemory)
+#ifdef __AVX
+			     newviewGTRGAMMAPROT_AVX_GAPPED_SAVE(tInfo->tipCase,
+								 x1_start, x2_start, x3_start,
+								 tr->partitionData[model].EV,
+								 tr->partitionData[model].tipVector, (int*)NULL,
+								 tipX1, tipX2,
+								 width, left, right, wgt, &scalerIncrement, TRUE,
+								 x1_gap, x2_gap, x3_gap,
+								 x1_gapColumn, x2_gapColumn, x3_gapColumn);
+#else
 			    newviewGTRGAMMAPROT_GAPPED_SAVE(tInfo->tipCase,
 							    x1_start, x2_start, x3_start,
 							    tr->partitionData[model].EV,
@@ -1165,6 +1199,7 @@ void newviewIterative (tree *tr, int startIndex)
 							    width, left, right, wgt, &scalerIncrement,
 							    x1_gap, x2_gap, x3_gap,
 							    x1_gapColumn, x2_gapColumn, x3_gapColumn);
+#endif
 			  else
 #ifdef __AVX
 			    newviewGTRGAMMAPROT_AVX(tInfo->tipCase,
@@ -3119,12 +3154,12 @@ static void newviewGTRCAT( int tipCase,  double *EV,  int *cptr,
   *scalerIncrement = addScale;
 }
 
-static inline boolean isGap(unsigned int *x, int pos)
+inline boolean isGap(unsigned int *x, int pos)
 {
   return (x[pos / 32] & mask32[pos % 32]);
 }
 
-static inline boolean noGap(unsigned int *x, int pos)
+inline boolean noGap(unsigned int *x, int pos)
 {
   return (!(x[pos / 32] & mask32[pos % 32]));
 }

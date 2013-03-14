@@ -779,10 +779,7 @@ void evaluateGeneric (tree *tr, nodeptr p, boolean fullTraversal)
 
 #ifdef _OPTIMIZED_FUNCTIONS
 
-static inline boolean isGap(unsigned int *x, int pos)
-{
-  return (x[pos / 32] & mask32[pos % 32]);
-}
+
 
 static double evaluateGTRGAMMAPROT_GAPPED_SAVE (int *wptr,
 						double *x1, double *x2,  

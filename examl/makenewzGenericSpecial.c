@@ -1098,10 +1098,7 @@ void makenewzGeneric(tree *tr, nodeptr p, nodeptr q, double *z0, int maxiter, do
 /* below are, once again the optimized functions */
 
 #ifdef _OPTIMIZED_FUNCTIONS
-static inline boolean isGap(unsigned int *x, int pos)
-{
-  return (x[pos / 32] & mask32[pos % 32]);
-}
+
 
 
 
