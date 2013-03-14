@@ -1094,9 +1094,12 @@ void writeCheckpoint(tree *tr)
   myfwrite(tr->tree0, sizeof(char), tr->treeStringLength, f);
   myfwrite(tr->tree1, sizeof(char), tr->treeStringLength, f);
 
-  myfwrite(tr->rateCategory, sizeof(int), tr->originalCrunchedLength, f);
-  myfwrite(tr->patrat, sizeof(double), tr->originalCrunchedLength, f);
-  myfwrite(tr->patratStored, sizeof(double), tr->originalCrunchedLength, f);
+  if(tr->rateHetModel == CAT)
+    {
+      myfwrite(tr->rateCategory, sizeof(int), tr->originalCrunchedLength, f);
+      myfwrite(tr->patrat, sizeof(double), tr->originalCrunchedLength, f);
+      myfwrite(tr->patratStored, sizeof(double), tr->originalCrunchedLength, f);
+    }
   
   
   /* need to store this as well in checkpoints, otherwise the branch lengths 
@@ -1280,9 +1283,12 @@ static void readCheckpoint(tree *tr)
 	}
     }
 
-  myfread(tr->rateCategory, sizeof(int), tr->originalCrunchedLength, f);
-  myfread(tr->patrat, sizeof(double), tr->originalCrunchedLength, f);
-  myfread(tr->patratStored, sizeof(double), tr->originalCrunchedLength, f);
+  if(tr->rateHetModel == CAT)
+    {
+      myfread(tr->rateCategory, sizeof(int), tr->originalCrunchedLength, f);
+      myfread(tr->patrat, sizeof(double), tr->originalCrunchedLength, f);
+      myfread(tr->patratStored, sizeof(double), tr->originalCrunchedLength, f);
+    }
   
 
   /* need to read this as well in checkpoints, otherwise the branch lengths 

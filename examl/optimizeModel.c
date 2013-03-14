@@ -1768,24 +1768,7 @@ static void gatherCatsMaster(tree *tr, int tid, int n)
 
     }
   
-  /* 
-     {
-    double sum = 0.0;
-    
-    for(model = 0; model < (size_t)tr->NumberOfModels; model++)
-      {        
-	int i;
-	printf("\nModel %d cats %d\n", model, tr->partitionData[model].numberOfCategories);
-	for(i = tr->partitionData[model].lower; i < tr->partitionData[model].upper; i++)	
-	  {
-	    printf("%d %f %f %f\n", tr->rateCategory[i], tr->patrat[i], tr->patratStored[i], tr->lhs[i]);     
-	    sum += tr->lhs[i];
-	    }	
-      }
-    
-    printf("likelihood: %f\n", sum);
-    }
-  */
+ 
   
   free(modelOffsets);
   free(countArray);
@@ -2571,34 +2554,9 @@ static void optimizeRateCategories(tree *tr, int _maxCategories)
 	}            
 
       updatePerSiteRates(tr, TRUE);	
-     
-      /*
-	if(processID == 0)
-	{	  
-	  double sum = 0.0;
-	  int model;
-	  
-	  for(model = 0; model < (size_t)tr->NumberOfModels; model++)
-	    {        
-	      int i;
-	      printf("\nModel %d cats %d\n", model, tr->partitionData[model].numberOfCategories);
-	      for(i = tr->partitionData[model].lower; i < tr->partitionData[model].upper; i++)	
-		{
-		  printf("%d %f %f %f\n", tr->rateCategory[i], tr->patrat[i], tr->patratStored[i], tr->lhs[i]); 
-		  sum += tr->lhs[i];
-		}	
-	    }	
-	  
-	  printf("likelihood: %f\n", sum);
-	}
-      */
-     
+                
       evaluateGeneric(tr, tr->start, TRUE);
-
-      /* printf("%f \n", tr->likelihood); */
-      
-      /*MPI_Finalize();*/
-      
+     
       if(tr->likelihood < initialLH)
 	{	 		  
 	  for(model = 0; model < tr->NumberOfModels; model++)
@@ -2612,9 +2570,7 @@ static void optimizeRateCategories(tree *tr, int _maxCategories)
 	  
 	  updatePerSiteRates(tr, FALSE);
 	  
-	  evaluateGeneric(tr, tr->start, TRUE);
-
-	  /* printf("REVERT: %1.40f %1.40f\n", initialLH, tr->likelihood); */
+	  evaluateGeneric(tr, tr->start, TRUE);	 
 
 	  assert(initialLH == tr->likelihood);
 	}
@@ -2624,8 +2580,7 @@ static void optimizeRateCategories(tree *tr, int _maxCategories)
                    
       free(oldCategorizedRates);
       free(oldCategory);
-      free(ratStored);       
-      /*      free(lhs); */
+      free(ratStored);          
       free(oldNumbers);
     }
 }

@@ -2729,39 +2729,15 @@ static void updateFracChange(tree *tr)
     }      
   else
     {
-      int model;
-      double *modelWeights = (double *)calloc(tr->NumberOfModels, sizeof(double));
-      double wgtsum = 0.0;  
+      int 
+	model;      
      
       assert(tr->NumberOfModels > 1);
 
-      tr->fracchange = 0.0;	         
-      
-       for(model = 0; model < tr->NumberOfModels; model++)      
-	 {
-	   size_t
-	     lower = tr->partitionData[model].lower,
-	     upper = tr->partitionData[model].upper,
-	     i;
-	   
-	   for(i = lower; i < upper; i++)
-	     {
-	       modelWeights[model] += (double)tr->aliaswgt[i];
-	       wgtsum              += (double)tr->aliaswgt[i];
-	     }
-	 }
-
-       
-
-      
+      tr->fracchange = 0.0;	                     
  	        
-      for(model = 0; model < tr->NumberOfModels; model++)      
-	{	      	  	 
-	  tr->partitionContributions[model] = modelWeights[model] / wgtsum;             
-	  tr->fracchange +=  tr->partitionContributions[model] * tr->fracchanges[model];
-	}	      
-    
-      free(modelWeights);
+      for(model = 0; model < tr->NumberOfModels; model++)                   
+	tr->fracchange +=  tr->partitionContributions[model] * tr->fracchanges[model];	
     }
 }
 
@@ -3805,12 +3781,15 @@ void initModel(tree *tr, double **empiricalFrequencies)
   tr->numberOfInvariableColumns = 0;
   tr->weightOfInvariableColumns = 0;	       
   
-  for (j = 0; j < tr->originalCrunchedLength; j++) 
+  if(tr->rateHetModel == CAT)
     {
-      tr->patrat[j] = temp = 1.0;
-      tr->patratStored[j] = 1.0;
-      tr->rateCategory[j] = 0;           
-    } 
+      for (j = 0; j < tr->originalCrunchedLength; j++) 
+	{
+	  tr->patrat[j] = temp = 1.0;
+	  tr->patratStored[j] = 1.0;
+	  tr->rateCategory[j] = 0;           
+	} 
+    }
 
   for(model = 0; model < tr->NumberOfModels; model++)
     {            
