@@ -2022,7 +2022,6 @@ static void initializePartitions(tree *tr, FILE *byteFile)
     j,
     width,
     model,
-    offset,
     countOffset,
     myLength = 0;
 
@@ -2131,7 +2130,7 @@ static void initializePartitions(tree *tr, FILE *byteFile)
    
   for(i = 0; i < (size_t)tr->mxtips; i++)
     {
-      for(model = 0, offset = 0, countOffset = 0; model < (size_t)tr->NumberOfModels; model++)
+      for(model = 0, countOffset = 0; model < (size_t)tr->NumberOfModels; model++)
 	{
 	  tr->partitionData[model].yVector[i+1]   = &tr->y_ptr[i * myLength + countOffset];
 	  countOffset +=  tr->partitionData[model].width;
@@ -2186,7 +2185,7 @@ static void initializePartitions(tree *tr, FILE *byteFile)
 	*modelWeights = (size_t *)calloc(tr->NumberOfModels, sizeof(size_t)),
 	wgtsum = 0;  
       
-       for(model = 0; model < tr->NumberOfModels; model++)      
+      for(model = 0; model < (size_t)tr->NumberOfModels; model++)      
 	 {
 	   size_t
 	     lower = tr->partitionData[model].lower,
@@ -2200,7 +2199,7 @@ static void initializePartitions(tree *tr, FILE *byteFile)
 	     }
 	 }
        
-       for(model = 0; model < tr->NumberOfModels; model++)      	
+      for(model = 0; model < (size_t)tr->NumberOfModels; model++)      	
 	 tr->partitionContributions[model] = ((double)modelWeights[model]) / ((double)wgtsum); 
        
        free(modelWeights);
@@ -2423,7 +2422,7 @@ static int getNumberOfTrees(char *fileName, boolean getOffsets, long *treeOffset
   return trees;
 }
 
-static void optimizeTrees(tree *tr, double likelihoodEpsilon, analdef *adef)
+static void optimizeTrees(tree *tr, analdef *adef)
 {
   long 
     *treeOffsets;
@@ -2570,7 +2569,7 @@ int main (int argc, char *argv[])
     switch(adef->mode)
       {
       case TREE_EVALUATION:
-	optimizeTrees(tr, 0.1, adef);	
+	optimizeTrees(tr, adef);	
 	break;
       case BIG_RAPID_MODE:
        

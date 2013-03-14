@@ -772,7 +772,7 @@ void computeTraversalInfo(nodeptr p, traversalInfo *ti, int *counter, int maxTip
    file.
 */
 
-#ifdef _OPTIMIZED_FUNCTIONS
+#if (defined(_OPTIMIZED_FUNCTIONS) && !defined(__AVX))
 static void newviewGTRGAMMA_GAPPED_SAVE(int tipCase,
 					double *x1_start, double *x2_start, double *x3_start,
 					double *EV, double *tipVector,
@@ -830,6 +830,15 @@ static void newviewGTRCATPROT_SAVE(int tipCase, double *extEV,
 
 #endif
 
+inline boolean isGap(unsigned int *x, int pos)
+{
+  return (x[pos / 32] & mask32[pos % 32]);
+}
+
+inline boolean noGap(unsigned int *x, int pos)
+{
+  return (!(x[pos / 32] & mask32[pos % 32]));
+}
 
 /* now this is the function that just iterates over the length of the traversal descriptor and 
    just computes the conditional likelihhod arrays in the order given by the descriptor.
@@ -1323,7 +1332,7 @@ void newviewGeneric (tree *tr, nodeptr p, boolean masked)
 
 /* optimized function implementations */
 
-#ifdef _OPTIMIZED_FUNCTIONS
+#if (defined(_OPTIMIZED_FUNCTIONS) && !defined(__AVX))
 
 static void newviewGTRGAMMA_GAPPED_SAVE(int tipCase,
 					double *x1_start, double *x2_start, double *x3_start,
@@ -3154,15 +3163,7 @@ static void newviewGTRCAT( int tipCase,  double *EV,  int *cptr,
   *scalerIncrement = addScale;
 }
 
-inline boolean isGap(unsigned int *x, int pos)
-{
-  return (x[pos / 32] & mask32[pos % 32]);
-}
 
-inline boolean noGap(unsigned int *x, int pos)
-{
-  return (!(x[pos / 32] & mask32[pos % 32]));
-}
 
 static void newviewGTRCAT_SAVE( int tipCase,  double *EV,  int *cptr,
 				double *x1_start, double *x2_start,  double *x3_start, double *tipVector,
