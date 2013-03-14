@@ -2053,10 +2053,7 @@ static void initializePartitions(tree *tr, FILE *byteFile)
 	*pl = getPartitionLengths(&(tr->partitionData[model])); 
 
       width = tr->partitionData[model].width;
-
-         
-
-     	
+	
       /* 
 	 globalScaler needs to be 2 * tr->mxtips such that scalers of inner AND tip nodes can be added without a case switch
 	 to this end, it must also be initialized with zeros -> calloc
