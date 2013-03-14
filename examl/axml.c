@@ -2180,6 +2180,39 @@ static void initializePartitions(tree *tr, FILE *byteFile)
       assert(globalCounter == tr->originalCrunchedLength);
     }
    
+  /* set up the averaged frac changes per partition such that no further reading accesses to aliaswgt are necessary
+     and we can free the array for the GAMMA model */
+
+  if(tr->NumberOfModels > 1)
+    {        
+      size_t
+	*modelWeights = (size_t *)calloc(tr->NumberOfModels, sizeof(size_t)),
+	wgtsum = 0;  
+      
+       for(model = 0; model < tr->NumberOfModels; model++)      
+	 {
+	   size_t
+	     lower = tr->partitionData[model].lower,
+	     upper = tr->partitionData[model].upper,
+	     i;
+	   
+	   for(i = lower; i < upper; i++)
+	     {
+	       modelWeights[model] += (size_t)tr->aliaswgt[i];
+	       wgtsum              += (size_t)tr->aliaswgt[i];
+	     }
+	 }
+       
+       for(model = 0; model < tr->NumberOfModels; model++)      	
+	 tr->partitionContributions[model] = ((double)modelWeights[model]) / ((double)wgtsum); 
+       
+       free(modelWeights);
+    }
+
+  if(tr->rateHetModel == GAMMA)
+    free(tr->aliaswgt);
+
+
   y = (unsigned char *)malloc(sizeof(unsigned char) * tr->originalCrunchedLength);
 
   for(i = 1; i <= (size_t)tr->mxtips; i++)
@@ -2351,34 +2384,7 @@ static void initializeTree(tree *tr, analdef *adef)
   
   initializePartitions(tr, byteFile);
   
-  if(tr->NumberOfModels > 1)
-    {        
-      size_t
-	*modelWeights = (size_t *)calloc(tr->NumberOfModels, sizeof(size_t)),
-	wgtsum = 0;  
-      
-       for(model = 0; model < tr->NumberOfModels; model++)      
-	 {
-	   size_t
-	     lower = tr->partitionData[model].lower,
-	     upper = tr->partitionData[model].upper,
-	     i;
-	   
-	   for(i = lower; i < upper; i++)
-	     {
-	       modelWeights[model] += (size_t)tr->aliaswgt[i];
-	       wgtsum              += (size_t)tr->aliaswgt[i];
-	     }
-	 }
-       
-       for(model = 0; model < tr->NumberOfModels; model++)      	
-	 tr->partitionContributions[model] = ((double)modelWeights[model]) / ((double)wgtsum); 
-       
-       free(modelWeights);
-    }
-
-  if(tr->rateHetModel == GAMMA)
-    free(tr->aliaswgt);
+  
 
   fclose(byteFile);
 
