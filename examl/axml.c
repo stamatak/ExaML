@@ -48,6 +48,12 @@
 #include <stdarg.h>
 #include <limits.h>
 
+#ifdef _USE_ZLIB
+
+#include <zlib.h>
+
+#endif
+
 #include <mpi.h>
 
 #if ! (defined(__ppc) || defined(__powerpc__) || defined(PPC))
@@ -92,12 +98,20 @@ void storeValuesInTraversalDescriptor(tree *tr, double *value)
 
 static void myBinFread(void *ptr, size_t size, size_t nmemb, FILE *byteFile)
 {  
+#ifdef _USE_ZLIB
+  int 
+    s = gzread(byteFile, ptr, (unsigned int)(size * nmemb));
+
+  assert((size_t)s == (size * nmemb));
+
+#else
   size_t
     bytes_read;
   
   bytes_read = fread(ptr, size, nmemb, byteFile);
 
   assert(bytes_read == nmemb);
+#endif
 }
 
 
@@ -2286,8 +2300,13 @@ static void initializeTree(tree *tr, analdef *adef)
     i,
     model;
   
+#ifdef _USE_ZLIB
+  gzFile
+    byteFile = gzopen(byteFileName, "rb");
+#else
   FILE 
     *byteFile = fopen(byteFileName, "rb");
+#endif
 
   double 
     **empiricalFrequencies;	 
@@ -2381,8 +2400,11 @@ static void initializeTree(tree *tr, analdef *adef)
   initializePartitions(tr, byteFile);
   
   
-
+#ifdef _USE_ZLIB
+  gzclose(byteFile);
+#else
   fclose(byteFile);
+#endif
 
   initModel(tr, empiricalFrequencies); 
  

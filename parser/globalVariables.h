@@ -31,6 +31,12 @@
 
 
 
+#ifdef _USE_ZLIB
+
+#include <zlib.h>
+
+#endif
+
 
 
 #ifdef _FINE_GRAIN_MPI
@@ -41,7 +47,12 @@ double *globalResult;
 int processID;
 infoList iList;
 FILE   *INFILE;
+
+#ifdef _USE_ZLIB
+gzFile byteFile;
+#else
 FILE *byteFile;
+#endif
 
 
 char run_id[128] = "", 

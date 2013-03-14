@@ -48,6 +48,12 @@
 #include <stdarg.h>
 #include <limits.h>
 
+#ifdef _USE_ZLIB
+
+#include <zlib.h>
+
+#endif
+
 #ifdef  _FINE_GRAIN_MPI
 #include <mpi.h>
 #endif
@@ -78,15 +84,27 @@
 #define _PORTABLE_PTHREADS
 
 
+
+
 /***************** UTILITY FUNCTIONS **************************/
 
 
 void myBinFwrite(const void *ptr, size_t size, size_t nmemb)
 { 
+#ifdef _USE_ZLIB    
+  int 
+    s = gzwrite(byteFile, ptr, (unsigned)(size * nmemb));
+ 
+  assert((size * nmemb) == (size_t)s);    
+#else
   size_t  
     bytes_written = fwrite(ptr, size, nmemb, byteFile);
-
+  
   assert(bytes_written == nmemb);
+ 
+#endif
+
+      /*bytes_written = fwrite(ptr, size, nmemb, byteFile);*/
 }
 
 
@@ -1634,14 +1652,7 @@ static boolean makeweights (analdef *adef, rawdata *rdta, cruncheddata *cdta, tr
     cdta->alias[i] = i;
 
   sitesort(rdta, cdta, tr, adef);
-  sitecombcrunch(rdta, cdta, tr, adef);
-  
-      
-  /*myBinFwrite(cdta->alias,    sizeof(int), (rdta->sites + 1));
-  myBinFwrite(cdta->aliaswgt, sizeof(int), (rdta->sites + 1));
-  myBinFwrite(tr->model,      sizeof(int), (rdta->sites + 1));
-  myBinFwrite(tr->dataVector, sizeof(int), (rdta->sites + 1));
-  myBinFwrite(&(cdta->endsite), sizeof(int), 1);   */
+  sitecombcrunch(rdta, cdta, tr, adef);  
 
   return TRUE;
 }
@@ -1681,7 +1692,7 @@ static boolean makevalues(rawdata *rdta, cruncheddata *cdta, tree *tr, analdef *
       free(rdta->y);
       
    
-      /*myBinFwrite(y, sizeof(unsigned char), ((size_t)rdta->numsp) * ((size_t)cdta->endsite) * sizeof(unsigned char));*/
+      
     }
 
   rdta->y0 = y;
@@ -2171,7 +2182,11 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
       exit(0);
     }
 
+#ifdef _USE_ZLIB
+  byteFile = gzopen(byteFileName, "wb");
+#else
   byteFile = fopen(byteFileName, "wb");
+#endif
   if ( !byteFile )  
     printf("%s\n", byteFileName);
 
@@ -2637,18 +2652,7 @@ int main (int argc, char *argv[])
   
  
 
-  /*for(model = 0; model < tr->NumberOfModels; model++)	    	    
-    {
-      int i;
-
-     
-
-      myBinFwrite(tr->partitionData[model].frequencies, sizeof(double), tr->partitionData[model].states);	      	   
-      for(i = 0; i < tr->partitionData[model].states; i++)
-	printf("%f ", tr->partitionData[model].frequencies[i]);
-      printf("\n");
-      }*/
-  
+ 
 
   {
     size_t 
@@ -2705,7 +2709,11 @@ int main (int argc, char *argv[])
   }
 
 
+#ifdef _USE_ZLIB
+  gzclose(byteFile);
+#else
   fclose(byteFile);  
+#endif
   
   printBothOpen("\n\nBinary and compressed alignment file written to file %s\n\n", byteFileName);
   printBothOpen("Parsing completed, exiting now ... \n\n");

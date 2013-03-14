@@ -62,7 +62,7 @@ extern const partitionLengths pLengths[MAX_MODEL];
 
 
 
-extern FILE *byteFile;
+//extern FILE *byteFile;
 
 
 
