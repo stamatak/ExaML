@@ -2054,8 +2054,7 @@ static void initializePartitions(tree *tr, FILE *byteFile)
 
       width = tr->partitionData[model].width;
 
-      tr->partitionData[model].wr = (double *)malloc(sizeof(double) * width);
-      tr->partitionData[model].wr2 = (double *)malloc(sizeof(double) * width);     
+         
 
      	
       /* 
@@ -2284,9 +2283,7 @@ static void initializeTree(tree *tr, analdef *adef)
   tr->aliaswgt                   = (int *)malloc(tr->originalCrunchedLength * sizeof(int));
   myBinFread(tr->aliaswgt, sizeof(int), tr->originalCrunchedLength, byteFile);	       
   
-  tr->rateCategory    = (int *)    calloc(tr->originalCrunchedLength, sizeof(int));	  
-  tr->wr              = (double *) malloc(tr->originalCrunchedLength * sizeof(double)); 
-  tr->wr2             = (double *) malloc(tr->originalCrunchedLength * sizeof(double)); 
+  tr->rateCategory    = (int *)    calloc(tr->originalCrunchedLength, sizeof(int));	    
   tr->patrat          = (double*)  malloc(tr->originalCrunchedLength * sizeof(double));
   tr->patratStored    = (double*)  malloc(tr->originalCrunchedLength * sizeof(double)); 
   tr->lhs             = (double*)  malloc(tr->originalCrunchedLength * sizeof(double)); 

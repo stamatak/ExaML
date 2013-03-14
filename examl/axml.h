@@ -508,8 +508,6 @@ typedef struct {
   double *tipVector; 
   double *substRates;    
   double *perSiteRates;
-  double *wr;
-  double *wr2;
   int    *wgt; 
   int    *rateCategory;
   double alpha;
@@ -661,9 +659,6 @@ typedef  struct  {
 
   int              maxCategories;
   int              categories;
-
-  double           *wr;
-  double           *wr2;
   
   double           coreLZ[NUM_BRANCHES];
   int              numBranches;
