@@ -100,9 +100,45 @@ static void myBinFread(void *ptr, size_t size, size_t nmemb, FILE *byteFile)
 {  
 #ifdef _USE_ZLIB
   int 
-    s = gzread(byteFile, ptr, (unsigned int)(size * nmemb));
+    s;
+  
+   const int 
+     max = INT_MAX;
+   
+   if((size * nmemb) > (size_t)max)
+    {
+      size_t 	
+	toRead = size * nmemb,
+	offset = 0;
+     
+      unsigned char 
+	*localPtr = (unsigned char*)ptr;
 
-  assert((size_t)s == (size * nmemb));
+      size_t 
+	rest;
+
+      for(offset = 0; offset < toRead - (size_t)max; offset += (size_t)max)
+	{
+	  s = gzread(byteFile, (void *)(&localPtr[offset]), max);
+
+	  assert(s == max);      
+	}
+            
+      
+      rest = (toRead - offset);
+
+      assert(rest <= (size_t)max);
+
+      s = gzread(byteFile, (void *)(&localPtr[offset]), (int)rest);
+
+      assert(s == (int)rest);
+    }
+  else    
+    {
+      s = gzread(byteFile, ptr, (unsigned int)(size * nmemb));
+
+      assert(s == (int)(size * nmemb));
+    }
 
 #else
   size_t
