@@ -42,7 +42,11 @@
 #include <ctype.h>
 #include <string.h>
 
+#ifdef _USE_ZLIB
 
+#include <zlib.h>
+
+#endif
 
 #include "axml.h"
 
@@ -1024,7 +1028,7 @@ void restoreTreeFast(tree *tr)
   testInsertRestoreBIG(tr, tr->removeNode, tr->insertNode);
 }
 
-static void myfwrite(const void *ptr, size_t size, size_t nmemb, FILE *stream)
+/*static void myfwrite(const void *ptr, size_t size, size_t nmemb, FILE *stream)
 {
   size_t  
     bytes_written = fwrite(ptr, size, nmemb, stream);
@@ -1040,7 +1044,7 @@ static void myfread(void *ptr, size_t size, size_t nmemb, FILE *stream)
   bytes_read = fread(ptr, size, nmemb, stream);
 
   assert(bytes_read == nmemb);
-}
+  }*/
 
 
 
@@ -1053,9 +1057,9 @@ static void writeTree(tree *tr, FILE *f)
   nodeptr
     base = tr->nodeBaseAddress;
 
-  myfwrite(&(tr->start->number), sizeof(int), 1, f);
-  myfwrite(&base, sizeof(nodeptr), 1, f);
-  myfwrite(tr->nodeBaseAddress, sizeof(node), x, f);
+  myBinFwrite(&(tr->start->number), sizeof(int), 1, f);
+  myBinFwrite(&base, sizeof(nodeptr), 1, f);
+  myBinFwrite(tr->nodeBaseAddress, sizeof(node), x, f);
 
 }
 
@@ -1070,8 +1074,13 @@ void writeCheckpoint(tree *tr)
     extendedName[2048],
     buf[64];
 
+#ifdef _USE_ZLIB
+  gzFile
+    f;
+#else
   FILE 
     *f;
+#endif
 
   strcpy(extendedName,  binaryCheckpointName);
   strcat(extendedName, "_");
@@ -1080,7 +1089,11 @@ void writeCheckpoint(tree *tr)
 
   ckpCount++;
 
+#ifdef _USE_ZLIB
+  f = gzopen(extendedName, "w");
+#else
   f = myfopen(extendedName, "w"); 
+#endif
 
   /* cdta */   
 
@@ -1089,24 +1102,24 @@ void writeCheckpoint(tree *tr)
   
   /* printf("Acc time: %f\n", ckp.accumulatedTime); */
 
-  myfwrite(&ckp, sizeof(checkPointState), 1, f);
+  myBinFwrite(&ckp, sizeof(checkPointState), 1, f);
 
-  myfwrite(tr->tree0, sizeof(char), tr->treeStringLength, f);
-  myfwrite(tr->tree1, sizeof(char), tr->treeStringLength, f);
+  myBinFwrite(tr->tree0, sizeof(char), tr->treeStringLength, f);
+  myBinFwrite(tr->tree1, sizeof(char), tr->treeStringLength, f);
 
   if(tr->rateHetModel == CAT)
     {
-      myfwrite(tr->rateCategory, sizeof(int), tr->originalCrunchedLength, f);
-      myfwrite(tr->patrat, sizeof(double), tr->originalCrunchedLength, f);
-      myfwrite(tr->patratStored, sizeof(double), tr->originalCrunchedLength, f);
+      myBinFwrite(tr->rateCategory, sizeof(int), tr->originalCrunchedLength, f);
+      myBinFwrite(tr->patrat, sizeof(double), tr->originalCrunchedLength, f);
+      myBinFwrite(tr->patratStored, sizeof(double), tr->originalCrunchedLength, f);
     }
   
   
   /* need to store this as well in checkpoints, otherwise the branch lengths 
      in the output tree files will be wrong, not the internal branch lengths though */
   
-  myfwrite(tr->fracchanges,  sizeof(double), tr->NumberOfModels, f);
-  myfwrite(&(tr->fracchange),   sizeof(double), 1, f);
+  myBinFwrite(tr->fracchanges,  sizeof(double), tr->NumberOfModels, f);
+  myBinFwrite(&(tr->fracchange),   sizeof(double), 1, f);
 
   /* pInfo */
    
@@ -1115,26 +1128,30 @@ void writeCheckpoint(tree *tr)
       int 
 	dataType = tr->partitionData[model].dataType;
             
-      myfwrite(&(tr->partitionData[model].numberOfCategories), sizeof(int), 1, f);
-      myfwrite(tr->partitionData[model].perSiteRates, sizeof(double), tr->maxCategories, f);
-      myfwrite(tr->partitionData[model].EIGN, sizeof(double), pLengths[dataType].eignLength, f);
-      myfwrite(tr->partitionData[model].EV, sizeof(double),  pLengths[dataType].evLength, f);
-      myfwrite(tr->partitionData[model].EI, sizeof(double),  pLengths[dataType].eiLength, f);  
+      myBinFwrite(&(tr->partitionData[model].numberOfCategories), sizeof(int), 1, f);
+      myBinFwrite(tr->partitionData[model].perSiteRates, sizeof(double), tr->maxCategories, f);
+      myBinFwrite(tr->partitionData[model].EIGN, sizeof(double), pLengths[dataType].eignLength, f);
+      myBinFwrite(tr->partitionData[model].EV, sizeof(double),  pLengths[dataType].evLength, f);
+      myBinFwrite(tr->partitionData[model].EI, sizeof(double),  pLengths[dataType].eiLength, f);  
 
-      myfwrite(tr->partitionData[model].frequencies, sizeof(double),  pLengths[dataType].frequenciesLength, f);
-      myfwrite(tr->partitionData[model].tipVector, sizeof(double),  pLengths[dataType].tipVectorLength, f);  
-      myfwrite(tr->partitionData[model].substRates, sizeof(double),  pLengths[dataType].substRatesLength, f);    
-      myfwrite(&(tr->partitionData[model].alpha), sizeof(double), 1, f);
-      myfwrite(&(tr->partitionData[model].protModels), sizeof(int), 1, f);
-      myfwrite(&(tr->partitionData[model].autoProtModels), sizeof(int), 1, f);
+      myBinFwrite(tr->partitionData[model].frequencies, sizeof(double),  pLengths[dataType].frequenciesLength, f);
+      myBinFwrite(tr->partitionData[model].tipVector, sizeof(double),  pLengths[dataType].tipVectorLength, f);  
+      myBinFwrite(tr->partitionData[model].substRates, sizeof(double),  pLengths[dataType].substRatesLength, f);    
+      myBinFwrite(&(tr->partitionData[model].alpha), sizeof(double), 1, f);
+      myBinFwrite(&(tr->partitionData[model].protModels), sizeof(int), 1, f);
+      myBinFwrite(&(tr->partitionData[model].autoProtModels), sizeof(int), 1, f);
     }
     
   if(ckp.state == MOD_OPT)
-    myfwrite(tr->likelihoods, sizeof(double), tr->numberOfTrees, f);
+    myBinFwrite(tr->likelihoods, sizeof(double), tr->numberOfTrees, f);
 
   writeTree(tr, f);
 
+#ifdef _USE_ZLIB
+  gzclose(f);
+#else
   fclose(f); 
+#endif
 
   /* printBothOpen("\nCheckpoint written to: %s likelihood: %f\n", extendedName, tr->likelihood); */
 }
@@ -1152,19 +1169,19 @@ static void readTree(tree *tr, FILE *f)
   nodeptr
     startAddress;
 
-  myfread(&nodeNumber, sizeof(int), 1, f);
+  myBinFread(&nodeNumber, sizeof(int), 1, f);
 
   tr->start = tr->nodep[nodeNumber];
 
   /*printf("Start: %d %d\n", tr->start->number, nodeNumber);*/
 
-  myfread(&startAddress, sizeof(nodeptr), 1, f);
+  myBinFread(&startAddress, sizeof(nodeptr), 1, f);
 
   /*printf("%u %u\n", (size_t)startAddress, (size_t)tr->nodeBaseAddress);*/
 
 
 
-  myfread(tr->nodeBaseAddress, sizeof(node), x, f);
+  myBinFread(tr->nodeBaseAddress, sizeof(node), x, f);
     
   {
     int i;    
@@ -1213,13 +1230,18 @@ static void readCheckpoint(tree *tr)
 {
   int   
     model; 
-  
+
+#ifdef _USE_ZLIB
+  gzFile
+    f = gzopen(binaryCheckpointInputName, "r");
+#else
   FILE 
     *f = myfopen(binaryCheckpointInputName, "r");
+#endif
 
   /* cdta */   
 
-  myfread(&ckp, sizeof(checkPointState), 1, f);
+  myBinFread(&ckp, sizeof(checkPointState), 1, f);
 
   tr->ntips = tr->mxtips;
 
@@ -1241,8 +1263,8 @@ static void readCheckpoint(tree *tr)
   optimizeRateCategoryInvocations = ckp.optimizeRateCategoryInvocations;
 
 
-  myfread(tr->tree0, sizeof(char), tr->treeStringLength, f);
-  myfread(tr->tree1, sizeof(char), tr->treeStringLength, f);
+  myBinFread(tr->tree0, sizeof(char), tr->treeStringLength, f);
+  myBinFread(tr->tree1, sizeof(char), tr->treeStringLength, f);
 
   if(tr->searchConvergenceCriterion && processID == 0)
     {
@@ -1285,17 +1307,17 @@ static void readCheckpoint(tree *tr)
 
   if(tr->rateHetModel == CAT)
     {
-      myfread(tr->rateCategory, sizeof(int), tr->originalCrunchedLength, f);
-      myfread(tr->patrat, sizeof(double), tr->originalCrunchedLength, f);
-      myfread(tr->patratStored, sizeof(double), tr->originalCrunchedLength, f);
+      myBinFread(tr->rateCategory, sizeof(int), tr->originalCrunchedLength, f);
+      myBinFread(tr->patrat, sizeof(double), tr->originalCrunchedLength, f);
+      myBinFread(tr->patratStored, sizeof(double), tr->originalCrunchedLength, f);
     }
   
 
   /* need to read this as well in checkpoints, otherwise the branch lengths 
      in the output tree files will be wrong, not the internal branch lengths though */
   
-  myfread(tr->fracchanges,  sizeof(double), tr->NumberOfModels, f);
-  myfread(&(tr->fracchange),   sizeof(double), 1, f);
+  myBinFread(tr->fracchanges,  sizeof(double), tr->NumberOfModels, f);
+  myBinFread(&(tr->fracchange),   sizeof(double), 1, f);
   
   /* pInfo */
    
@@ -1304,34 +1326,34 @@ static void readCheckpoint(tree *tr)
       int 
 	dataType = tr->partitionData[model].dataType;
             
-      myfread(&(tr->partitionData[model].numberOfCategories), sizeof(int), 1, f);
-      myfread(tr->partitionData[model].perSiteRates, sizeof(double), tr->maxCategories, f);
-      myfread(tr->partitionData[model].EIGN, sizeof(double), pLengths[dataType].eignLength, f);
-      myfread(tr->partitionData[model].EV, sizeof(double),  pLengths[dataType].evLength, f);
-      myfread(tr->partitionData[model].EI, sizeof(double),  pLengths[dataType].eiLength, f);  
+      myBinFread(&(tr->partitionData[model].numberOfCategories), sizeof(int), 1, f);
+      myBinFread(tr->partitionData[model].perSiteRates, sizeof(double), tr->maxCategories, f);
+      myBinFread(tr->partitionData[model].EIGN, sizeof(double), pLengths[dataType].eignLength, f);
+      myBinFread(tr->partitionData[model].EV, sizeof(double),  pLengths[dataType].evLength, f);
+      myBinFread(tr->partitionData[model].EI, sizeof(double),  pLengths[dataType].eiLength, f);  
 
-      myfread(tr->partitionData[model].frequencies, sizeof(double),  pLengths[dataType].frequenciesLength, f);
-      myfread(tr->partitionData[model].tipVector, sizeof(double),  pLengths[dataType].tipVectorLength, f);  
-      myfread(tr->partitionData[model].substRates, sizeof(double),  pLengths[dataType].substRatesLength, f);  
-      myfread(&(tr->partitionData[model].alpha), sizeof(double), 1, f);
+      myBinFread(tr->partitionData[model].frequencies, sizeof(double),  pLengths[dataType].frequenciesLength, f);
+      myBinFread(tr->partitionData[model].tipVector, sizeof(double),  pLengths[dataType].tipVectorLength, f);  
+      myBinFread(tr->partitionData[model].substRates, sizeof(double),  pLengths[dataType].substRatesLength, f);  
+      myBinFread(&(tr->partitionData[model].alpha), sizeof(double), 1, f);
 
       makeGammaCats(tr->partitionData[model].alpha, tr->partitionData[model].gammaRates, 4, tr->useMedian); 
 
-      myfread(&(tr->partitionData[model].protModels), sizeof(int), 1, f);
-      myfread(&(tr->partitionData[model].autoProtModels), sizeof(int), 1, f);
+      myBinFread(&(tr->partitionData[model].protModels), sizeof(int), 1, f);
+      myBinFread(&(tr->partitionData[model].autoProtModels), sizeof(int), 1, f);
     }
     
   if(ckp.state == MOD_OPT)
-    myfread(tr->likelihoods, sizeof(double), tr->numberOfTrees, f);
+    myBinFread(tr->likelihoods, sizeof(double), tr->numberOfTrees, f);
 
   updatePerSiteRates(tr, FALSE); 
 
   readTree(tr, f);
-
+#ifdef _USE_ZLIB
+  gzclose(f);
+#else
   fclose(f); 
-
-  
-
+#endif
 }
 
 

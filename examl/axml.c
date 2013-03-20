@@ -95,8 +95,63 @@ void storeValuesInTraversalDescriptor(tree *tr, double *value)
 
 
 
+void myBinFwrite(void *ptr, size_t size, size_t nmemb, FILE *byteFile)
+{
+#ifdef _USE_ZLIB
+  int 
+    s;
+  
+   const int 
+     max = INT_MAX;
+   
+   if((size * nmemb) > (size_t)max)
+    {
+      size_t 	
+	toRead = size * nmemb,
+	offset = 0;
+     
+      unsigned char 
+	*localPtr = (unsigned char*)ptr;
 
-static void myBinFread(void *ptr, size_t size, size_t nmemb, FILE *byteFile)
+      size_t 
+	rest;
+
+      for(offset = 0; offset < toRead - (size_t)max; offset += (size_t)max)
+	{
+	  s = gzwrite(byteFile, (void *)(&localPtr[offset]), max);
+
+	  assert(s == max);      
+	}
+            
+      
+      rest = (toRead - offset);
+
+      if(rest > 0)
+	{
+	  assert(rest <= (size_t)max);
+	  
+	  s = gzwrite(byteFile, (void *)(&localPtr[offset]), (int)rest);
+	  
+	  assert(s == (int)rest);
+	}
+    }
+  else    
+    {
+      s = gzwrite(byteFile, ptr, (unsigned int)(size * nmemb));
+
+      assert(s == (int)(size * nmemb));
+    }
+#else
+  size_t
+    bytes_read;
+  
+  bytes_read = fread(ptr, size, nmemb, byteFile);
+
+  assert(bytes_read == nmemb);
+#endif
+}
+
+void myBinFread(void *ptr, size_t size, size_t nmemb, FILE *byteFile)
 {  
 #ifdef _USE_ZLIB
   int 
@@ -127,11 +182,14 @@ static void myBinFread(void *ptr, size_t size, size_t nmemb, FILE *byteFile)
       
       rest = (toRead - offset);
 
-      assert(rest <= (size_t)max);
-
-      s = gzread(byteFile, (void *)(&localPtr[offset]), (int)rest);
-
-      assert(s == (int)rest);
+      if(rest > 0)
+	{
+	  assert(rest <= (size_t)max);
+	  
+	  s = gzread(byteFile, (void *)(&localPtr[offset]), (int)rest);
+	  
+	  assert(s == (int)rest);
+	}
     }
   else    
     {
