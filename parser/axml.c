@@ -94,43 +94,46 @@ void myBinFwrite(const void *ptr, size_t size, size_t nmemb)
 #ifdef _USE_ZLIB    
   int 
     s;
-
+  
   const int 
-     max = MAX_INT;
+    max = INT_MAX;
    
-   if((size * nmemb) > (size_t)max)
+  if((size * nmemb) > (size_t)max)
     {
       size_t 	
 	toRead = size * nmemb,
 	offset = 0;
-     
+      
       unsigned char 
 	*localPtr = (unsigned char*)ptr;
 
       size_t 
 	rest;
-
+      
       for(offset = 0; offset < toRead - (size_t)max; offset += (size_t)max)
 	{
 	  s = gzwrite(byteFile, (void *)(&localPtr[offset]), max);
-
+	  
 	  assert(s == max);      
 	}
             
       
       rest = (toRead - offset);
 
-      assert(rest <= (size_t)max);
-
-      s = gzwrite(byteFile, (void *)(&localPtr[offset]), (int)rest);
-
-      assert(s == (int)rest);
+      if(rest > 0)
+	{
+	  assert(rest <= (size_t)max);
+	  
+	  s = gzwrite(byteFile, (void *)(&localPtr[offset]), (int)rest);
+	  
+	  assert(s == (int)rest);
+	}
     }
   else    
     {
-      s = gzwrite(byteFile, ptr, (unsigned)(size * nmemb));
- 
-      assert((size * nmemb) == (size_t)s);    
+      s = gzwrite(byteFile, ptr, (unsigned int)(size * nmemb));
+
+      assert(s == (int)(size * nmemb));
     }
 #else
   size_t  

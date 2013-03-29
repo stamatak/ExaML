@@ -171,8 +171,8 @@
 #define PointGamma(prob,alpha,beta)  PointChi2(prob,2.0*(alpha))/(2.0*(beta))
 
 #define programName        "ExaML"
-#define programVersion     "1.0.1"
-#define programDate        "March 2013"
+#define programVersion     "1.0.2"
+#define programDate        "March 29 2013"
 
 
 #define  TREE_EVALUATION            0
@@ -210,9 +210,10 @@
 #define JTTDCMUT   16
 #define FLU        17 
 #define AUTO       18
-#define GTR        19  /* GTR always needs to be the last one */
+#define LG4        19
+#define GTR        20  /* GTR always needs to be the last one */
 
-#define NUM_PROT_MODELS 20
+#define NUM_PROT_MODELS 21
 
 /* bipartition stuff */
 
@@ -503,6 +504,19 @@ typedef struct {
   double *EI;
   double *left;
   double *right;
+
+   /* LG4 */
+
+  double *EIGN_LG4[4];
+  double *EV_LG4[4];
+  double *EI_LG4[4];   
+
+  double *frequencies_LG4[4];
+  double *tipVector_LG4[4];
+  double *substRates_LG4[4];
+  
+  /* LG4 */
+
   double *frequencies;
   double *empiricalFrequencies;
   double *tipVector; 
@@ -1150,6 +1164,12 @@ void myBinFwrite(void *ptr, size_t size, size_t nmemb, FILE *byteFile);
 void myBinFread(void *ptr, size_t size, size_t nmemb, FILE *byteFile);
 
 #ifdef __AVX
+
+extern void newviewGTRGAMMAPROT_AVX_LG4(int tipCase,
+					double *x1, double *x2, double *x3, double *extEV[4], double *tipVector[4],
+					int *ex3, unsigned char *tipX1, unsigned char *tipX2, int n, 
+					double *left, double *right, int *wgt, int *scalerIncrement, const boolean useFastScaling);
+
 extern void newviewGTRCAT_AVX(int tipCase,  double *EV,  int *cptr,
 			      double *x1_start, double *x2_start,  double *x3_start, double *tipVector,
 			      unsigned char *tipX1, unsigned char *tipX2,

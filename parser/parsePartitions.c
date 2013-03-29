@@ -155,7 +155,10 @@ static void analyzeIdentifier(char **ch, int modelNumber, tree *tr)
 	      tr->initialPartitionData[modelNumber].protFreqs  = 1;
 	      tr->initialPartitionData[modelNumber].dataType   = AA_DATA;
 	      found = TRUE;
-	    }	  	 	  
+	    }	
+
+	  /*if(found)
+	    printf("%s %d\n", model, i);*/
 	}
       
       if(!found)

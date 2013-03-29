@@ -1136,7 +1136,24 @@ void writeCheckpoint(tree *tr)
 
       myBinFwrite(tr->partitionData[model].frequencies, sizeof(double),  pLengths[dataType].frequenciesLength, f);
       myBinFwrite(tr->partitionData[model].tipVector, sizeof(double),  pLengths[dataType].tipVectorLength, f);  
-      myBinFwrite(tr->partitionData[model].substRates, sizeof(double),  pLengths[dataType].substRatesLength, f);    
+      myBinFwrite(tr->partitionData[model].substRates, sizeof(double),  pLengths[dataType].substRatesLength, f);
+
+      if(tr->partitionData[model].protModels == LG4)
+	{
+	  int 
+	    k;
+	  
+	  for(k = 0; k < 4; k++)
+	    {
+	      myBinFwrite(tr->partitionData[model].EIGN_LG4[k], sizeof(double), pLengths[dataType].eignLength, f);
+	      myBinFwrite(tr->partitionData[model].EV_LG4[k], sizeof(double),  pLengths[dataType].evLength, f);
+	      myBinFwrite(tr->partitionData[model].EI_LG4[k], sizeof(double),  pLengths[dataType].eiLength, f);    
+	      myBinFwrite(tr->partitionData[model].frequencies_LG4[k], sizeof(double),  pLengths[dataType].frequenciesLength, f);
+	      myBinFwrite(tr->partitionData[model].tipVector_LG4[k], sizeof(double),  pLengths[dataType].tipVectorLength, f);  
+	      myBinFwrite(tr->partitionData[model].substRates_LG4[k], sizeof(double),  pLengths[dataType].substRatesLength, f);    
+	    }
+	}
+    
       myBinFwrite(&(tr->partitionData[model].alpha), sizeof(double), 1, f);
       myBinFwrite(&(tr->partitionData[model].protModels), sizeof(int), 1, f);
       myBinFwrite(&(tr->partitionData[model].autoProtModels), sizeof(int), 1, f);
@@ -1335,6 +1352,24 @@ static void readCheckpoint(tree *tr)
       myBinFread(tr->partitionData[model].frequencies, sizeof(double),  pLengths[dataType].frequenciesLength, f);
       myBinFread(tr->partitionData[model].tipVector, sizeof(double),  pLengths[dataType].tipVectorLength, f);  
       myBinFread(tr->partitionData[model].substRates, sizeof(double),  pLengths[dataType].substRatesLength, f);  
+
+      if(tr->partitionData[model].protModels == LG4)
+	{
+	  int 
+	    k;
+	  
+	  for(k = 0; k < 4; k++)
+	    {
+	      myBinFread(tr->partitionData[model].EIGN_LG4[k], sizeof(double), pLengths[dataType].eignLength, f);
+	      myBinFread(tr->partitionData[model].EV_LG4[k], sizeof(double),  pLengths[dataType].evLength, f);
+	      myBinFread(tr->partitionData[model].EI_LG4[k], sizeof(double),  pLengths[dataType].eiLength, f);    
+	      myBinFread(tr->partitionData[model].frequencies_LG4[k], sizeof(double),  pLengths[dataType].frequenciesLength, f);
+	      myBinFread(tr->partitionData[model].tipVector_LG4[k], sizeof(double),  pLengths[dataType].tipVectorLength, f);  
+	      myBinFread(tr->partitionData[model].substRates_LG4[k], sizeof(double),  pLengths[dataType].substRatesLength, f);    
+	    }
+	}
+
+
       myBinFread(&(tr->partitionData[model].alpha), sizeof(double), 1, f);
 
       makeGammaCats(tr->partitionData[model].alpha, tr->partitionData[model].gammaRates, 4, tr->useMedian); 

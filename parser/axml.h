@@ -173,8 +173,8 @@ extern double exp_approx (double x);
 #define PointGamma(prob,alpha,beta)  PointChi2(prob,2.0*(alpha))/(2.0*(beta))
 
 #define programName        "the phylip file parser for ExaML"
-#define programVersion     "1.0.0"
-#define programDate        "September 2012"
+#define programVersion     "1.0.1"
+#define programDate        "March 29 2013"
 
 
 #define  TREE_EVALUATION            0
@@ -231,9 +231,10 @@ extern double exp_approx (double x);
 #define JTTDCMUT   16
 #define FLU        17 
 #define AUTO       18
-#define GTR        19  /* GTR always needs to be the last one */
+#define LG4        19
+#define GTR        20  /* GTR always needs to be the last one */
 
-#define NUM_PROT_MODELS 20
+#define NUM_PROT_MODELS 21
 
 /* bipartition stuff */
 
