@@ -1157,8 +1157,8 @@ extern void restart(tree *tr, analdef *adef);
 
 extern void writeCheckpoint(tree *tr);
 
-inline boolean isGap(unsigned int *x, int pos);
-inline boolean noGap(unsigned int *x, int pos);
+extern boolean isGap(unsigned int *x, int pos);
+extern boolean noGap(unsigned int *x, int pos);
 
 void myBinFwrite(void *ptr, size_t size, size_t nmemb, FILE *byteFile);
 void myBinFread(void *ptr, size_t size, size_t nmemb, FILE *byteFile);

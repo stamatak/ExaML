@@ -876,12 +876,12 @@ static void newviewGTRCATPROT_SAVE(int tipCase, double *extEV,
 
 #endif
 
-inline boolean isGap(unsigned int *x, int pos)
+boolean isGap(unsigned int *x, int pos)
 {
   return (x[pos / 32] & mask32[pos % 32]);
 }
 
-inline boolean noGap(unsigned int *x, int pos)
+boolean noGap(unsigned int *x, int pos)
 {
   return (!(x[pos / 32] & mask32[pos % 32]));
 }
