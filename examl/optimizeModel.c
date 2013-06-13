@@ -246,8 +246,7 @@ static void freeLinkageList( linkageList* ll)
 }
 
 #define ALPHA_F 0
-#define INVAR_F 1
-#define RATE_F  2
+#define RATE_F  1
 
 
 
@@ -3080,6 +3079,7 @@ void modOpt(tree *tr, double likelihoodEpsilon, analdef *adef, int treeIteration
 	case CAT:
 	  if(catOpt < 3)
 	    {	      	     	     	     
+	      evaluateGeneric(tr, tr->start, TRUE);
 	      optimizeRateCategories(tr, tr->categories);	      	     	      	      	     
 
 #ifdef _DEBUG_MOD_OPT
@@ -3098,9 +3098,7 @@ void modOpt(tree *tr, double likelihoodEpsilon, analdef *adef, int treeIteration
 	printf("%f %f\n", tr->likelihood, currentLikelihood);
       assert(tr->likelihood >= currentLikelihood);
       
-      printAAmatrix(tr, fabs(currentLikelihood - tr->likelihood));  
-      
-    
+      printAAmatrix(tr, fabs(currentLikelihood - tr->likelihood));            
     }
   while(fabs(currentLikelihood - tr->likelihood) > likelihoodEpsilon);  
   
