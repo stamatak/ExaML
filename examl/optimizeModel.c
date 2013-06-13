@@ -124,7 +124,9 @@ static void setRateModel(tree *tr, int model, double rate, int position)
 }
 
 
-
+//LIBRARY: the only thing that we will need to do here is to 
+//replace linkList by a string and also add some error correction 
+//code
 
 
 static linkageList* initLinkageList(int *linkList, tree *tr)
@@ -135,10 +137,14 @@ static linkageList* initLinkageList(int *linkList, tree *tr)
     numberOfModels = 0,
     i,
     pos;
-  linkageList* ll = (linkageList*)malloc(sizeof(linkageList));
+  
+  linkageList
+    *ll = (linkageList*)malloc(sizeof(linkageList));
       
-  for(i = 0; i < tr->NumberOfModels; i++)
+  for(i = 0; i < tr->NumberOfModels; i++)    
     {
+      assert(linkList[i] >= 0 && linkList[i] < tr->NumberOfModels);
+
       if(linkList[i] > numberOfModels)
 	numberOfModels = linkList[i];
     }
@@ -148,10 +154,10 @@ static linkageList* initLinkageList(int *linkList, tree *tr)
   ll->entries = numberOfModels;
   ll->ld      = (linkageData*)malloc(sizeof(linkageData) * numberOfModels);
 
-
   for(i = 0; i < numberOfModels; i++)
     {
       ll->ld[i].valid = TRUE;
+      
       partitions = 0;
 
       for(k = 0; k < tr->NumberOfModels; k++)	
@@ -929,7 +935,6 @@ static void optAlphasGeneric(tree *tr, double modelEpsilon, linkageList *ll)
     optParamGeneric(tr, modelEpsilon, ll, non_LG4X_Partitions, -1, ALPHA_MIN, ALPHA_MAX, ALPHA_F);
   
   //right now this assertion shouldn't fail, undo when implementing LG4X  
-  assert(non_LG4X_Partitions == tr->NumberOfModels);
   assert(LG4X_Partitions == 0);
  
 
@@ -2862,15 +2867,28 @@ void modOpt(tree *tr, double likelihoodEpsilon, analdef *adef, int treeIteration
   
   linkageList 
     *alphaList,
-    *invarList,
     *rateList;      
 
   for(i = 0; i < tr->NumberOfModels; i++)
     unlinked[i] = i;
-  
-  alphaList = initLinkageList(unlinked, tr);
-  invarList = initLinkageList(unlinked, tr);
-  rateList  = initLinkageListGTR(tr);
+
+  //test code for library 
+  if(0)
+    {
+      //assuming that we have three partitions for testing here 
+
+      int 
+	alpha[3] = {0, 0, 1}, //this would link alpha across the two first partitions
+	gtr[3] = {0, 0, 1};   //this would link the GTR models of the two first partitions
+
+	alphaList = initLinkageList(alpha, tr);
+	rateList  = initLinkageList(gtr, tr);
+    }
+  else
+    {
+      alphaList = initLinkageList(unlinked, tr);
+      rateList  = initLinkageListGTR(tr);
+    }
    
   tr->start = tr->nodep[1];
                  
@@ -2970,6 +2988,5 @@ void modOpt(tree *tr, double likelihoodEpsilon, analdef *adef, int treeIteration
   free(unlinked);
   freeLinkageList(alphaList);
   freeLinkageList(rateList);
-  freeLinkageList(invarList);  
 }
 
