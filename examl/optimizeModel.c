@@ -64,6 +64,11 @@ extern checkPointState ckp;
 extern int processes;
 extern int processID;
 
+// FLAG for easier debugging of model parameter optimization routines 
+
+//#define _DEBUG_MOD_OPT
+
+
 /*********************FUNCTIONS FOOR EXACT MODEL OPTIMIZATION UNDER GTRGAMMA ***************************************/
 
 
@@ -990,55 +995,59 @@ static void optAlpha(tree *tr, double modelEpsilon, linkageList *ll)
 
 
 
-static void optRates(tree *tr, double modelEpsilon, linkageList *ll, int numberOfModels, int states)
+
+static void optRate(tree *tr, double modelEpsilon, linkageList *ll, int numberOfModels, int states, int rateNumber, int numberOfRates)
 {
-  int 
-    i, 
+  int
+    l,
     k, 
     j, 
-    pos,
-    numberOfRates = ((states * states - states) / 2) - 1;
+    pos;
     
-  double lim_inf = RATE_MIN;
-  double lim_sup = RATE_MAX;
   double 
-    *startRates;
-  double 
-    *startLH= (double *)malloc(sizeof(double) * numberOfModels),
-    *endLH  = (double *)malloc(sizeof(double) * numberOfModels),
-    *_a     = (double *)malloc(sizeof(double) * numberOfModels),
-    *_b     = (double *)malloc(sizeof(double) * numberOfModels),
-    *_c     = (double *)malloc(sizeof(double) * numberOfModels),
-    *_fa    = (double *)malloc(sizeof(double) * numberOfModels),
-    *_fb    = (double *)malloc(sizeof(double) * numberOfModels),
-    *_fc    = (double *)malloc(sizeof(double) * numberOfModels),
-    *_param = (double *)malloc(sizeof(double) * numberOfModels),
-    *result = (double *)malloc(sizeof(double) * numberOfModels),
-    *_x     = (double *)malloc(sizeof(double) * numberOfModels); 
-
-
-   assert(states != -1);
-
-  startRates = (double *)malloc(sizeof(double) * numberOfRates * numberOfModels);
+    lim_inf     = RATE_MIN,
+    lim_sup     = RATE_MAX,
+    *startRates = (double *)malloc(sizeof(double) * numberOfRates * numberOfModels),
+    *startLH    = (double *)malloc(sizeof(double) * numberOfModels),
+    *endLH      = (double *)malloc(sizeof(double) * numberOfModels),
+    *_a         = (double *)malloc(sizeof(double) * numberOfModels),
+    *_b         = (double *)malloc(sizeof(double) * numberOfModels),
+    *_c         = (double *)malloc(sizeof(double) * numberOfModels),
+    *_fa        = (double *)malloc(sizeof(double) * numberOfModels),
+    *_fb        = (double *)malloc(sizeof(double) * numberOfModels),
+    *_fc        = (double *)malloc(sizeof(double) * numberOfModels),
+    *_param     = (double *)malloc(sizeof(double) * numberOfModels),
+    *result     = (double *)malloc(sizeof(double) * numberOfModels),
+    *_x         = (double *)malloc(sizeof(double) * numberOfModels); 
+   
+  assert(states != -1);
 
   evaluateGeneric(tr, tr->start, TRUE);
+  
+#ifdef  _DEBUG_MOD_OPT
+  double
+    initialLH = tr->likelihood;
+#endif
+
   /* 
      at this point here every worker has the traversal data it needs for the 
      search 
   */
 
-  for(i = 0, pos = 0; i < ll->entries; i++)
+  for(l = 0, pos = 0; l < ll->entries; l++)
     {
-      if(ll->ld[i].valid)
+      if(ll->ld[l].valid)
 	{
 	  endLH[pos] = unlikely;
 	  startLH[pos] = 0.0;
 
-	  for(j = 0; j < ll->ld[i].partitions; j++)
+	  for(j = 0; j < ll->ld[l].partitions; j++)
 	    {
-	      int index = ll->ld[i].partitionList[j];
+	      int 
+		index = ll->ld[l].partitionList[j];
 	      
 	      startLH[pos] += tr->perPartitionLH[index];
+	      
 	      for(k = 0; k < numberOfRates; k++)
 		startRates[pos * numberOfRates + k] = tr->partitionData[index].substRates[k];      
 	    }
@@ -1047,68 +1056,89 @@ static void optRates(tree *tr, double modelEpsilon, linkageList *ll, int numberO
     }  
 
   assert(pos == numberOfModels);
-  
-  for(i = 0; i < numberOfRates; i++)
-    {     
-      for(k = 0, pos = 0; k < ll->entries; k++)
-	{
-	  if(ll->ld[k].valid)
-	    {
-	      int index = ll->ld[k].partitionList[0];
-	      _a[pos] = tr->partitionData[index].substRates[i] + 0.1;
-	      _b[pos] = tr->partitionData[index].substRates[i] - 0.1;
+   
+  for(k = 0, pos = 0; k < ll->entries; k++)
+    {
+      if(ll->ld[k].valid)
+	{	 
+	  int 
+	    index = ll->ld[k].partitionList[0];
+	  
+	  _a[pos] = tr->partitionData[index].substRates[rateNumber] + 0.1;
+	  _b[pos] = tr->partitionData[index].substRates[rateNumber] - 0.1;
 	      
-	      if(_a[pos] < lim_inf) _a[pos] = lim_inf;
-	      if(_a[pos] > lim_sup) _a[pos] = lim_sup;
+	  if(_a[pos] < lim_inf) 
+	    _a[pos] = lim_inf;
+	  
+	  if(_a[pos] > lim_sup) 
+	    _a[pos] = lim_sup;
 	      
-	      if(_b[pos] < lim_inf) _b[pos] = lim_inf;
-	      if(_b[pos] > lim_sup) _b[pos] = lim_sup;    
-	      pos++;
-	    }
-	}                       	     
+	  if(_b[pos] < lim_inf) 
+	    _b[pos] = lim_inf;
+	  
+	  if(_b[pos] > lim_sup) 
+	    _b[pos] = lim_sup;    
 
-      assert(pos == numberOfModels);
-
-      brakGeneric(_param, _a, _b, _c, _fa, _fb, _fc, lim_inf, lim_sup, numberOfModels, i, RATE_F, tr, ll, modelEpsilon);
-      
-      for(k = 0; k < numberOfModels; k++)
-	{
-	  assert(_a[k] >= lim_inf && _a[k] <= lim_sup);
-	  assert(_b[k] >= lim_inf && _b[k] <= lim_sup);	  
-	  assert(_c[k] >= lim_inf && _c[k] <= lim_sup);	    
-	}      
-
-      brentGeneric(_a, _b, _c, _fb, modelEpsilon, _x, result, numberOfModels, RATE_F, i, tr,  ll, lim_inf, lim_sup);
-	
-      for(k = 0; k < numberOfModels; k++)
-	endLH[k] = result[k];	           
-      
-      for(k = 0, pos = 0; k < ll->entries; k++)
-	{
-
-	  if(ll->ld[k].valid)
-	    { 
-	      if(startLH[pos] > endLH[pos])
-		{		  
-		  for(j = 0; j < ll->ld[k].partitions; j++)
-		    {
-		      int index = ll->ld[k].partitionList[j];
-		      tr->partitionData[index].substRates[i] = startRates[pos * numberOfRates + i];
-
-		      initReversibleGTR(tr, index);		     
-		    }
-
-		}
-	      pos++;
-	    }
+	  pos++;
 	}
+    }                    	     
 
+  assert(pos == numberOfModels);
 
+  brakGeneric(_param, _a, _b, _c, _fa, _fb, _fc, lim_inf, lim_sup, numberOfModels, rateNumber, RATE_F, tr, ll, modelEpsilon);
       
-      assert(pos == numberOfModels);
+  for(k = 0; k < numberOfModels; k++)
+    {
+      assert(_a[k] >= lim_inf && _a[k] <= lim_sup);
+      assert(_b[k] >= lim_inf && _b[k] <= lim_sup);	  
+      assert(_c[k] >= lim_inf && _c[k] <= lim_sup);	    
+    }      
+
+  brentGeneric(_a, _b, _c, _fb, modelEpsilon, _x, result, numberOfModels, RATE_F, rateNumber, tr,  ll, lim_inf, lim_sup);
+	
+  for(k = 0; k < numberOfModels; k++)
+    endLH[k] = result[k];
+	      
+  for(k = 0, pos = 0; k < ll->entries; k++)
+    {
+      if(ll->ld[k].valid)
+	{ 
+	  if(startLH[pos] > endLH[pos])
+	    {
+	      //if the initial likelihood was better than the likelihodo after optimization, we set the values back 
+	      //to their original values 
+
+	      for(j = 0; j < ll->ld[k].partitions; j++)
+		{
+		  int 
+		    index = ll->ld[k].partitionList[j];
+		  
+		  tr->partitionData[index].substRates[rateNumber] = startRates[pos * numberOfRates + rateNumber];	             	  
+		  initReversibleGTR(tr, index);
+		}
+	    }
+	  else
+	    {
+	      //otherwise we set the value to the optimized value 
+	      //this used to be a bug in standard RAxML, before I fixed it 
+	      //I was not using _x[pos] as value that needs to be set 
+
+	      for(j = 0; j < ll->ld[k].partitions; j++)
+		{
+		  int 
+		    index = ll->ld[k].partitionList[j];
+		  
+		  tr->partitionData[index].substRates[rateNumber] = _x[pos];	             	  
+		  initReversibleGTR(tr, index);
+		}
+	    }
+	  pos++;
+	}
     }
 
- 
+    
+  assert(pos == numberOfModels);
+
   free(startLH);
   free(endLH);
   free(result);
@@ -1121,7 +1151,29 @@ static void optRates(tree *tr, double modelEpsilon, linkageList *ll, int numberO
   free(_param);
   free(_x);  
   free(startRates);
+
+#ifdef _DEBUG_MOD_OPT
+  evaluateGeneric(tr, tr->start, TRUE);
+
+  if(tr->likelihood < initialLH)
+    printf("%f %f\n", tr->likelihood, initialLH);
+  assert(tr->likelihood >= initialLH);
+#endif
+
 }
+
+//new version for optimizing rates, an external loop that iterates over the rates 
+
+static void optRates(tree *tr, double modelEpsilon, linkageList *ll, int numberOfModels, int states)
+{
+  int
+    rateNumber,
+    numberOfRates = ((states * states - states) / 2) - 1;
+
+  for(rateNumber = 0; rateNumber < numberOfRates; rateNumber++)
+    optRate(tr, modelEpsilon, ll, numberOfModels, states, rateNumber, numberOfRates);
+}
+
 
 static boolean AAisGTR(tree *tr)
 {
