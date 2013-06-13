@@ -57,7 +57,7 @@ extern char workdir[1024];
 extern char run_id[128];
 extern char lengthFileName[1024];
 extern char lengthFileNameModel[1024];
-extern char *protModels[20];
+extern char *protModels[NUM_PROT_MODELS];
 
 extern checkPointState ckp;
 
@@ -246,7 +246,7 @@ static void freeLinkageList( linkageList* ll)
 
 
 
-static void evaluateChange(tree *tr, int rateNumber, double *value, double *result, boolean* converged, int whichFunction, int numberOfModels, linkageList *ll)
+static void evaluateChange(tree *tr, int rateNumber, double *value, double *result, boolean* converged, int whichFunction, int numberOfModels, linkageList *ll, double modelEpsilon)
 { 
   int i, k, pos;
 
@@ -501,7 +501,7 @@ static void brentGeneric(double *ax, double *bx, double *cx, double *fb, double 
 	    }
 	}
                  
-      evaluateChange(tr, rateNumber, u, fu, converged, whichFunction, numberOfModels, ll);
+      evaluateChange(tr, rateNumber, u, fu, converged, whichFunction, numberOfModels, ll, tol);
 
       for(i = 0; i < numberOfModels; i++)
 	{
@@ -580,7 +580,7 @@ static void brentGeneric(double *ax, double *bx, double *cx, double *fb, double 
 
 static int brakGeneric(double *param, double *ax, double *bx, double *cx, double *fa, double *fb, 
 		       double *fc, double lim_inf, double lim_sup, 
-		       int numberOfModels, int rateNumber, int whichFunction, tree *tr, linkageList *ll)
+		       int numberOfModels, int rateNumber, int whichFunction, tree *tr, linkageList *ll, double modelEpsilon)
 {
   double 
     *ulim = (double *)malloc(sizeof(double) * numberOfModels),
@@ -621,7 +621,7 @@ static int brakGeneric(double *param, double *ax, double *bx, double *cx, double
     }
    
   
-  evaluateChange(tr, rateNumber, param, fa, converged, whichFunction, numberOfModels, ll);
+  evaluateChange(tr, rateNumber, param, fa, converged, whichFunction, numberOfModels, ll, modelEpsilon);
 
 
   for(i = 0; i < numberOfModels; i++)
@@ -635,7 +635,7 @@ static int brakGeneric(double *param, double *ax, double *bx, double *cx, double
       assert(param[i] >= lim_inf && param[i] <= lim_sup);
     }
   
-  evaluateChange(tr, rateNumber, param, fb, converged, whichFunction, numberOfModels, ll);
+  evaluateChange(tr, rateNumber, param, fb, converged, whichFunction, numberOfModels, ll, modelEpsilon);
 
   for(i = 0; i < numberOfModels; i++)  
     {
@@ -658,7 +658,7 @@ static int brakGeneric(double *param, double *ax, double *bx, double *cx, double
     }
   
  
-  evaluateChange(tr, rateNumber, param, fc, converged, whichFunction, numberOfModels,  ll);
+  evaluateChange(tr, rateNumber, param, fc, converged, whichFunction, numberOfModels,  ll, modelEpsilon);
 
    while(1) 
      {       
@@ -802,7 +802,7 @@ static int brakGeneric(double *param, double *ax, double *bx, double *cx, double
 	     }
 	 }
              
-       evaluateChange(tr, rateNumber, param, temp, converged, whichFunction, numberOfModels, ll);
+       evaluateChange(tr, rateNumber, param, temp, converged, whichFunction, numberOfModels, ll, modelEpsilon);
 
        for(i = 0; i < numberOfModels; i++)
 	 {
@@ -950,7 +950,7 @@ static void optAlpha(tree *tr, double modelEpsilon, linkageList *ll)
 	}
     }					  
 
-  brakGeneric(_param, _a, _b, _c, _fa, _fb, _fc, lim_inf, lim_sup, numberOfModels, -1, ALPHA_F, tr, ll);       
+  brakGeneric(_param, _a, _b, _c, _fa, _fb, _fc, lim_inf, lim_sup, numberOfModels, -1, ALPHA_F, tr, ll, modelEpsilon);       
   brentGeneric(_a, _b, _c, _fb, modelEpsilon, _x, result, numberOfModels, ALPHA_F, -1, tr, ll, lim_inf, lim_sup);
 
   for(i = 0; i < numberOfModels; i++)
@@ -1069,7 +1069,7 @@ static void optRates(tree *tr, double modelEpsilon, linkageList *ll, int numberO
 
       assert(pos == numberOfModels);
 
-      brakGeneric(_param, _a, _b, _c, _fa, _fb, _fc, lim_inf, lim_sup, numberOfModels, i, RATE_F, tr, ll);
+      brakGeneric(_param, _a, _b, _c, _fa, _fb, _fc, lim_inf, lim_sup, numberOfModels, i, RATE_F, tr, ll, modelEpsilon);
       
       for(k = 0; k < numberOfModels; k++)
 	{
@@ -2790,6 +2790,7 @@ void modOpt(tree *tr, double likelihoodEpsilon, analdef *adef, int treeIteration
     *unlinked = (int *)malloc(sizeof(int) * tr->NumberOfModels);
   
   double 
+    inputLikelihood,
     currentLikelihood,
     modelEpsilon = 0.0001;
   
@@ -2814,6 +2815,12 @@ void modOpt(tree *tr, double likelihoodEpsilon, analdef *adef, int treeIteration
       catOpt = ckp.catOpt;             
     }
 
+  inputLikelihood = tr->likelihood;
+
+  evaluateGeneric(tr, tr->start, TRUE); 
+
+  assert(inputLikelihood == tr->likelihood);
+
   do
     {    
       if(adef->mode == TREE_EVALUATION)
@@ -2829,36 +2836,65 @@ void modOpt(tree *tr, double likelihoodEpsilon, analdef *adef, int treeIteration
       
       currentLikelihood = tr->likelihood;     
           
+#ifdef _DEBUG_MOD_OPT
+      printf("start: %f\n", currentLikelihood);
+#endif
+
       optRatesGeneric(tr, modelEpsilon, rateList);
                         
-      evaluateGeneric(tr, tr->start, TRUE);                                                       
+      evaluateGeneric(tr, tr->start, TRUE);    
+
+ #ifdef _DEBUG_MOD_OPT
+      printf("after rates %f\n", tr->likelihood);
+#endif                                                  
 
       autoProtein(tr);
 
-      treeEvaluate(tr, 0.0625);      
-      
+      treeEvaluate(tr, 0.0625);    
+  
+#ifdef _DEBUG_MOD_OPT
+      evaluateGeneric(tr, tr->start, TRUE); 
+      printf("after br-len 1 %f\n", tr->likelihood);
+#endif     
 
       switch(tr->rateHetModel)
 	{
 	case GAMMA:      
 	  optAlpha(tr, modelEpsilon, alphaList); 
 	  
-	  evaluateGeneric(tr, tr->start, TRUE); 	 	 
-	  
+	  evaluateGeneric(tr, tr->start, TRUE); 
+	 	 
+#ifdef _DEBUG_MOD_OPT	 
+	  printf("after alphas %f\n", tr->likelihood);
+#endif	  
 	  treeEvaluate(tr, 0.1);	  	 
+
+#ifdef _DEBUG_MOD_OPT
+	  evaluateGeneric(tr, tr->start, TRUE); 
+	  printf("after br-len 2 %f\n", tr->likelihood);
+#endif
 	 
 	  break;
 	case CAT:
 	  if(catOpt < 3)
-	    {	      	     	     
-	     
+	    {	      	     	     	     
 	      optimizeRateCategories(tr, tr->categories);	      	     	      	      	     
+
+#ifdef _DEBUG_MOD_OPT
+	      evaluateGeneric(tr, tr->start, TRUE); 
+	      printf("after cat-opt %f\n", tr->likelihood);
+#endif
+
 	      catOpt++;
 	    }
 	  break;	  
 	default:
 	  assert(0);
 	}                                
+
+      if(tr->likelihood < currentLikelihood)
+	printf("%f %f\n", tr->likelihood, currentLikelihood);
+      assert(tr->likelihood >= currentLikelihood);
       
       printAAmatrix(tr, fabs(currentLikelihood - tr->likelihood));  
       
