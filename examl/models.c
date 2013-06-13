@@ -3640,8 +3640,13 @@ static void setRates(double *r, int rates)
 {
   int i;
 
+  //changed to 1.0 instead of 0.5 for making the 
+  //implementation of an interface function to set other models 
+  //than GTR easier 
+  
   for(i = 0; i < rates - 1; i++)
-    r[i] = 0.5;
+    r[i] = 1.0;
+  
   r[rates - 1] = 1.0;
 }
 
