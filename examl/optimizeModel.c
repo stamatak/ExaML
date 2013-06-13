@@ -900,22 +900,18 @@ static int brakGeneric(double *param, double *ax, double *bx, double *cx, double
 /* ALPHA PARAM ********************************************************************************************/
 
 
+//the new parameter numberOfModels in the function below will be required for implementinng 
 
-
-
-
-
-static void optAlpha(tree *tr, double modelEpsilon, linkageList *ll)
+static void optAlpha(tree *tr, double modelEpsilon, linkageList *ll, int numberOfModels)
 {
   int 
-    i, 
-    k,
-    numberOfModels = ll->entries;
+    pos,
+    i;
   
   double 
     lim_inf     = ALPHA_MIN,
-    lim_sup     = ALPHA_MAX;
-  double
+    lim_sup     = ALPHA_MAX,
+    *endLH      = (double *)malloc(sizeof(double) * numberOfModels),
     *startLH    = (double *)malloc(sizeof(double) * numberOfModels),
     *startAlpha = (double *)malloc(sizeof(double) * numberOfModels),
     *endAlpha   = (double *)malloc(sizeof(double) * numberOfModels),
@@ -929,56 +925,99 @@ static void optAlpha(tree *tr, double modelEpsilon, linkageList *ll)
     *result     = (double *)malloc(sizeof(double) * numberOfModels),
     *_x         = (double *)malloc(sizeof(double) * numberOfModels);   
 
+  evaluateGeneric(tr, tr->start, TRUE);
 
-   evaluateGeneric(tr, tr->start, TRUE);
-   /* 
-     at this point here every worker has the traversal data it needs for the 
-     search, so we won't re-distribute it he he :-)
-  */
+#ifdef  _DEBUG_MOD_OPT
+  double
+    initialLH = tr->likelihood;
+#endif
 
-  for(i = 0; i < numberOfModels; i++)
+   
+  for(i = 0, pos = 0; i < ll->entries; i++)
     {
-      assert(ll->ld[i].valid);
+      //the valid field is required later-on to distinguish between 
+      //LG4X and non-LG4X partitions 
 
-      startAlpha[i] = tr->partitionData[ll->ld[i].partitionList[0]].alpha;
-      _a[i] = startAlpha[i] + 0.1;
-      _b[i] = startAlpha[i] - 0.1;      
-      if(_b[i] < lim_inf) 
-	_b[i] = lim_inf;
-
-      startLH[i] = 0.0;
-      
-      for(k = 0; k < ll->ld[i].partitions; k++)	
+      if(ll->ld[i].valid)
 	{
-	  startLH[i] += tr->perPartitionLH[ll->ld[i].partitionList[k]];
-	  assert(tr->partitionData[ll->ld[i].partitionList[0]].alpha ==  tr->partitionData[ll->ld[i].partitionList[k]].alpha);
-	}
-    }					  
+	  int 
+	    index = ll->ld[i].partitionList[0];
+      
+	  //we always assume that alphas are not linked across partitions in ExaML,
+	  //hence each entry of the partition list must have a length of 1!
 
+	  assert(ll->ld[i].partitions == 1);
+	  	  
+	  startAlpha[pos] = tr->partitionData[index].alpha;
+
+	  _a[pos] = startAlpha[pos] + 0.1;
+	  _b[pos] = startAlpha[pos] - 0.1;      
+	  
+	   if(_a[pos] < lim_inf) 
+	    _a[pos] = lim_inf;
+	  
+	  if(_a[pos] > lim_sup) 
+	    _a[pos] = lim_sup;
+	      
+	  if(_b[pos] < lim_inf) 
+	    _b[pos] = lim_inf;
+	  
+	  if(_b[pos] > lim_sup) 
+	    _b[pos] = lim_sup;   
+
+	  startLH[pos] = tr->perPartitionLH[index];
+	  endLH[pos] = unlikely;
+
+	  pos++;
+	}
+    }	
+ 
   brakGeneric(_param, _a, _b, _c, _fa, _fb, _fc, lim_inf, lim_sup, numberOfModels, -1, ALPHA_F, tr, ll, modelEpsilon);       
   brentGeneric(_a, _b, _c, _fb, modelEpsilon, _x, result, numberOfModels, ALPHA_F, -1, tr, ll, lim_inf, lim_sup);
 
   for(i = 0; i < numberOfModels; i++)
-    endAlpha[i] = result[i];
+    endLH[i] = result[i];
   
-  for(i = 0; i < numberOfModels; i++)
+  for(i = 0, pos = 0; i < ll->entries; i++)
     {
-      if(startLH[i] > endAlpha[i])
-	{    	  
-	  for(k = 0; k < ll->ld[i].partitions; k++)
-	    {	      
-	      tr->partitionData[ll->ld[i].partitionList[k]].alpha = startAlpha[i];
+       if(ll->ld[i].valid)
+	{
+	  int
+	    index = ll->ld[i].partitionList[0];
+	  
+	  assert(ll->ld[i].partitions == 1);
 
-	      makeGammaCats(tr->partitionData[ll->ld[i].partitionList[k]].alpha, tr->partitionData[ll->ld[i].partitionList[k]].gammaRates, 4, tr->useMedian); 	      	
+	  if(startLH[pos] > endLH[pos])
+	    {    	  	 
+	      tr->partitionData[index].alpha = startAlpha[pos];
+	      makeGammaCats(tr->partitionData[index].alpha, tr->partitionData[index].gammaRates, 4, tr->useMedian); 		
+	    }       
+	  else
+	    {		     
+	      //same error corrected is in the GTR rate optimization, need to set the value 
+	      //to the optimum _x, after optimization !
+	      tr->partitionData[index].alpha = _x[pos];
+	      makeGammaCats(tr->partitionData[index].alpha, tr->partitionData[index].gammaRates, 4, tr->useMedian); 		
 	    }
-
-	}  
+	  pos++;
+	}
     }
-
-
-
   
+  assert(pos == numberOfModels);
+
+  //in the library and standard RAxML we must call the barrier at this point, regardless of wheter 
+  //we reverted the model or not, to update the values of the alphas and the discrete GAMMA rates 
+
+#ifdef _DEBUG_MOD_OPT
+  evaluateGenericInitrav(tr, tr->start);
+
+  if(tr->likelihood < initialLH)
+    printf("%f %f\n", tr->likelihood, initialLH);
+  assert(tr->likelihood >= initialLH);
+#endif 
+
   free(startLH);
+  free(endLH);
   free(startAlpha);
   free(endAlpha);
   free(result);
@@ -989,12 +1028,104 @@ static void optAlpha(tree *tr, double modelEpsilon, linkageList *ll)
   free(_fb);
   free(_fc);
   free(_param);
-  free(_x);  
+  free(_x); 
+}
 
+//this function is required for implementing the LG4X model later-on 
+
+static void optAlphasGeneric(tree *tr, double modelEpsilon, linkageList *ll)
+{
+  int 
+    i,
+    non_LG4X_Partitions = 0,
+    LG4X_Partitions  = 0;
+
+  /* assumes homogeneous super-partitions, that either contain DNA or AA partitions !*/
+  /* does not check whether AA are all linked */
+
+  /* first do non-LG4X partitions */
+
+  for(i = 0; i < ll->entries; i++)
+    {
+      switch(tr->partitionData[ll->ld[i].partitionList[0]].dataType)
+	{
+	case DNA_DATA:			  	
+	case BINARY_DATA:
+	case SECONDARY_DATA:
+	case SECONDARY_DATA_6:
+	case SECONDARY_DATA_7:
+	case GENERIC_32:
+	case GENERIC_64:
+	  ll->ld[i].valid = TRUE;
+	  non_LG4X_Partitions++;
+	  break;
+	case AA_DATA:	  
+	  //to be implemented later-on 
+	  /*if(tr->partitionData[ll->ld[i].partitionList[0]].protModels == LG4X)
+	    {
+	      LG4X_Partitions++;	      
+	      ll->ld[i].valid = FALSE;
+	    }
+	    else*/
+	    {
+	      ll->ld[i].valid = TRUE;
+	      non_LG4X_Partitions++;
+	    }
+	  break;
+	default:
+	  assert(0);
+	}      
+    }   
+
+ 
+
+  if(non_LG4X_Partitions > 0)
+    optAlpha(tr, modelEpsilon, ll, non_LG4X_Partitions);
+  
+  //right now this assertion shouldn't fail, undo when implementing LG4X  
+  assert(non_LG4X_Partitions == tr->NumberOfModels);
+  assert(LG4X_Partitions == 0);
+ 
+
+  /* then LG4x partitions */
+
+  for(i = 0; i < ll->entries; i++)
+    {
+      switch(tr->partitionData[ll->ld[i].partitionList[0]].dataType)
+	{
+	case DNA_DATA:			  	
+	case BINARY_DATA:
+	case SECONDARY_DATA:
+	case SECONDARY_DATA_6:
+	case SECONDARY_DATA_7:
+	case GENERIC_32:
+	case GENERIC_64:
+	  ll->ld[i].valid = FALSE;	  
+	  break;
+	case AA_DATA:	  
+	  //deal with this later-on
+	  /*if(tr->partitionData[ll->ld[i].partitionList[0]].protModels == LG4X)	      
+	    ll->ld[i].valid = TRUE;	   
+	    else*/
+	    ll->ld[i].valid = FALSE;	   	    
+	  break;
+	default:
+	  assert(0);
+	}      
+    }   
+  
+  //if(LG4X_Partitions > 0)
+  //  optLG4X(tr, modelEpsilon, ll, LG4X_Partitions);
+
+  for(i = 0; i < ll->entries; i++)
+    ll->ld[i].valid = TRUE;
 }
 
 
 
+
+
+//******************** rate optimization functions ***************************************************/
 
 static void optRate(tree *tr, double modelEpsilon, linkageList *ll, int numberOfModels, int states, int rateNumber, int numberOfRates)
 {
@@ -2911,8 +3042,8 @@ void modOpt(tree *tr, double likelihoodEpsilon, analdef *adef, int treeIteration
 
       switch(tr->rateHetModel)
 	{
-	case GAMMA:      
-	  optAlpha(tr, modelEpsilon, alphaList); 
+	case GAMMA:      	  
+	  optAlphasGeneric(tr, modelEpsilon, alphaList); 
 	  
 	  evaluateGeneric(tr, tr->start, TRUE); 
 	 	 
