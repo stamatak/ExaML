@@ -2892,31 +2892,42 @@ static void printAAmatrix(tree *tr, double epsilon)
 static void autoProtein(tree *tr)
 {
   int 
-    countAutos = 0,
-    i,
-    model;
-    
-   for(model = 0; model < tr->NumberOfModels; model++)	      
-     if(tr->partitionData[model].protModels == AUTO)
-       countAutos++;
+    countAutos = 0,   
+    model;  
   
+  for(model = 0; model < tr->NumberOfModels; model++)	      
+    if(tr->partitionData[model].protModels == AUTO)
+      countAutos++;
+
   if(countAutos > 0)
     {
       int 
+	i,
 	numProteinModels = AUTO,
-	*bestIndex = (int*)malloc(sizeof(int) * tr->NumberOfModels);
+	*bestIndex = (int*)malloc(sizeof(int) * tr->NumberOfModels),
+	*oldIndex  = (int*)malloc(sizeof(int) * tr->NumberOfModels);
 
       double
-	*bestScores = (double*)malloc(sizeof(double) * tr->NumberOfModels);
+	startLH,
+	*bestScores = (double*)malloc(sizeof(double) * tr->NumberOfModels);    
 
-      /*printf("Entry: %f\n", tr->likelihood);*/
-      
+      topolRELL_LIST 
+	*rl = (topolRELL_LIST *)malloc(sizeof(topolRELL_LIST));
+
+      initTL(rl, tr, 1);
+      saveTL(rl, tr, 0);
+
+      evaluateGeneric(tr, tr->start, TRUE); 
+
+      startLH = tr->likelihood;
+
       for(model = 0; model < tr->NumberOfModels; model++)
 	{
+	  oldIndex[model] = tr->partitionData[model].autoProtModels;
 	  bestIndex[model] = -1;
 	  bestScores[model] = unlikely;
 	}
-
+      
       for(i = 0; i < numProteinModels; i++)
 	{
 	  for(model = 0; model < tr->NumberOfModels; model++)
@@ -2924,62 +2935,90 @@ static void autoProtein(tree *tr)
 	      if(tr->partitionData[model].protModels == AUTO)
 		{
 		  tr->partitionData[model].autoProtModels = i;
-
 		  initReversibleGTR(tr, model);  
 		}
 	    }
-	  
 
-	  
+	  //this barrier needs to be called in the library 
+	  //#ifdef _USE_PTHREADS	
+	  //masterBarrier(THREAD_COPY_RATES, tr);	   
+	  //#endif
+      
 	  resetBranches(tr);
 	  evaluateGeneric(tr, tr->start, TRUE);  
 	  treeEvaluate(tr, 0.5);     
-
+	  
 	  for(model = 0; model < tr->NumberOfModels; model++)
 	    {
 	      if(tr->partitionData[model].protModels == AUTO)
-		{
+		{		  
 		  if(tr->perPartitionLH[model] > bestScores[model])
 		    {
 		      bestScores[model] = tr->perPartitionLH[model];
 		      bestIndex[model] = i;		      
 		    }
-		}
-
+		}	      
 	    }       
-	}
-
-      if(processID == 0)
-	printBothOpen("\n\n");
+	}           
       
+      if(processID == 0)
+	printBothOpen("Automatic protein model assignment algorithm:\n\n");
+
       for(model = 0; model < tr->NumberOfModels; model++)
 	{	   
 	  if(tr->partitionData[model].protModels == AUTO)
 	    {
 	      tr->partitionData[model].autoProtModels = bestIndex[model];
-
 	      initReversibleGTR(tr, model);  
-	      
-	      if(processID == 0)
-		printBothOpen("Partition: %d best-scoring AA model: %s likelihood %f\n", model, protModels[tr->partitionData[model].autoProtModels], bestScores[model]);
+	      if(processID == 0) 
+		printBothOpen("\tPartition: %d best-scoring AA model: %s likelihood %f\n", model, protModels[tr->partitionData[model].autoProtModels], bestScores[model]);
 	    }	 
 	}
       
       if(processID == 0)
 	printBothOpen("\n\n");
-            
 
-
+      //this barrier needs to be called in the library 
+      //#ifdef _USE_PTHREADS	
+      //masterBarrier(THREAD_COPY_RATES, tr);	   
+      //#endif
+          
       resetBranches(tr);
       evaluateGeneric(tr, tr->start, TRUE); 
-      treeEvaluate(tr, 0.5);
+      treeEvaluate(tr, 2.0);    
       
-      /*printf("Exit: %f\n", tr->likelihood);*/
+      if(tr->likelihood < startLH)
+	{	
+	  for(model = 0; model < tr->NumberOfModels; model++)
+	    {
+	      if(tr->partitionData[model].protModels == AUTO)
+		{
+		  tr->partitionData[model].autoProtModels = oldIndex[model];
+		  initReversibleGTR(tr, model);
+		}
+	    }
+	  
+	  //this barrier needs to be called in the library 	  
+	  //#ifdef _USE_PTHREADS	
+	  //masterBarrier(THREAD_COPY_RATES, tr);	   
+	  //#endif 
+
+	  restoreTL(rl, tr, 0);	
+	  evaluateGeneric(tr, tr->start, TRUE);              
+	}
       
+      assert(tr->likelihood >= startLH);
+      
+      freeTL(rl);   
+      free(rl); 
+      
+      free(oldIndex);
       free(bestIndex);
       free(bestScores);
     }
 }
+
+
 
 
 
