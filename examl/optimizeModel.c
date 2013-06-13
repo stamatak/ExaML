@@ -175,6 +175,41 @@ static linkageList* initLinkageList(int *linkList, tree *tr)
   return ll;
 }
 
+static linkageList* initLinkageListString(char *linkageString, tree *tr)
+{
+  int 
+    *list = (int*)malloc(sizeof(int) * tr->NumberOfModels),
+    j;
+
+  linkageList 
+    *l;
+
+  char
+    *str1,
+    *saveptr,
+    *ch = strdup(linkageString),
+    *token;
+
+  for(j = 0, str1 = ch; ;j++, str1 = (char *)NULL) 
+    {
+      token = strtok_r(str1, ",", &saveptr);
+      if(token == (char *)NULL)
+	break;
+      assert(j < tr->NumberOfModels);
+      list[j] = atoi(token);
+      //printf("%d: %s\n", j, token);
+    }
+  
+  free(ch);
+
+  l = initLinkageList(list, tr);
+  
+  free(list);
+
+  return l;
+}
+
+
 
 static linkageList* initLinkageListGTR(tree *tr)
 {
@@ -2881,8 +2916,13 @@ void modOpt(tree *tr, double likelihoodEpsilon, analdef *adef, int treeIteration
 	alpha[3] = {0, 0, 1}, //this would link alpha across the two first partitions
 	gtr[3] = {0, 0, 1};   //this would link the GTR models of the two first partitions
 
-	alphaList = initLinkageList(alpha, tr);
-	rateList  = initLinkageList(gtr, tr);
+	alphaList = initLinkageListString("0,0,0,1", tr);
+	rateList  = initLinkageListString("0,0,0", tr);
+
+	  /*
+	    alphaList = initLinkageList(alpha, tr);
+	    rateList  = initLinkageList(gtr, tr);
+	  */
     }
   else
     {
