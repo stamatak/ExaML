@@ -320,42 +320,61 @@ static void evaluateChange(tree *tr, int rateNumber, double *value, double *resu
       assert(pos == numberOfModels);
       break;    
     case ALPHA_F:
-      for(i = 0; i < ll->entries; i++)
-	{
-	  if(converged[i])
-	    {
-	      for(k = 0; k < ll->ld[i].partitions; k++)
-		tr->executeModel[ll->ld[i].partitionList[k]] = FALSE;
-	    }
-	  else
-	    {
-	      for(k = 0; k < ll->ld[i].partitions; k++)
-		{
-		  int index = ll->ld[i].partitionList[k];
-		  tr->executeModel[index] = TRUE;
-		  tr->partitionData[index].alpha = value[i];
+      //updated the code for evaluating alpha
+      //this will be needed later-on when LG4X is integrated 
+      //the previous version of the code assumed that we'd just have 
+      //to optimize all alpha values at once, this is not the case any more !
 
+       for(i = 0, pos = 0; i < ll->entries; i++)
+	{
+	  int 
+	    index = ll->ld[i].partitionList[0];
+	  
+	  assert(ll->ld[i].partitions == 1);
+	  
+	  if(ll->ld[i].valid)
+	    {
+	      if(converged[pos])		
+		tr->executeModel[index] = FALSE;	       
+	      else
+		{		  		  
+		  tr->executeModel[index] = TRUE;
+		  tr->partitionData[index].alpha = value[pos];
 		  makeGammaCats(tr->partitionData[index].alpha, tr->partitionData[index].gammaRates, 4, tr->useMedian);
 		}
+	       
+	      pos++;
 	    }
+	  else	    	      
+	    tr->executeModel[index] = FALSE;	   
 	}
+      
+      assert(pos == numberOfModels);
 
       evaluateGeneric(tr, tr->start, TRUE);
             
-      for(i = 0; i < ll->entries; i++)	
-	{	  
-	  result[i] = 0.0;
+      for(i = 0, pos = 0; i < ll->entries; i++)	
+	{ 
+	  int 
+	    index = ll->ld[i].partitionList[0];
 	  
-	  for(k = 0; k < ll->ld[i].partitions; k++)
+	  assert(ll->ld[i].partitions == 1);	  
+	  
+	  if(ll->ld[i].valid)
 	    {
-	      int index = ll->ld[i].partitionList[k];
+	      result[pos] = 0.0;	  	      
 	      	      
 	      assert(tr->perPartitionLH[index] <= 0.0);		
 	      
-	      result[i] -= tr->perPartitionLH[index];	            
-	      tr->executeModel[index] = TRUE;
+	      result[pos] -= tr->perPartitionLH[index];	            	      
+	      
+	      pos++;
 	    }
+	  	 
+	  tr->executeModel[index] = TRUE;       
 	}
+      
+      assert(pos == numberOfModels);
       break;
     default:
       assert(0);	
