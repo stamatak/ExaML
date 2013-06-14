@@ -639,7 +639,7 @@ void makenewzIterative(tree *tr)
   for(model = 0; model < tr->NumberOfModels; model++)
     { 
       int 
-	width = tr->partitionData[model].width;
+	width = tr->partitionData[model].width;            
       
       if(tr->td[0].executeModel[model] && width > 0)
 	{
@@ -1112,6 +1112,7 @@ void makenewzGeneric(tree *tr, nodeptr p, nodeptr q, double *z0, int maxiter, do
   for(i = 0; i < tr->numBranches; i++)
     {     
       tr->td[0].ti[0].qz[i] =  z0[i];
+      
       if(mask)
 	{
 	  if(tr->partitionConverged[i])
@@ -1119,6 +1120,8 @@ void makenewzGeneric(tree *tr, nodeptr p, nodeptr q, double *z0, int maxiter, do
 	  else
 	    tr->executeModel[i] = TRUE;
 	}
+      else
+	assert(tr->executeModel[i]);
     }
   
 

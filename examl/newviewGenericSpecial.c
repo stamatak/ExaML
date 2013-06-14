@@ -1354,7 +1354,7 @@ void newviewGeneric (tree *tr, nodeptr p, boolean masked)
      you may imagine that for partition 5 the branch length optimization has already converged whereas 
      for partition 6 we still need to go over the tree again.
 
-     This si explained in more detail in:
+     This is explained in more detail in:
 
      A. Stamatakis, M. Ott: "Load Balance in the Phylogenetic Likelihood Kernel". Proceedings of ICPP 2009
 
@@ -1383,12 +1383,8 @@ void newviewGeneric (tree *tr, nodeptr p, boolean masked)
     {
       /* store execute mask in traversal descriptor */
 
-      storeExecuteMaskInTraversalDescriptor(tr);      
-      
-
-
+      storeExecuteMaskInTraversalDescriptor(tr);           
       newviewIterative(tr, 0);
-
     }
 
   /* clean up */

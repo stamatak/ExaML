@@ -181,12 +181,12 @@ boolean smooth (tree *tr, nodeptr p)
 	{
 	  if (! smooth(tr, q->back))   return FALSE;
 	  q = q->next;
-	}	
+	}
       
-      if(tr->numBranches > 1)		  
-	newviewGeneric(tr, p, TRUE);	
+      if(tr->numBranches > 1)
+	newviewGeneric(tr, p, TRUE);     
       else
-	newviewGeneric(tr, p, FALSE);     
+	newviewGeneric(tr, p, FALSE);
     }
   
   return TRUE;
@@ -2323,7 +2323,9 @@ boolean treeEvaluate (tree *tr, double smoothFactor)       /* Evaluate a user tr
   
   assert(result); 
 
-  evaluateGeneric(tr, tr->start, FALSE);   
+  //make sure that all vectors are oriented correctly !
+
+  evaluateGeneric(tr, tr->start, TRUE);   
     
 
   return TRUE;

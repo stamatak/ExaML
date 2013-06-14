@@ -383,6 +383,9 @@ static void evaluateChange(tree *tr, int rateNumber, double *value, double *resu
 	{
 	  if(converged[pos])
 	    {
+	      //if parameter optimizations for this specific model have converged 
+	      //set executeModel to FALSE 
+
 	      for(k = 0; k < ll->ld[i].partitions; k++)
 		tr->executeModel[ll->ld[i].partitionList[k]] = FALSE;
 	    }
@@ -400,6 +403,9 @@ static void evaluateChange(tree *tr, int rateNumber, double *value, double *resu
 	}
       else
 	{
+	  // if this partition is not being optimized anyway (e.g., we may be optimizing GTR rates for all DNA partitions,
+	  // but there are also a couple of Protein partitions with fixed models like WAG, JTT, etc.) set executeModel to FALSE
+	  
 	  for(k = 0; k < ll->ld[i].partitions; k++)
 	    tr->executeModel[ll->ld[i].partitionList[k]] = FALSE;	     
 	}      
@@ -431,9 +437,14 @@ static void evaluateChange(tree *tr, int rateNumber, double *value, double *resu
 	    }
 	  pos++;
 	}
+
+      //set execute model for ALL partitions to true again 
+      //for consistency 
+
       for(k = 0; k < ll->ld[i].partitions; k++)
 	{
-	  int index = ll->ld[i].partitionList[k];
+	  int 
+	    index = ll->ld[i].partitionList[k];	  
 	  tr->executeModel[index] = TRUE;
 	}	  
     }
