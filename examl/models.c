@@ -3977,12 +3977,20 @@ void initModel(tree *tr, double **empiricalFrequencies)
   
   for(model = 0; model < tr->NumberOfModels; model++)
     {
+      int 
+	k;
+
       tr->partitionData[model].alpha = 1.0;    
+      
       if(tr->partitionData[model].protModels == AUTO)
 	tr->partitionData[model].autoProtModels = WAG; /* initialize by WAG per default */
                          
       initReversibleGTR(tr, model);
       makeGammaCats(tr->partitionData[model].alpha, tr->partitionData[model].gammaRates, 4, tr->useMedian);     
+
+      for(k = 0; k < tr->partitionData[model].states; k++)
+	tr->partitionData[model].freqExponents[k] = 0.0;	
+
     }                   		       
   
    

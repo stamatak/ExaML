@@ -601,6 +601,7 @@ typedef struct {
   int    *symmetryVector;
   int    *frequencyGrouping;
   boolean nonGTR;
+  boolean optimizeBaseFrequencies;
   double alpha;
   
 
@@ -1008,6 +1009,7 @@ typedef struct
   int frequencyGroupingLength;
 
   boolean nonGTR;
+  boolean optimizeBaseFrequencies;
 
   int undetermined;
 

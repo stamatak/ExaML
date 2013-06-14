@@ -157,6 +157,18 @@ static void analyzeIdentifier(char **ch, int modelNumber, tree *tr)
 	      found = TRUE;
 	    }	
 
+	  strcpy(thisModel, protModels[i]);
+	  strcat(thisModel, "X");
+
+	  if(strcasecmp(model, thisModel) == 0)
+	    {	      
+	      tr->initialPartitionData[modelNumber].protModels = i;		  
+	      tr->initialPartitionData[modelNumber].protFreqs  = 0;
+	      tr->initialPartitionData[modelNumber].optimizeBaseFrequencies = TRUE;
+	      tr->initialPartitionData[modelNumber].dataType   = AA_DATA;
+	      found = TRUE;
+	    }	
+
 	  /*if(found)
 	    printf("%s %d\n", model, i);*/
 	}
@@ -168,42 +180,52 @@ static void analyzeIdentifier(char **ch, int modelNumber, tree *tr)
 	      tr->initialPartitionData[modelNumber].protModels = -1;		  
 	      tr->initialPartitionData[modelNumber].protFreqs  = -1;
 	      tr->initialPartitionData[modelNumber].dataType   = DNA_DATA;
-	      
+	      tr->initialPartitionData[modelNumber].optimizeBaseFrequencies = FALSE;
 	      found = TRUE;
-	    }	  
+	    }
 	  else
-	    {	    	  
-	      if(strcasecmp(model, "BIN") == 0)
+	    {
+	      if(strcasecmp(model, "DNAX") == 0)
 		{	     	      
 		  tr->initialPartitionData[modelNumber].protModels = -1;		  
 		  tr->initialPartitionData[modelNumber].protFreqs  = -1;
-		  tr->initialPartitionData[modelNumber].dataType   = BINARY_DATA;
-		  
+		  tr->initialPartitionData[modelNumber].dataType   = DNA_DATA;
+		  tr->initialPartitionData[modelNumber].optimizeBaseFrequencies = TRUE;
 		  found = TRUE;
-		}
+		}	      	    
 	      else
-		{
-		  if(strcasecmp(model, "MULTI") == 0)
+		{	    	  
+		  if(strcasecmp(model, "BIN") == 0)
 		    {	     	      
 		      tr->initialPartitionData[modelNumber].protModels = -1;		  
 		      tr->initialPartitionData[modelNumber].protFreqs  = -1;
-		      tr->initialPartitionData[modelNumber].dataType   = GENERIC_32;
-		  
+		      tr->initialPartitionData[modelNumber].dataType   = BINARY_DATA;
+		      
 		      found = TRUE;
 		    }
 		  else
 		    {
-		      if(strcasecmp(model, "CODON") == 0)
+		      if(strcasecmp(model, "MULTI") == 0)
 			{	     	      
 			  tr->initialPartitionData[modelNumber].protModels = -1;		  
 			  tr->initialPartitionData[modelNumber].protFreqs  = -1;
-			  tr->initialPartitionData[modelNumber].dataType   = GENERIC_64;
+			  tr->initialPartitionData[modelNumber].dataType   = GENERIC_32;
 			  
 			  found = TRUE;
 			}
+		      else
+			{
+			  if(strcasecmp(model, "CODON") == 0)
+			    {	     	      
+			      tr->initialPartitionData[modelNumber].protModels = -1;		  
+			      tr->initialPartitionData[modelNumber].protFreqs  = -1;
+			      tr->initialPartitionData[modelNumber].dataType   = GENERIC_64;
+			      
+			      found = TRUE;
+			    }
+			}
 		    }
 		}
-	    
 	    }
 	}
 

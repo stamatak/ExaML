@@ -288,7 +288,8 @@ partitionLengths *getPartitionLengths(pInfo *p)
   pLength.tipVectorLength   = tipLength * states;
   pLength.symmetryVectorLength = (states * states - states) / 2;
   pLength.frequencyGroupingLength = states;
-  pLength.nonGTR = FALSE;
+  pLength.nonGTR = FALSE;  
+  pLength.optimizeBaseFrequencies = FALSE;
 
   return (&pLengths[dataType]); 
 }
@@ -2728,7 +2729,8 @@ int main (int argc, char *argv[])
 	myBinFwrite(&(p->protModels),         sizeof(int), 1);
 	myBinFwrite(&(p->autoProtModels),     sizeof(int), 1);
 	myBinFwrite(&(p->protFreqs),          sizeof(int), 1);
-	myBinFwrite(&(p->nonGTR),             sizeof(boolean), 1);
+	myBinFwrite(&(p->nonGTR),                      sizeof(boolean), 1);
+	myBinFwrite(&(p->optimizeBaseFrequencies),     sizeof(boolean), 1);
 	myBinFwrite(&(p->numberOfCategories), sizeof(int), 1);	 
 	
 	/* later on if adding secondary structure data

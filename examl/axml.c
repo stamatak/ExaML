@@ -2190,6 +2190,7 @@ static void initializePartitions(tree *tr, FILE *byteFile)
       
       tr->partitionData[model].substRates        = (double *)malloc(pl->substRatesLength * sizeof(double));
       tr->partitionData[model].frequencies       = (double*)malloc(pl->frequenciesLength * sizeof(double));
+      tr->partitionData[model].freqExponents     = (double*)malloc(pl->frequenciesLength * sizeof(double));
       tr->partitionData[model].empiricalFrequencies       = (double*)malloc(pl->frequenciesLength * sizeof(double));
       tr->partitionData[model].tipVector         = (double *)malloc_aligned(pl->tipVectorLength * sizeof(double));
 
@@ -2215,7 +2216,9 @@ static void initializePartitions(tree *tr, FILE *byteFile)
       
       tr->partitionData[model].perSiteRates      = (double *)malloc(sizeof(double) * tr->maxCategories);
             
-      tr->partitionData[model].nonGTR = FALSE;            
+      //      tr->partitionData[model].nonGTR = FALSE; 
+      //      tr->partitionData[model].optimizeBaseFrequencies = FALSE; 
+      
 
       tr->partitionData[model].gammaRates = (double*)malloc(sizeof(double) * 4);
       tr->partitionData[model].yVector = (unsigned char **)malloc(sizeof(unsigned char*) * (tr->mxtips + 1));
@@ -2507,7 +2510,8 @@ static void initializeTree(tree *tr, analdef *adef)
       myBinFread(&(p->autoProtModels),     sizeof(int), 1, byteFile);
       myBinFread(&(p->protFreqs),          sizeof(int), 1, byteFile);
       myBinFread(&(p->nonGTR),             sizeof(boolean), 1, byteFile);
-      myBinFread(&(p->numberOfCategories), sizeof(int), 1, byteFile);	 
+      myBinFread(&(p->optimizeBaseFrequencies), sizeof(boolean), 1, byteFile);
+      myBinFread(&(p->numberOfCategories),      sizeof(int), 1, byteFile);	 
       
       /* later on if adding secondary structure data
 	 

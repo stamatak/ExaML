@@ -491,6 +491,7 @@ typedef struct {
   int     autoProtModels;
   int     protFreqs;
   boolean nonGTR;
+  boolean optimizeBaseFrequencies;
   int     numberOfCategories;
 
   char   *partitionName;
@@ -518,6 +519,7 @@ typedef struct {
   /* LG4 */
 
   double *frequencies;
+  double *freqExponents;
   double *empiricalFrequencies;
   double *tipVector; 
   double *substRates;    

@@ -331,6 +331,7 @@ static void freeLinkageList( linkageList* ll)
 
 #define ALPHA_F 0
 #define RATE_F  1
+#define FREQ_F  2
 
 static void changeModelParameters(int index, int rateNumber, double value, int whichParameterType, tree *tr)
 {
@@ -343,6 +344,25 @@ static void changeModelParameters(int index, int rateNumber, double value, int w
     case ALPHA_F:
       tr->partitionData[index].alpha = value;
       makeGammaCats(tr->partitionData[index].alpha, tr->partitionData[index].gammaRates, 4, tr->useMedian);
+      break;
+    case FREQ_F:
+      {
+	int 
+	  j;
+
+	double 
+	  w = 0.0;
+
+	tr->partitionData[index].freqExponents[rateNumber] = value;
+
+	for(j = 0; j < 4; j++)
+	  w += exp(tr->partitionData[index].freqExponents[j]);
+
+	for(j = 0; j < 4; j++)	    	    
+	  tr->partitionData[index].frequencies[j] = exp(tr->partitionData[index].freqExponents[j]) / w;
+	
+	initReversibleGTR(tr, index);
+      }
       break;
     default:
       assert(0);
@@ -1104,6 +1124,9 @@ static void optParamGeneric(tree *tr, double modelEpsilon, linkageList *ll, int 
 		case RATE_F:
 		  startValues[pos] = tr->partitionData[index].substRates[rateNumber];      
 		  break;
+		case FREQ_F:
+		  startValues[pos] = tr->partitionData[index].freqExponents[rateNumber];
+		  break;
 		default:
 		  assert(0);
 		}
@@ -1216,6 +1239,86 @@ static void optParamGeneric(tree *tr, double modelEpsilon, linkageList *ll, int 
 
 
 //******************** rate optimization functions ***************************************************/
+
+static void optFreqs(tree *tr, double modelEpsilon, linkageList *ll, int numberOfModels, int states)
+{ 
+  int 
+    rateNumber;
+
+  double
+    freqMin = -1000000.0,
+    freqMax = 200.0;
+  
+  for(rateNumber = 0; rateNumber < states; rateNumber++)
+    optParamGeneric(tr, modelEpsilon, ll, numberOfModels, rateNumber, freqMin, freqMax, FREQ_F);   
+}
+
+static void optBaseFreqs(tree *tr, double modelEpsilon, linkageList *ll)
+{
+  int 
+    i,
+    states,
+    dnaPartitions = 0,
+    aaPartitions  = 0;
+
+  /* first do DNA */
+
+  for(i = 0; i < ll->entries; i++)
+    {
+      switch(tr->partitionData[ll->ld[i].partitionList[0]].dataType)
+	{
+	case DNA_DATA:	
+	  states = tr->partitionData[ll->ld[i].partitionList[0]].states;	 
+	  if(tr->partitionData[ll->ld[i].partitionList[0]].optimizeBaseFrequencies)
+	    {
+	      ll->ld[i].valid = TRUE;
+	      dnaPartitions++;  	    
+	    }
+	  else
+	     ll->ld[i].valid = FALSE;
+	  break;       
+	case AA_DATA:
+	  ll->ld[i].valid = FALSE;
+	  break;
+	default:
+	  assert(0);
+	}      
+    }   
+
+  if(dnaPartitions > 0)
+    optFreqs(tr, modelEpsilon, ll, dnaPartitions, states);
+  
+  /* then AA */
+
+  
+  for(i = 0; i < ll->entries; i++)
+    {
+      switch(tr->partitionData[ll->ld[i].partitionList[0]].dataType)
+	{
+	case AA_DATA:	  
+	  states = tr->partitionData[ll->ld[i].partitionList[0]].states; 	      
+	  if(tr->partitionData[ll->ld[i].partitionList[0]].optimizeBaseFrequencies)
+	    {
+	      ll->ld[i].valid = TRUE;
+	      aaPartitions++;		
+	    }
+	  else
+	    ll->ld[i].valid = FALSE; 
+	  break;
+	case DNA_DATA:	    
+	  ll->ld[i].valid = FALSE;
+	  break;
+	default:
+	  assert(0);
+	}	 
+    }
+  
+  if(aaPartitions > 0)      
+    optFreqs(tr, modelEpsilon, ll, aaPartitions, states);
+
+  for(i = 0; i < ll->entries; i++)
+    ll->ld[i].valid = TRUE;
+}
 
 
 //new version for optimizing rates, an external loop that iterates over the rates 
@@ -2879,7 +2982,8 @@ void modOpt(tree *tr, double likelihoodEpsilon, analdef *adef, int treeIteration
   
   linkageList 
     *alphaList,
-    *rateList;      
+    *rateList,
+    *freqList;      
 
   for(i = 0; i < tr->NumberOfModels; i++)
     unlinked[i] = i;
@@ -2912,6 +3016,7 @@ void modOpt(tree *tr, double likelihoodEpsilon, analdef *adef, int treeIteration
   else
     {
       alphaList = initLinkageList(unlinked, tr);
+      freqList  = initLinkageList(unlinked, tr);
       rateList  = initLinkageListGTR(tr);
     }
    
@@ -2966,6 +3071,19 @@ void modOpt(tree *tr, double likelihoodEpsilon, analdef *adef, int treeIteration
       printf("after br-len 1 %f\n", tr->likelihood);
 #endif     
 
+      evaluateGeneric(tr, tr->start, TRUE);
+
+      optBaseFreqs(tr, modelEpsilon, freqList);
+      
+      evaluateGeneric(tr, tr->start, TRUE);
+      
+      treeEvaluate(tr, 0.0625);
+
+#ifdef _DEBUG_MOD_OPT
+      evaluateGeneric(tr, tr->start, TRUE); 
+      printf("after optBaseFreqs 1 %f\n", tr->likelihood);
+#endif 
+
       switch(tr->rateHetModel)
 	{
 	case GAMMA:      	  
@@ -3011,6 +3129,7 @@ void modOpt(tree *tr, double likelihoodEpsilon, analdef *adef, int treeIteration
   while(fabs(currentLikelihood - tr->likelihood) > likelihoodEpsilon);  
   
   free(unlinked);
+  freeLinkageList(freqList);
   freeLinkageList(alphaList);
   freeLinkageList(rateList);
 }
