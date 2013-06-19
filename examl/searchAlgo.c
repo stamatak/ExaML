@@ -112,7 +112,7 @@ boolean update(tree *tr, nodeptr p)
   double 
     startLH;
 
-  evaluateGeneric(tr, p);
+  evaluateGeneric(tr, p, FALSE);
 
   startLH = tr->likelihood;
 #endif
@@ -148,7 +148,7 @@ boolean update(tree *tr, nodeptr p)
     }
 
 #ifdef _DEBUG_UPDATE
-  evaluateGeneric(tr, p);
+  evaluateGeneric(tr, p, FALSE);
 
   if(tr->likelihood <= startLH)
     {
