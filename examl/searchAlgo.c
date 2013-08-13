@@ -1182,7 +1182,10 @@ void writeCheckpoint(tree *tr)
     }
     
   if(ckp.state == MOD_OPT)
-    myBinFwrite(tr->likelihoods, sizeof(double), tr->numberOfTrees, f);
+    {
+      myBinFwrite(tr->likelihoods, sizeof(double), tr->numberOfTrees, f);
+      myBinFwrite(tr->treeStrings, sizeof(char), (size_t)tr->treeStringLength * (size_t)tr->numberOfTrees, f);
+    }
 
   writeTree(tr, f);
 
@@ -1401,7 +1404,10 @@ static void readCheckpoint(tree *tr)
     }
     
   if(ckp.state == MOD_OPT)
-    myBinFread(tr->likelihoods, sizeof(double), tr->numberOfTrees, f);
+    {
+      myBinFread(tr->likelihoods, sizeof(double), tr->numberOfTrees, f);
+      myBinFread(tr->treeStrings, sizeof(char), (size_t)tr->treeStringLength * (size_t)tr->numberOfTrees, f);
+    }
 
   updatePerSiteRates(tr, FALSE); 
 

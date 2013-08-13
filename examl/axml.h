@@ -171,8 +171,8 @@
 #define PointGamma(prob,alpha,beta)  PointChi2(prob,2.0*(alpha))/(2.0*(beta))
 
 #define programName        "ExaML"
-#define programVersion     "1.0.3"
-#define programDate        "June 13 2013"
+#define programVersion     "1.0.4"
+#define programDate        "August 13 2013"
 
 
 #define  TREE_EVALUATION            0
@@ -740,6 +740,7 @@ typedef  struct  {
 
   char **nameList;
   char *tree_string;
+  char *treeStrings;
   char *tree0;
   char *tree1;
   int treeStringLength;

@@ -1327,6 +1327,7 @@ static void makeFileNames(void)
   strcpy(resultFileName,       workdir);
   strcpy(logFileName,          workdir);  
   strcpy(infoFileName,         workdir);
+  strcpy(treeFileName,         workdir);
   strcpy(binaryCheckpointName, workdir);
   strcpy(modelFileName, workdir);
    
@@ -1335,12 +1336,14 @@ static void makeFileNames(void)
   strcat(infoFileName,         "ExaML_info.");
   strcat(binaryCheckpointName, "ExaML_binaryCheckpoint.");
   strcat(modelFileName,        "ExaML_modelFile.");
+  strcat(treeFileName,         "ExaML_TreeFile.");
   
   strcat(resultFileName,       run_id);
   strcat(logFileName,          run_id);  
   strcat(infoFileName,         run_id); 
   strcat(binaryCheckpointName, run_id);
   strcat(modelFileName,        run_id);
+  strcat(treeFileName,         run_id);
 
   infoFileExists = filexists(infoFileName);
 
@@ -1875,6 +1878,8 @@ static void finalizeInfoFile(tree *tr, analdef *adef)
 	  printBothOpen("\n\nThe model parameters of the trees have been written to files called %s.i\n", modelFileName);
 	  printBothOpen("where i is the number of the tree\n\n");
 	  printBothOpen("Note that, in case of a restart from a checkpoint, some tree model files will have been produced by previous runs!\n\n");
+	  printBothOpen("The trees with branch lengths have been written to file: %s\n", treeFileName);
+	  printBothOpen("They are in the same order as in the input file!\n\n");
 	  break;
 	default:
 	  assert(0);
@@ -1944,8 +1949,8 @@ static void computeFraction(tree *tr, int tid, int n)
 	width = 0;
 
       for(i = tr->partitionData[model].lower; i < tr->partitionData[model].upper; i++)
-	if(i % n == (size_t)tid)
-	  width++;
+	if(i % (size_t)n == (size_t)tid)
+	  width++;      
 
       tr->partitionData[model].width = width;
     }
@@ -2584,13 +2589,13 @@ static void optimizeTrees(tree *tr, analdef *adef)
 
   tr->numberOfTrees = getNumberOfTrees(tree_file, FALSE, (long *)NULL);
   
-
   if(processID == 0)
     accumulatedTime = 0.0;
 
   treeOffsets = (long *)malloc(sizeof(long) * (tr->numberOfTrees + 1));
 
   tr->likelihoods = (double *)malloc(sizeof(double) * tr->numberOfTrees);
+  tr->treeStrings = (char   *)malloc(sizeof(char) * (size_t)tr->treeStringLength * (size_t)tr->numberOfTrees);
 
   getNumberOfTrees(tree_file, TRUE, treeOffsets);
   
@@ -2611,6 +2616,9 @@ static void optimizeTrees(tree *tr, analdef *adef)
 	modOpt(tr, 0.1, adef, i);
       
       tr->likelihoods[i] = tr->likelihood;
+      Tree2String(tr->tree_string, tr, tr->start->back, TRUE, TRUE, FALSE, FALSE, FALSE, SUMMARIZE_LH, FALSE, FALSE);
+      memcpy(&(tr->treeStrings[(size_t)tr->treeStringLength * (size_t)i]), tr->tree_string, sizeof(char) * tr->treeStringLength);
+      
 
       if(processID == 0)
 	printModelParams(tr, adef, i);
@@ -2656,14 +2664,26 @@ static void optimizeTrees(tree *tr, analdef *adef)
 	}
       
       tr->likelihoods[i] = tr->likelihood;
+      Tree2String(tr->tree_string, tr, tr->start->back, TRUE, TRUE, FALSE, FALSE, FALSE, SUMMARIZE_LH, FALSE, FALSE);
+      memcpy(&(tr->treeStrings[(size_t)tr->treeStringLength * (size_t)i]), tr->tree_string, sizeof(char) * tr->treeStringLength);
 
       if(processID == 0)
 	printModelParams(tr, adef, i);
     }
 
   if(processID == 0)
-    for(i = 0; i < tr->numberOfTrees; i++)
-      printBothOpen("Likelihood tree %d: %f \n", i, tr->likelihoods[i]);    
+    {
+      FILE 
+	*f = myfopen(treeFileName, "w");
+      
+      for(i = 0; i < tr->numberOfTrees; i++)
+	{
+	  printBothOpen("Likelihood tree %d: %f \n", i, tr->likelihoods[i]);    
+	  fprintf(f, "%s", &(tr->treeStrings[(size_t)tr->treeStringLength * (size_t)i]));
+	}
+      
+      fclose(f);
+    }
 }
 
 static void clean_MPI_Exit(void)

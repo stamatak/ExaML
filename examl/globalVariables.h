@@ -54,7 +54,8 @@ char run_id[128] = "",
   binaryCheckpointName[1024] = "",
   binaryCheckpointInputName[1024] = "",
   byteFileName[1024] = "",
-  modelFileName[1024] = "";
+  modelFileName[1024] = "",
+  treeFileName[1024] = "";
 
 char *protModels[NUM_PROT_MODELS] = {"DAYHOFF", "DCMUT", "JTT", "MTREV", "WAG", "RTREV", "CPREV", "VT", "BLOSUM62", "MTMAM", "LG", "MTART", "MTZOA", "PMB", 
 				     "HIVB", "HIVW", "JTTDCMUT", "FLU", "AUTO", "LG4", "GTR"};
