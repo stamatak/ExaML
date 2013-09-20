@@ -287,7 +287,7 @@ partitionLengths *getPartitionLengths(pInfo *p)
   pLength.frequenciesLength = states;
   pLength.tipVectorLength   = tipLength * states;
   pLength.symmetryVectorLength = (states * states - states) / 2;
-  pLength.frequencyGroupingLength = states;
+  pLength.frequencyGroupingLength = states;  
   pLength.nonGTR = FALSE;  
   pLength.optimizeBaseFrequencies = FALSE;
 
@@ -2664,28 +2664,15 @@ int main (int argc, char *argv[])
                    
                   
   for(model = 0; model < tr->NumberOfModels; model++)
-    {	
-      int 
-	states = -1,
-	maxTipStates = getUndetermined(tr->partitionData[model].dataType) + 1;  	      
+    {	      
+      tr->partitionData[model].states = getStates(tr->partitionData[model].dataType);
+      tr->partitionData[model].maxTipStates = getUndetermined(tr->partitionData[model].dataType) + 1;  	      
+      tr->partitionData[model].nonGTR = FALSE;
       
-      const 
-	partitionLengths *pl = getPartitionLengths(&(tr->partitionData[model]));
+      partitionLengths 
+	*pl = getPartitionLengths(&(tr->partitionData[model]));
       
-      tr->partitionData[model].frequencies       = (double*)malloc(pl->frequenciesLength * sizeof(double)); 
-            
-      switch(tr->partitionData[model].dataType)
-	{
-	case DNA_DATA:
-	case AA_DATA:	
-	  states = getStates(tr->partitionData[model].dataType);	 
-	  break;	
-	default:
-	  assert(0);
-	}
-
-      tr->partitionData[model].states       = states;
-      tr->partitionData[model].maxTipStates = maxTipStates;
+      tr->partitionData[model].frequencies       = (double*)malloc(pl->frequenciesLength * sizeof(double));      
     }   
   
   baseFrequenciesGTR(tr->rdta, tr->cdta, tr); 
@@ -2728,8 +2715,8 @@ int main (int argc, char *argv[])
 	myBinFwrite(&(p->dataType),           sizeof(int), 1);
 	myBinFwrite(&(p->protModels),         sizeof(int), 1);
 	myBinFwrite(&(p->autoProtModels),     sizeof(int), 1);
-	myBinFwrite(&(p->protFreqs),          sizeof(int), 1);
-	myBinFwrite(&(p->nonGTR),                      sizeof(boolean), 1);
+	myBinFwrite(&(p->protFreqs),          sizeof(int), 1);	
+	myBinFwrite(&(p->nonGTR),                      sizeof(boolean), 1); 	
 	myBinFwrite(&(p->optimizeBaseFrequencies),     sizeof(boolean), 1);
 	myBinFwrite(&(p->numberOfCategories), sizeof(int), 1);	 
 	

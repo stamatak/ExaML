@@ -2513,8 +2513,8 @@ static void initializeTree(tree *tr, analdef *adef)
       myBinFread(&(p->dataType),           sizeof(int), 1, byteFile);
       myBinFread(&(p->protModels),         sizeof(int), 1, byteFile);
       myBinFread(&(p->autoProtModels),     sizeof(int), 1, byteFile);
-      myBinFread(&(p->protFreqs),          sizeof(int), 1, byteFile);
-      myBinFread(&(p->nonGTR),             sizeof(boolean), 1, byteFile);
+      myBinFread(&(p->protFreqs),          sizeof(int), 1, byteFile);     
+      myBinFread(&(p->nonGTR),             sizeof(boolean), 1, byteFile);     
       myBinFread(&(p->optimizeBaseFrequencies), sizeof(boolean), 1, byteFile);
       myBinFread(&(p->numberOfCategories),      sizeof(int), 1, byteFile);	 
       
