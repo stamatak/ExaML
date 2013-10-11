@@ -3307,7 +3307,7 @@ void initReversibleGTR(tree *tr, int model)
 	       {		 
 		 initProtMat(f, tr->partitionData[model].protModels, &(tr->partitionData[model].substRates_LG4[i][0]), i);
 		 
-		 if(!tr->partitionData[model].protFreqs)	       	  	  
+		 if(!tr->partitionData[model].protFreqs && !tr->partitionData[model].optimizeBaseFrequencies)	       	  	  
 		   for(l = 0; l < 20; l++)		
 		     tr->partitionData[model].frequencies_LG4[i][l] = f[l];
 		 else
@@ -3324,7 +3324,7 @@ void initReversibleGTR(tree *tr, int model)
 	     /*if(adef->protEmpiricalFreqs && tr->NumberOfModels == 1)
 	       assert(tr->partitionData[model].protFreqs);*/
 	     
-	     if(!tr->partitionData[model].protFreqs)	       	  
+	     if(!tr->partitionData[model].protFreqs && !tr->partitionData[model].optimizeBaseFrequencies)	       	  
 	       {	     	    
 		 for(l = 0; l < 20; l++)		
 		   frequencies[l] = f[l];
@@ -3930,8 +3930,28 @@ static void initializeBaseFreqs(tree *tr, double **empiricalFrequencies)
 
   for(model = 0; model < (size_t)tr->NumberOfModels; model++)
     {
-      memcpy(tr->partitionData[model].frequencies,          empiricalFrequencies[model], sizeof(double) * tr->partitionData[model].states);
-      memcpy(tr->partitionData[model].empiricalFrequencies, empiricalFrequencies[model], sizeof(double) * tr->partitionData[model].states);
+      if(tr->partitionData[model].optimizeBaseFrequencies)
+	{
+	  //set all base frequencies to identical starting values 1.0 / numberOfDataStates
+	  
+	  int 
+	    l,
+	    numFreqs = tr->partitionData[model].states;
+
+	  double 
+	    f = 1.0 / ((double)numFreqs);
+
+	  for(l = 0; l < numFreqs; l++)
+	    {		
+	      tr->partitionData[model].frequencies[l] = f;
+	      tr->partitionData[model].empiricalFrequencies[l] = f;
+	    }
+	}
+      else
+	{
+	  memcpy(tr->partitionData[model].frequencies,          empiricalFrequencies[model], sizeof(double) * tr->partitionData[model].states);
+	  memcpy(tr->partitionData[model].empiricalFrequencies, empiricalFrequencies[model], sizeof(double) * tr->partitionData[model].states);
+	}
     }
 }
 

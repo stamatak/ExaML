@@ -347,7 +347,8 @@ static void changeModelParameters(int index, int rateNumber, double value, int w
       break;
     case FREQ_F:
       {
-	int 
+	int
+	  states = tr->partitionData[index].states,
 	  j;
 
 	double 
@@ -355,10 +356,10 @@ static void changeModelParameters(int index, int rateNumber, double value, int w
 
 	tr->partitionData[index].freqExponents[rateNumber] = value;
 
-	for(j = 0; j < 4; j++)
+	for(j = 0; j < states; j++)
 	  w += exp(tr->partitionData[index].freqExponents[j]);
 
-	for(j = 0; j < 4; j++)	    	    
+	for(j = 0; j < states; j++)	    	    
 	  tr->partitionData[index].frequencies[j] = exp(tr->partitionData[index].freqExponents[j]) / w;
 	
 	initReversibleGTR(tr, index);

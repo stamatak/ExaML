@@ -1458,12 +1458,17 @@ static void printModelAndProgramInfo(tree *tr, analdef *adef, int argc, char *ar
 	    case DNA_DATA:
 	      printBoth(infoFile, "DataType: DNA\n");	     
 	      printBoth(infoFile, "Substitution Matrix: GTR\n");
+	      if(tr->partitionData[model].optimizeBaseFrequencies)
+		printBoth(infoFile, "ML optimization of base frequencies\n");
 	      break;
 	    case AA_DATA:
 	      assert(tr->partitionData[model].protModels >= 0 && tr->partitionData[model].protModels < NUM_PROT_MODELS);
 	      printBoth(infoFile, "DataType: AA\n");	      
 	      printBoth(infoFile, "Substitution Matrix: %s\n", protModels[tr->partitionData[model].protModels]);
-	      printBoth(infoFile, "Using %s Base Frequencies\n", (tr->partitionData[model].protFreqs == 1)?"empirical":"fixed");	     
+	      if(!tr->partitionData[model].optimizeBaseFrequencies)
+		printBoth(infoFile, "Using %s Base Frequencies\n", (tr->partitionData[model].protFreqs == 1)?"empirical":"fixed");	     
+	      else		
+		printBoth(infoFile, "ML optimization of base frequencies\n");
 	      break;
 	    case BINARY_DATA:
 	      printBoth(infoFile, "DataType: BINARY/MORPHOLOGICAL\n");	      
