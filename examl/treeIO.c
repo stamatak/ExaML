@@ -50,7 +50,6 @@ extern char tree_file[1024];
 extern char *likelihood_key;
 extern char *ntaxa_key;
 extern char *smoothed_key;
-extern int partCount;
 extern double masterTime;
 
 
@@ -712,14 +711,14 @@ static boolean addElementLen (FILE *fp, tree *tr, nodeptr p, boolean readBranchL
 
 
 
-static nodeptr uprootTree (tree *tr, nodeptr p, boolean readBranchLengths, boolean readConstraint)
+
+static nodeptr uprootTree (tree *tr, nodeptr p, boolean readBranchLengths)
 {
   nodeptr  q, r, s, start;
   int      n, i;              
 
   for(i = tr->mxtips + 1; i < 2 * tr->mxtips - 1; i++)
     assert(i == tr->nodep[i]->number);
-
   
   if(isTip(p->number, tr->mxtips) || p->back) 
     {
@@ -760,7 +759,7 @@ static nodeptr uprootTree (tree *tr, nodeptr p, boolean readBranchLengths, boole
   else    
     hookupDefault(q, r, tr->numBranches);    
 
-  if(readConstraint && tr->grouped)
+  if(tr->constraintTree)
     {    
       if(tr->constraintVector[p->number] != 0)
 	{
@@ -779,7 +778,7 @@ static nodeptr uprootTree (tree *tr, nodeptr p, boolean readBranchLengths, boole
       r = q->next;
       s = q->next->next;
       
-      if(readConstraint && tr->grouped)	
+      if(tr->constraintTree)	
 	tr->constraintVector[p->number] = tr->constraintVector[q->number];       
       
       hookup(p,             q->back, q->z, tr->numBranches);   /* move connections to p */
@@ -898,7 +897,7 @@ int treeReadLen (FILE *fp, tree *tr, boolean readBranches, boolean readNodeLabel
       assert(!readNodeLabels);
 
       p->next->next->back = (nodeptr) NULL;      
-      tr->start = uprootTree(tr, p->next->next, FALSE, FALSE);      
+      tr->start = uprootTree(tr, p->next->next, FALSE);      
       if (! tr->start)                              
 	{
 	  printf("FATAL ERROR UPROOTING TREE\n");
@@ -919,10 +918,250 @@ int treeReadLen (FILE *fp, tree *tr, boolean readBranches, boolean readNodeLabel
 }
 
 
+static int randomInt(int n)
+{
+  return rand() %n;
+}
+
+static boolean  addElementLenMULT (FILE *fp, tree *tr, nodeptr p, int partitionCounter, int *partCount)
+{ 
+  nodeptr  q, r, s;
+  int      n, ch, fres, rn;
+  double randomResolution;
+  int old;
+    
+  tr->constraintVector[p->number] = partitionCounter; 
+
+  if ((ch = treeGetCh(fp)) == '(') 
+    {
+      *partCount = *partCount + 1;
+      old = *partCount;       
+      
+      n = (tr->nextnode)++;
+      if (n > 2*(tr->mxtips) - 2) 
+	{
+	  if (tr->rooted || n > 2*(tr->mxtips) - 1) 
+	    {
+	      printf("ERROR: Too many internal nodes.  Is tree rooted?\n");
+	      printf("       Deepest splitting should be a trifurcation.\n");
+	      return FALSE;
+	    }
+	  else 
+	    {
+	      tr->rooted = TRUE;	    
+	    }
+	}
+      q = tr->nodep[n];
+      tr->constraintVector[q->number] = *partCount;
+      if (! addElementLenMULT(fp, tr, q->next, old, partCount))        return FALSE;
+      if (! treeNeedCh(fp, ',', "in"))             return FALSE;
+      if (! addElementLenMULT(fp, tr, q->next->next, old, partCount))  return FALSE;
+                 
+      hookupDefault(p, q, tr->numBranches);
+
+      while((ch = treeGetCh(fp)) == ',')
+	{ 
+	  n = (tr->nextnode)++;
+	  if (n > 2*(tr->mxtips) - 2) 
+	    {
+	      if (tr->rooted || n > 2*(tr->mxtips) - 1) 
+		{
+		  printf("ERROR: Too many internal nodes.  Is tree rooted?\n");
+		  printf("       Deepest splitting should be a trifurcation.\n");
+		  return FALSE;
+		}
+	      else 
+		{
+		  tr->rooted = TRUE;
+		}
+	    }
+	  r = tr->nodep[n];
+	  tr->constraintVector[r->number] = *partCount;	  
+
+	  rn = randomInt(10000);
+	  if(rn == 0) 
+	    randomResolution = 0;
+	  else 
+	    randomResolution = ((double)rn)/10000.0;
+	   	  
+	   if(randomResolution < 0.5)
+	    {	    
+	      s = q->next->back;	      
+	      r->back = q->next;
+	      q->next->back = r;	      
+	      r->next->back = s;
+	      s->back = r->next;	      
+	      addElementLenMULT(fp, tr, r->next->next, old, partCount);	     
+	    }
+	  else
+	    {	  
+	      s = q->next->next->back;	      
+	      r->back = q->next->next;
+	      q->next->next->back = r;	      
+	      r->next->back = s;
+	      s->back = r->next;	      
+	      addElementLenMULT(fp, tr, r->next->next, old, partCount);	     
+	    }	    	  	  
+	}       
+
+      if(ch != ')')
+	{
+	  printf("Missing /) in treeReadLenMULT\n");
+	  exit(-1);	        
+	}
+	
+
+
+      (void) treeFlushLabel(fp);
+    }
+  else 
+    {                             
+      ungetc(ch, fp);
+      if ((n = treeFindTipName(fp, tr)) <= 0)          return FALSE;
+      q = tr->nodep[n];      
+      tr->constraintVector[q->number] = partitionCounter;
+
+      if (tr->start->number > n)  tr->start = q;
+      (tr->ntips)++;
+      hookupDefault(p, q, tr->numBranches);
+    }
+  
+  fres = treeFlushLen(fp);
+  if(!fres) return FALSE;
+    
+  return TRUE;          
+} 
 
 
 
 
+boolean treeReadLenMULT (FILE *fp, tree *tr, int *partCount)
+{
+  nodeptr  p, r, s;
+  int      i, ch, n, rn;
+  int partitionCounter = 0;
+  double randomResolution;
+
+  srand(12345);
+  
+  for(i = 0; i < 2 * tr->mxtips; i++)
+    tr->constraintVector[i] = -1;
+
+  for (i = 1; i <= tr->mxtips; i++) 
+    tr->nodep[i]->back = (node *) NULL;
+
+  for(i = tr->mxtips + 1; i < 2 * tr->mxtips; i++)
+    {
+      tr->nodep[i]->back = (nodeptr)NULL;
+      tr->nodep[i]->next->back = (nodeptr)NULL;
+      tr->nodep[i]->next->next->back = (nodeptr)NULL;
+      tr->nodep[i]->number = i;
+      tr->nodep[i]->next->number = i;
+      tr->nodep[i]->next->next->number = i;
+    }
+
+
+  tr->start       = tr->nodep[tr->mxtips];
+  tr->ntips       = 0;
+  tr->nextnode    = tr->mxtips + 1;
+ 
+  for(i = 0; i < tr->numBranches; i++)
+    tr->partitionSmoothed[i] = FALSE;
+
+  tr->rooted      = FALSE;
+ 
+  p = tr->nodep[(tr->nextnode)++]; 
+  while((ch = treeGetCh(fp)) != '(');
+      
+  if (! addElementLenMULT(fp, tr, p, partitionCounter, partCount))                 return FALSE;
+  if (! treeNeedCh(fp, ',', "in"))                return FALSE;
+  if (! addElementLenMULT(fp, tr, p->next, partitionCounter, partCount))           return FALSE;
+  if (! tr->rooted) 
+    {
+      if ((ch = treeGetCh(fp)) == ',') 
+	{       
+	  if (! addElementLenMULT(fp, tr, p->next->next, partitionCounter, partCount)) return FALSE;
+
+	  while((ch = treeGetCh(fp)) == ',')
+	    { 
+	      n = (tr->nextnode)++;
+	      assert(n <= 2*(tr->mxtips) - 2);
+	
+	      r = tr->nodep[n];	
+	      tr->constraintVector[r->number] = partitionCounter;	   
+	      
+	      rn = randomInt(10000);
+	      if(rn == 0) 
+		randomResolution = 0;
+	      else 
+		randomResolution = ((double)rn)/10000.0;
+
+
+	      if(randomResolution < 0.5)
+		{	
+		  s = p->next->next->back;		  
+		  r->back = p->next->next;
+		  p->next->next->back = r;		  
+		  r->next->back = s;
+		  s->back = r->next;		  
+		  addElementLenMULT(fp, tr, r->next->next, partitionCounter, partCount);	
+		}
+	      else
+		{
+		  s = p->next->back;		  
+		  r->back = p->next;
+		  p->next->back = r;		  
+		  r->next->back = s;
+		  s->back = r->next;		  
+		  addElementLenMULT(fp, tr, r->next->next, partitionCounter, partCount);
+		}
+	    }	  	  	      	  
+
+	  if(ch != ')')
+	    {
+	      printf("Missing /) in treeReadLenMULT\n");
+	      exit(-1);	        	      	      
+	    }
+	  else
+	    ungetc(ch, fp);
+	}
+      else 
+	{ 
+	  tr->rooted = TRUE;
+	  if (ch != EOF)  (void) ungetc(ch, fp);
+	}       
+    }
+  else 
+    {
+      p->next->next->back = (nodeptr) NULL;
+    }
+    
+  if (! treeNeedCh(fp, ')', "in"))                return FALSE;
+  (void) treeFlushLabel(fp);
+  if (! treeFlushLen(fp))                         return FALSE;
+   
+  if (! treeNeedCh(fp, ';', "at end of"))       return FALSE;
+  
+
+  if (tr->rooted) 
+    {        
+      p->next->next->back = (nodeptr) NULL;
+      tr->start = uprootTree(tr, p->next->next, FALSE);
+      if (! tr->start)                              return FALSE;
+    }
+  else 
+    {     
+      tr->start = findAnyTip(p, tr->mxtips);
+    }
+
+  
+  
+  
+
+  assert(tr->ntips == tr->mxtips);
+  
+  return TRUE; 
+}
 
 
 void getStartingTree(tree *tr)
@@ -931,7 +1170,15 @@ void getStartingTree(tree *tr)
 
   tr->likelihood = unlikely;
    
-  treeReadLen(treeFile, tr, FALSE, FALSE, FALSE);
+  if(tr->constraintTree)
+    {
+      int 
+	partCount = 0;
+      if (! treeReadLenMULT(treeFile, tr, &partCount))
+	exit(-1);
+    }
+  else
+    treeReadLen(treeFile, tr, FALSE, FALSE, FALSE);
                
   fclose(treeFile);
  

@@ -943,7 +943,7 @@ static void printREADME(void)
       printf("      -s binarySequenceFileName\n");
       printf("      -n outputFileNames\n");
       printf("      -m rateHeterogeneityModel\n");
-      printf("      -t userStartingTree|-R binaryCheckpointFile\n");
+      printf("      -t userStartingTree|-R binaryCheckpointFile|-g constraintTree\n");
       printf("      [-a]\n");
       printf("      [-B numberOfMLtreesToSave]\n"); 
       printf("      [-c numberOfCategories]\n");
@@ -988,6 +988,8 @@ static void printREADME(void)
       
       printMinusFUsage();
  
+      printf("\n");
+      printf("      -g      Pass a multi-furcating constraint tree to ExaML. The tree needs to contain all taxa of the alignment!\n");
       printf("\n");
       printf("      -h      Display this help message.\n");
       printf("\n");  
@@ -1096,13 +1098,11 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
   tr->multiStateModel  = GTR_MULTI_STATE;
   tr->useGappedImplementation = FALSE;
   tr->saveMemory = FALSE;
+  tr->constraintTree = FALSE;
 
   tr->manyPartitions = FALSE;
 
   tr->categories             = 25;
-
-  tr->grouped = FALSE;
-  tr->constrained = FALSE;
 
   tr->gapyness               = 0.0; 
   tr->saveBestTrees          = 0;
@@ -1114,7 +1114,7 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 
 
 
-  while(!bad_opt && ((c = mygetopt(argc,argv,"R:B:e:c:f:i:m:t:w:n:s:vhMSDQa", &optind, &optarg))!=-1))
+  while(!bad_opt && ((c = mygetopt(argc,argv,"R:B:e:c:f:i:m:t:g:w:n:s:vhMSDQa", &optind, &optarg))!=-1))
     {
     switch(c)
       {    
@@ -1212,7 +1212,12 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
       case 't':
 	strcpy(tree_file, optarg);       
 	treeSet = 1;       
-	break;     
+	break;
+      case 'g':
+	strcpy(tree_file, optarg);       
+	treeSet = 1;       
+	tr->constraintTree = TRUE;
+	break;	
       case 'm':
 	strcpy(model,optarg);
 	if(modelExists(model, tr) == 0)
@@ -2816,12 +2821,12 @@ int main (int argc, char *argv[])
 	       This should basically be the first call to the library that actually computes something :-)
 	    */
 	    
-	    evaluateGeneric(tr, tr->start, TRUE);
-	    	
+	    evaluateGeneric(tr, tr->start, TRUE);	       	  
+
 	    /* the treeEvaluate() function repeatedly iterates over the entire tree to optimize branch lengths until convergence */
 	    
 	    treeEvaluate(tr, 1); 
-	    
+	   
 	    /* now start the ML search algorithm */
       
 	    

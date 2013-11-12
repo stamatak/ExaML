@@ -130,7 +130,6 @@ const char *secondaryModelList[21] = { "S6A (GTR)", "S6B", "S6C", "S6D", "S6E", 
 
 double masterTime;
 double accumulatedTime;
-int partCount = 0;
 int optimizeRateCategoryInvocations = 1;
 
 

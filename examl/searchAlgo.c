@@ -68,6 +68,34 @@ extern char binaryCheckpointInputName[1024];
 
 extern int processID;
 
+
+
+static int checker(tree *tr, nodeptr p)
+{
+  int group = tr->constraintVector[p->number];
+
+  if(isTip(p->number, tr->mxtips))
+    {
+      group = tr->constraintVector[p->number];
+      return group;
+    }
+  else
+    {
+      if(group != -9) 
+	return group;
+
+      group = checker(tr, p->next->back);
+      if(group != -9) 
+	return group;
+
+      group = checker(tr, p->next->next->back);
+      if(group != -9) 
+	return group;
+
+      return -9;
+    }
+}
+
 boolean initrav (tree *tr, nodeptr p)
 { 
   nodeptr  q;
@@ -654,6 +682,7 @@ static void restoreTopologyOnly(tree *tr, bestlist *bt, bestlist *bestML)
 }
 
 
+
 boolean testInsertBIG (tree *tr, nodeptr p, nodeptr q)
 {
   double  qz[NUM_BRANCHES], pz[NUM_BRANCHES];
@@ -669,20 +698,44 @@ boolean testInsertBIG (tree *tr, nodeptr p, nodeptr q)
       pz[i] = p->z[i];
     }
   
- 
+  if(tr->constraintTree)
+    {
+      int rNumber, qNumber, pNumber;
+      
+      doIt = FALSE;
+      
+      rNumber = tr->constraintVector[r->number];
+      qNumber = tr->constraintVector[q->number];
+      pNumber = tr->constraintVector[p->number];
+      
+      if(pNumber == -9)
+	pNumber = checker(tr, p->back);
+      if(pNumber == -9)
+	doIt = TRUE;
+      else
+	{
+	  if(qNumber == -9)
+	    qNumber = checker(tr, q);
+	  
+	  if(rNumber == -9)
+	    rNumber = checker(tr, r);
+	  
+	  if(pNumber == rNumber || pNumber == qNumber)
+	    doIt = TRUE;    	  
+	}
+    }
   
   if(doIt)
     {     
       if (! insertBIG(tr, p, q, tr->numBranches))       return FALSE;         
       
-      evaluateGeneric(tr, p->next->next, FALSE);       
+      evaluateGeneric(tr, p->next->next, FALSE);   
        
       if(tr->likelihood > tr->bestOfNode)
 	{
 	  tr->bestOfNode = tr->likelihood;
 	  tr->insertNode = q;
 	  tr->removeNode = p;   
-	  
 	  for(i = 0; i < tr->numBranches; i++)
 	    {
 	      tr->currentZQR[i] = tr->zqr[i];           
@@ -692,10 +745,8 @@ boolean testInsertBIG (tree *tr, nodeptr p, nodeptr q)
 	    }
 	}
       
-     
-
       if(tr->likelihood > tr->endLH)
-	{		  
+	{			  
 	  tr->insertNode = q;
 	  tr->removeNode = p;   
 	  for(i = 0; i < tr->numBranches; i++)
@@ -728,6 +779,9 @@ boolean testInsertBIG (tree *tr, nodeptr p, nodeptr q)
   else
     return TRUE;  
 }
+
+
+
 
 
 
@@ -1121,10 +1175,14 @@ void writeCheckpoint(tree *tr)
 
   
   ckp.accumulatedTime = accumulatedTime + (gettime() - masterTime);
-  
+  ckp.constraintTree = tr->constraintTree;
+
   /* printf("Acc time: %f\n", ckp.accumulatedTime); */
 
   myBinFwrite(&ckp, sizeof(checkPointState), 1, f);
+  
+  if(tr->constraintTree)
+    myBinFwrite(tr->constraintVector, sizeof(int), 2 * tr->mxtips, f);  
 
   myBinFwrite(tr->tree0, sizeof(char), tr->treeStringLength, f);
   myBinFwrite(tr->tree1, sizeof(char), tr->treeStringLength, f);
@@ -1285,7 +1343,14 @@ static void readCheckpoint(tree *tr)
 
   myBinFread(&ckp, sizeof(checkPointState), 1, f);
 
+  tr->constraintTree = ckp.constraintTree;
+
+  if(tr->constraintTree)
+    myBinFread(tr->constraintVector, sizeof(int), 2 * tr->mxtips, f);  
+
   tr->ntips = tr->mxtips;
+
+  
 
   tr->startLH    = ckp.tr_startLH;
   tr->endLH      = ckp.tr_endLH;
@@ -1683,8 +1748,6 @@ void computeBIGRAPID (tree *tr, analdef *adef, boolean estimateModel)
       else
 	treeEvaluate(tr, 2);  
     }
-
-  
 
   /* print some stuff to the RAxML_log file */
 

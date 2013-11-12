@@ -171,8 +171,8 @@
 #define PointGamma(prob,alpha,beta)  PointChi2(prob,2.0*(alpha))/(2.0*(beta))
 
 #define programName        "ExaML"
-#define programVersion     "1.0.7"
-#define programDate        "November 1 2013"
+#define programVersion     "1.0.8"
+#define programDate        "November 12 2013"
 
 
 #define  TREE_EVALUATION            0
@@ -578,6 +578,8 @@ typedef struct {
   /* search algorithm */
 
   unsigned int vLength;
+
+  boolean constraintTree;
   
   int rearrangementsMax;
   int rearrangementsMin;
@@ -637,6 +639,7 @@ typedef  struct  {
 
   int *ti;
 
+  boolean constraintTree;
   boolean useGappedImplementation;
   boolean saveMemory;  
   int              saveBestTrees;
@@ -648,8 +651,6 @@ typedef  struct  {
   int             *aliaswgt;    /* weight by pattern */ 
   boolean    manyPartitions;
 
-  boolean grouped;
-  boolean constrained;
   int *partitionAssignment;     
  
   unsigned char *y_ptr; 
@@ -981,8 +982,7 @@ extern void optimizeRAPID ( tree *tr, analdef *adef );
 extern void thoroughOptimization ( tree *tr, analdef *adef, topolRELL_LIST *rl, int index );
 extern int treeOptimizeThorough ( tree *tr, int mintrav, int maxtrav);
 
-extern int checker ( tree *tr, nodeptr p );
-extern boolean tipHomogeneityChecker ( tree *tr, nodeptr p, int grouping );
+
 extern void makeRandomTree ( tree *tr);
 extern void nodeRectifier ( tree *tr );
 extern void makeParsimonyTreeFast(tree *tr);
@@ -1044,7 +1044,7 @@ extern void printTreePerGene(tree *tr, analdef *adef, char *fileName, char *perm
 
 extern int treeReadLen (FILE *fp, tree *tr, boolean readBranches, boolean readNodeLabels, boolean topologyOnly);
 extern void treeReadTopologyString(char *treeString, tree *tr);
-extern boolean treeReadLenMULT ( FILE *fp, tree *tr, analdef *adef );
+extern boolean treeReadLenMULT ( FILE *fp, tree *tr, int *partCount);
 
 extern void getStartingTree ( tree *tr);
 

@@ -63,7 +63,7 @@ static void saveTopolRELLRec(tree *tr, nodeptr p, topolRELL *tpl, int *i, int nu
 	  tpl->connect[*i].p = q;
 	  tpl->connect[*i].q = q->back; 
 	  
-	  if(tr->grouped ||  tr->constrained)
+	  if(tr->constraintTree)
 	    {
 	      tpl->connect[*i].cp = tr->constraintVector[q->number];
 	      tpl->connect[*i].cq = tr->constraintVector[q->back->number]; 
@@ -90,7 +90,7 @@ static void saveTopolRELL(tree *tr, topolRELL *tpl)
   tpl->connect[i].p = p;
   tpl->connect[i].q = p->back;
   
-  if(tr->grouped ||  tr->constrained)
+  if(tr->constraintTree)
     {
       tpl->connect[i].cp = tr->constraintVector[p->number];
       tpl->connect[i].cq = tr->constraintVector[p->back->number]; 
