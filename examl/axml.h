@@ -639,6 +639,7 @@ typedef  struct  {
 
   int *ti;
 
+  unsigned int randomSeed;
   boolean constraintTree;
   boolean useGappedImplementation;
   boolean saveMemory;  

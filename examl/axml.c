@@ -943,7 +943,7 @@ static void printREADME(void)
       printf("      -s binarySequenceFileName\n");
       printf("      -n outputFileNames\n");
       printf("      -m rateHeterogeneityModel\n");
-      printf("      -t userStartingTree|-R binaryCheckpointFile|-g constraintTree\n");
+      printf("      -t userStartingTree|-R binaryCheckpointFile|-g constraintTree -p randomNumberSeed\n");
       printf("      [-a]\n");
       printf("      [-B numberOfMLtreesToSave]\n"); 
       printf("      [-c numberOfCategories]\n");
@@ -952,7 +952,7 @@ static void printREADME(void)
       printf("      [-f d|e|E|o]\n");    
       printf("      [-h] \n");
       printf("      [-i initialRearrangementSetting] \n");
-      printf("      [-M]\n");
+      printf("      [-M]\n");     
       printf("      [-Q]\n");
       printf("      [-S]\n");
       printf("      [-v]\n"); 
@@ -990,6 +990,7 @@ static void printREADME(void)
  
       printf("\n");
       printf("      -g      Pass a multi-furcating constraint tree to ExaML. The tree needs to contain all taxa of the alignment!\n");
+      printf("              When using this option you also need to specify a random number seed via \"-p\"\n");
       printf("\n");
       printf("      -h      Display this help message.\n");
       printf("\n");  
@@ -1008,6 +1009,8 @@ static void printREADME(void)
       printf("              DEFAULT: OFF\n");
       printf("\n");
       printf("      -n      Specifies the name of the output file.\n"); 
+      printf("\n");
+      printf("      -p      Specify a random number seed, required in conjunction with the \"-g\" option for constraint trees\n");
       printf("\n");
       printf("      -Q      Enable alternative data/load distribution algorithm for datasets with many partitions\n");
       printf("              In particular under PSR this can lead to parallel performance improvements of up to factor 10!\n");
@@ -1085,7 +1088,8 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
     nameSet = 0,
     treeSet = 0,   
     modelSet = 0, 
-    byteFileSet = 0;
+    byteFileSet = 0,
+    seedSet = 0;
 
 
   /*********** tr inits **************/ 
@@ -1114,10 +1118,14 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 
 
 
-  while(!bad_opt && ((c = mygetopt(argc,argv,"R:B:e:c:f:i:m:t:g:w:n:s:vhMSDQa", &optind, &optarg))!=-1))
+  while(!bad_opt && ((c = mygetopt(argc,argv,"R:B:e:c:f:i:m:t:g:w:n:s:p:vhMSDQa", &optind, &optarg))!=-1))
     {
     switch(c)
       {    
+      case 'p':
+	sscanf(optarg,"%u", &(tr->randomSeed));
+	seedSet = 1;
+	break;
       case 'a':
 	tr->useMedian = TRUE;
 	break;
@@ -1240,7 +1248,15 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 
 
 
-  
+  if(tr->constraintTree)
+    {
+      if(!seedSet && processID == 0)
+	{
+	  printf("\nError, you must specify a random number seed via \"-p\" when  using a constraint\n");
+	  printf("tree via \"-g\" \n");
+	  errorExit(-1);
+	}
+    }
 
   if(!byteFileSet)
     {

@@ -1042,7 +1042,7 @@ boolean treeReadLenMULT (FILE *fp, tree *tr, int *partCount)
   int partitionCounter = 0;
   double randomResolution;
 
-  srand(12345);
+  srand(tr->randomSeed);
   
   for(i = 0; i < 2 * tr->mxtips; i++)
     tr->constraintVector[i] = -1;
