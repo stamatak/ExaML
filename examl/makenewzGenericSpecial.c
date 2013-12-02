@@ -49,6 +49,13 @@
 /*#include <tmmintrin.h>*/
 #endif
 
+/* includes MIC-optimized functions */
+
+#ifdef __MIC_NATIVE
+#include "mic_native.h"
+#endif
+
+
 /* pointers to reduction buffers for storing and gathering the first and second derivative 
    of the likelihood in Pthreads and MPI */
 
@@ -657,6 +664,12 @@ void makenewzIterative(tree *tr)
 	  else
 	    sumGAMMA_FLEX(tipCase, tr->partitionData[model].sumBuffer, x1_start, x2_start, tr->partitionData[model].tipVector, tipX1, tipX2,
 			  width, states);
+
+#elif defined(__MIC_NATIVE)
+
+	  mic_sumGAMMA(tipCase, tr->partitionData[model].sumBuffer, x1_start, x2_start, tr->partitionData[model].tipVector, tipX1, tipX2,
+            width);
+
 #else
 	  switch(states)
 	    {
@@ -793,6 +806,11 @@ void execCore(tree *tr, volatile double *_dlnLdlz, volatile double *_d2lnLdlz2)
 	    coreGAMMA_FLEX(width, sumBuffer,
 			   &dlnLdlz, &d2lnLdlz2, tr->partitionData[model].EIGN, tr->partitionData[model].gammaRates, lz,
 			   tr->partitionData[model].wgt, states);
+#elif defined(__MIC_NATIVE)
+	  mic_coreGTRGAMMA(width, sumBuffer,
+             &dlnLdlz, &d2lnLdlz2, tr->partitionData[model].EIGN, tr->partitionData[model].gammaRates, lz,
+             tr->partitionData[model].wgt);
+
 #else
 	  switch(states)
 	    {	   

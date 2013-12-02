@@ -1,0 +1,8 @@
+*.o
+
+parser/parser
+examl-MIC
+.cproject
+.project
+
+loop_prof*

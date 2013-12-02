@@ -2262,12 +2262,30 @@ static void initializePartitions(tree *tr, FILE *byteFile)
 
       tr->partitionData[model].xSpaceVector = (size_t *)calloc(tr->mxtips, sizeof(size_t));  
 
-      tr->partitionData[model].sumBuffer = (double *)malloc_aligned(width *
-									   (size_t)(tr->partitionData[model].states) *
-									   discreteRateCategories(tr->rateHetModel) *
-									   sizeof(double));
+      // Alexey: sum buffer buffer padding for Xeon PHI
+      const int ALIGN = 8;
+      const int aligned_width = width % ALIGN == 0 ? width : width + (ALIGN - (width % ALIGN));
+      const int span = (size_t)(tr->partitionData[model].states) *
+              discreteRateCategories(tr->rateHetModel);
+
+      tr->partitionData[model].sumBuffer = (double *)malloc_aligned(aligned_width *
+									   span * sizeof(double));
 	    
-      tr->partitionData[model].wgt = (int *)malloc_aligned(width * sizeof(int));	  
+      // Alexey: fill padding entries with 1. (will be corrected with site weights, s. below)
+      {
+          int k;
+          for (k = width*span; k < aligned_width*span; ++k)
+              tr->partitionData[model].sumBuffer[k] = 1.;
+      }
+
+      tr->partitionData[model].wgt = (int *)malloc_aligned(aligned_width * sizeof(int));
+
+      // Alexey: fill padding entries with 0.
+      {
+          int k;
+          for (k = width; k < aligned_width; ++k)
+              tr->partitionData[model].wgt[k] = 0;
+      }
 
       /* rateCategory must be assigned using calloc() at start up there is only one rate category 0 for all sites */
 

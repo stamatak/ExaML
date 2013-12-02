@@ -59,6 +59,12 @@ const union __attribute__ ((aligned (BYTE_ALIGNMENT)))
 
 #endif
 
+/* includes MIC-optimized functions */
+
+#ifdef __MIC_NATIVE
+#include "mic_native.h"
+#endif
+
 
 extern int processID;
 
@@ -812,7 +818,7 @@ void computeTraversalInfo(nodeptr p, traversalInfo *ti, int *counter, int maxTip
    file.
 */
 
-#if (defined(_OPTIMIZED_FUNCTIONS) && !defined(__AVX))
+#if (defined(_OPTIMIZED_FUNCTIONS) && !defined(__AVX) && !defined(__MIC_NATIVE))
 
 static void newviewGTRGAMMAPROT_LG4(int tipCase,
 				    double *x1, double *x2, double *x3, double *extEV[4], double *tipVector[4],
@@ -1134,6 +1140,13 @@ void newviewIterative (tree *tr, int startIndex)
 				  tipX1, tipX2,
 				  width, left, right, wgt, &scalerIncrement, states, getUndetermined(tr->partitionData[model].dataType) + 1);
 
+#elif defined(__MIC_NATIVE)
+
+	      mic_newviewGTRGAMMA(tInfo->tipCase,
+                  x1_start, x2_start, x3_start, tr->partitionData[model].EV, tr->partitionData[model].tipVector,
+                  tipX1, tipX2,
+                  width, left, right, wgt, &scalerIncrement);
+
 #else
 	      /* dedicated highly optimized functions. Analogously to the functions in evaluateGeneric() 
 		 we also siwtch over the state number */
@@ -1403,7 +1416,7 @@ void newviewGeneric (tree *tr, nodeptr p, boolean masked)
 
 /* optimized function implementations */
 
-#if (defined(_OPTIMIZED_FUNCTIONS) && !defined(__AVX))
+#if (defined(_OPTIMIZED_FUNCTIONS) && !defined(__AVX) && !defined(__MIC_NATIVE))
 
 static void newviewGTRGAMMA_GAPPED_SAVE(int tipCase,
 					double *x1_start, double *x2_start, double *x3_start,

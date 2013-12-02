@@ -31,19 +31,19 @@
 
 #include <assert.h>
 #include <stdint.h>
+#include <stdio.h>
 
-#ifdef __AVX
+
+#ifdef __MIC_NATIVE
+#define BYTE_ALIGNMENT 64
+#elif defined __AVX
 #define BYTE_ALIGNMENT 32
 #else
 #define BYTE_ALIGNMENT 16
 #endif
 
 
-
-
 #include <mpi.h>
-
-
 
 
 #define MAX_TIP_EV     0.999999999 /* max tip vector value, sum of EVs needs to be smaller than 1.0, otherwise the numerics break down */

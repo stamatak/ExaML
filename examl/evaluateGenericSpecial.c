@@ -49,6 +49,12 @@
 /*#include <tmmintrin.h>*/
 #endif
 
+/* includes MIC-optimized functions */
+
+#ifdef __MIC_NATIVE
+#include "mic_native.h"
+#endif
+
 /* 
    global variables of pthreads version, reductionBuffer is the global array 
    that is used for implementing deterministic reduction operations, that is,
@@ -589,6 +595,11 @@ void evaluateIterative(tree *tr)
 	    partitionLikelihood = evaluateGAMMA_FLEX(tr->partitionData[model].wgt,
 						     x1_start, x2_start, tr->partitionData[model].tipVector,
 						     tip, width, diagptable, states);
+#elif defined(__MIC_NATIVE)
+	  partitionLikelihood = mic_evaluateGAMMA(tr->partitionData[model].wgt,
+                         x1_start, x2_start, tr->partitionData[model].tipVector,
+                         tip, width, diagptable);
+
 #else
 
 	  /* for the optimized functions we have a dedicated, optimized function implementation 
