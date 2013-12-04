@@ -547,9 +547,9 @@ static void coreGAMMA_FLEX(int upper, double *sumtable, volatile double *ext_dln
   for (i = 0; i < upper; i++)
     {
       double 
-	r = rptr[cptr[i]],
-	wr1 = r * wgt[i],
-	wr2 = r * r * wgt[i];
+//	r = rptr[cptr[i]],
+	wr1 = wgt[i],
+	wr2 = wgt[i];
 
       /* access the array with pre-computed values */
       sum = &sumtable[i * gammaStates];

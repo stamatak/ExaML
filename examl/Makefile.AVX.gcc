@@ -3,8 +3,11 @@
 
 CC = mpicc
 
-CFLAGS = -D__SIM_SSE3   -D_USE_ZLIB -D__AVX -D_OPTIMIZED_FUNCTIONS -msse3 -D_GNU_SOURCE -O2 -fomit-frame-pointer -funroll-loops -D_USE_ALLREDUCE #-Wall  -Wunused-parameter -Wredundant-decls  -Wreturn-type  -Wswitch-default -Wunused-value -Wimplicit  -Wimplicit-function-declaration  -Wimplicit-int -Wimport  -Wunused  -Wunused-function  -Wunused-label -Wno-int-to-pointer-cast -Wbad-function-cast  -Wmissing-declarations -Wmissing-prototypes  -Wnested-externs  -Wold-style-definition -Wstrict-prototypes -Wpointer-sign -Wextra -Wredundant-decls -Wunused -Wunused-function -Wunused-parameter -Wunused-value  -Wunused-variable -Wformat  -Wformat-nonliteral -Wparentheses -Wsequence-point -Wuninitialized -Wundef -Wbad-function-cast
+COMMON_FLAGS = -D_OPTIMIZED_FUNCTIONS -D__SIM_SSE3 -D_USE_ZLIB -D__AVX -msse3 -D_GNU_SOURCE -D_USE_ALLREDUCE -fomit-frame-pointer -funroll-loops # -Wall  -Wunused-parameter -Wredundant-decls  -Wreturn-type  -Wswitch-default -Wunused-value -Wimplicit  -Wimplicit-function-declaration  -Wimplicit-int -Wimport  -Wunused  -Wunused-function  -Wunused-label -Wno-int-to-pointer-cast -Wbad-function-cast  -Wmissing-declarations -Wmissing-prototypes  -Wnested-externs  -Wold-style-definition -Wstrict-prototypes -Wpointer-sign -Wextra -Wredundant-decls -Wunused -Wunused-function -Wunused-parameter -Wunused-value  -Wunused-variable -Wformat  -Wformat-nonliteral -Wparentheses -Wsequence-point -Wuninitialized -Wundef -Wbad-function-cast 
+OPT1_FLAGS = -O1
+OPT2_FLAGS = -O2
 
+CFLAGS = $(COMMON_FLAGS) $(OPT2_FLAGS)
 
 LIBRARIES = -lm -mavx -lz
 
@@ -22,16 +25,17 @@ examl-AVX : $(objs)
 avxLikelihood.o : avxLikelihood.c $(GLOBAL_DEPS)
 	$(CC) $(CFLAGS) -mavx -c -o avxLikelihood.o avxLikelihood.c
 		   
+models.o : models.c $(GLOBAL_DEPS)
+	$(CC) $(COMMON_FLAGS) $(OPT1_FLAGS) -c -o models.o models.c
 
+optimizeModel.o : optimizeModel.c $(GLOBAL_DEPS)
 bipartitionList.o : bipartitionList.c $(GLOBAL_DEPS)
 evaluatePartialSpecialGeneric.o : evaluatePartialSpecialGeneric.c $(GLOBAL_DEPS)
-optimizeModel.o : optimizeModel.c $(GLOBAL_DEPS)
 trash.o : trash.c $(GLOBAL_DEPS)
 axml.o : axml.c $(GLOBAL_DEPS)
 searchAlgo.o : searchAlgo.c $(GLOBAL_DEPS)
 topologies.o : topologies.c $(GLOBAL_DEPS)
 treeIO.o : treeIO.c $(GLOBAL_DEPS)
-models.o : models.c $(GLOBAL_DEPS)
 evaluatePartialGenericSpecial.o : evaluatePartialGenericSpecial.c $(GLOBAL_DEPS)
 evaluateGenericSpecial.o : evaluateGenericSpecial.c $(GLOBAL_DEPS)
 newviewGenericSpecial.o : newviewGenericSpecial.c $(GLOBAL_DEPS)

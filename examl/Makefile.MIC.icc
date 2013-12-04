@@ -1,10 +1,15 @@
 # Makefile August 2006 by Alexandros Stamatakis
 # Makefile cleanup October 2006, Courtesy of Peter Cordes <peter@cordes.ca>
 
-CC = mpiicc
+CC = mpicc
 
 MICFLAGS = -D__MIC_NATIVE -mmic -opt-streaming-cache-evict=0
-CFLAGS = -std=c99 -D__SIM_SSE3 -D_OPTIMIZED_FUNCTIONS -D_GNU_SOURCE -O2 -fomit-frame-pointer -funroll-loops -D_USE_ALLREDUCE $(MICFLAGS) # -D_USE_ZLIB -Wall  -Wunused-parameter -Wredundant-decls  -Wreturn-type  -Wswitch-default -Wunused-value -Wimplicit  -Wimplicit-function-declaration  -Wimplicit-int -Wimport  -Wunused  -Wunused-function  -Wunused-label -Wno-int-to-pointer-cast -Wbad-function-cast  -Wmissing-declarations -Wmissing-prototypes  -Wnested-externs  -Wold-style-definition -Wstrict-prototypes -Wpointer-sign -Wextra -Wredundant-decls -Wunused -Wunused-function -Wunused-parameter -Wunused-value  -Wunused-variable -Wformat  -Wformat-nonliteral -Wparentheses -Wsequence-point -Wuninitialized -Wundef -Wbad-function-cast
+COMMON_FLAGS = -std=c99 -D__SIM_SSE3 -D_OPTIMIZED_FUNCTIONS -D_GNU_SOURCE -fomit-frame-pointer -funroll-loops -D_USE_ALLREDUCE $(MICFLAGS) # -D_USE_ZLIB -Wall  -Wunused-parameter -Wredundant-decls  -Wreturn-type  -Wswitch-default -Wunused-value -Wimplicit  -Wimplicit-function-declaration  -Wimplicit-int -Wimport  -Wunused  -Wunused-function  -Wunused-label -Wno-int-to-pointer-cast -Wbad-function-cast  -Wmissing-declarations -Wmissing-prototypes  -Wnested-externs  -Wold-style-definition -Wstrict-prototypes -Wpointer-sign -Wextra -Wredundant-decls -Wunused -Wunused-function -Wunused-parameter -Wunused-value  -Wunused-variable -Wformat  -Wformat-nonliteral -Wparentheses -Wsequence-point -Wuninitialized -Wundef -Wbad-function-cast
+OPT1_FLAGS = -O1
+OPT2_FLAGS = -O2
+
+CFLAGS = $(COMMON_FLAGS) $(OPT2_FLAGS)
+
 
 LIBRARIES = -lm -mmic #-lz
 
@@ -21,7 +26,9 @@ examl-MIC : $(objs)
 
 #avxLikelihood.o : avxLikelihood.c $(GLOBAL_DEPS)
 #	$(CC) $(CFLAGS) -mavx -c -o avxLikelihood.o avxLikelihood.c
-		   
+
+models.o : models.c $(GLOBAL_DEPS)
+	$(CC) $(COMMON_FLAGS) $(OPT1_FLAGS) -c -o models.o models.c
 
 bipartitionList.o : bipartitionList.c $(GLOBAL_DEPS)
 evaluatePartialSpecialGeneric.o : evaluatePartialSpecialGeneric.c $(GLOBAL_DEPS)
@@ -31,7 +38,6 @@ axml.o : axml.c $(GLOBAL_DEPS)
 searchAlgo.o : searchAlgo.c $(GLOBAL_DEPS)
 topologies.o : topologies.c $(GLOBAL_DEPS)
 treeIO.o : treeIO.c $(GLOBAL_DEPS)
-models.o : models.c $(GLOBAL_DEPS)
 evaluatePartialGenericSpecial.o : evaluatePartialGenericSpecial.c $(GLOBAL_DEPS)
 evaluateGenericSpecial.o : evaluateGenericSpecial.c $(GLOBAL_DEPS)
 newviewGenericSpecial.o : newviewGenericSpecial.c $(GLOBAL_DEPS)

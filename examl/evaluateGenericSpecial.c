@@ -676,6 +676,7 @@ void evaluateIterative(tree *tr)
 #endif
 	  
 	  /* check that there was no major numerical screw-up, the log likelihood should be < 0.0 always */
+//	  printf("partitionLikelihood: %f\n", partitionLikelihood);
 	 	  
 	  assert(partitionLikelihood < 0.0);
 	  	     		      

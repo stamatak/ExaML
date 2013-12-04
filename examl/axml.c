@@ -2260,7 +2260,7 @@ static void initializePartitions(tree *tr, FILE *byteFile)
       for(j = 0; j < (size_t)tr->mxtips; j++)	        	  	  	  	 
 	  tr->partitionData[model].xVector[j]   = (double*)NULL;   
 
-      tr->partitionData[model].xSpaceVector = (size_t *)calloc(tr->mxtips, sizeof(size_t));  
+      tr->partitionData[model].xSpaceVector = (size_t *)calloc(tr->mxtips, sizeof(size_t));
 
       // Alexey: sum buffer buffer padding for Xeon PHI
       const int ALIGN = 8;
@@ -2575,7 +2575,7 @@ static void initializeTree(tree *tr, analdef *adef)
       empiricalFrequencies[model] = (double *)malloc(sizeof(double) * p->states);
       myBinFread(empiricalFrequencies[model], sizeof(double), p->states, byteFile);	   
     }     
-  
+
   initializePartitions(tr, byteFile);
   
   
@@ -2586,7 +2586,7 @@ static void initializeTree(tree *tr, analdef *adef)
 #endif
 
   initModel(tr, empiricalFrequencies); 
- 
+
   for(model = 0; model < (size_t)tr->NumberOfModels; model++)
     free(empiricalFrequencies[model]);
 
@@ -2745,7 +2745,7 @@ int main (int argc, char *argv[])
   MPI_Comm_size(MPI_COMM_WORLD, &processes);
   printf("\nThis is ExaML FINE-GRAIN MPI Process Number: %d\n", processID);   
   MPI_Barrier(MPI_COMM_WORLD);
-  
+
   {
     tree  
       *tr = (tree*)malloc(sizeof(tree));
@@ -2759,16 +2759,15 @@ int main (int argc, char *argv[])
        substantial run-time differences for vectors of equal length.
     */
     
-#if ! (defined(__ppc) || defined(__powerpc__) || defined(PPC))
-    _mm_setcsr( _mm_getcsr() | _MM_FLUSH_ZERO_ON);
-#endif   
+    #if ! (defined(__ppc) || defined(__powerpc__) || defined(PPC))
+        _mm_setcsr( _mm_getcsr() | _MM_FLUSH_ZERO_ON);
+    #endif
 
   /* get the start time */
    
     masterTime = gettime();         
     
   /* initialize the analysis parameters in struct adef to default values */
-    
     initAdef(adef);
 
   /* parse command line arguments: this has a side effect on tr struct and adef struct variables */
