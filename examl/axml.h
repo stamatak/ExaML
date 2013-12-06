@@ -171,8 +171,8 @@
 #define PointGamma(prob,alpha,beta)  PointChi2(prob,2.0*(alpha))/(2.0*(beta))
 
 #define programName        "ExaML"
-#define programVersion     "1.0.8"
-#define programDate        "November 12 2013"
+#define programVersion     "1.0.9"
+#define programDate        "December 6 2013"
 
 
 #define  TREE_EVALUATION            0

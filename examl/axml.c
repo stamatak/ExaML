@@ -2463,9 +2463,20 @@ static void initializeTree(tree *tr, analdef *adef)
 #ifdef _USE_ZLIB
   gzFile
     byteFile = gzopen(byteFileName, "rb");
+
+  if(byteFile == Z_NULL)
+    {
+      if(processID == 0)
+	{
+	  printf("\nCan not open sequence file for reading: %s\n", byteFileName);
+	  printf("Check if this file exists and you have read access rights for it.\n");
+	}
+      errorExit(-1);
+      return;
+    }
 #else
   FILE 
-    *byteFile = fopen(byteFileName, "rb");
+    *byteFile = myfopen(byteFileName, "rb");
 #endif
 
   double 

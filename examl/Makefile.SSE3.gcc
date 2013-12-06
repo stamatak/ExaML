@@ -3,8 +3,12 @@
 
 CC = mpicc
 
-CFLAGS = -D__SIM_SSE3 -D_USE_ZLIB -msse3 -D_GNU_SOURCE -O2 -fomit-frame-pointer -funroll-loops -D_OPTIMIZED_FUNCTIONS -D_USE_ALLREDUCE #-Wall -Wunused-parameter -Wredundant-decls  -Wreturn-type  -Wswitch-default -Wunused-value -Wimplicit  -Wimplicit-function-declaration  -Wimplicit-int -Wimport  -Wunused  -Wunused-function  -Wunused-label -Wno-int-to-pointer-cast -Wbad-function-cast  -Wmissing-declarations -Wmissing-prototypes  -Wnested-externs  -Wold-style-definition -Wstrict-prototypes -Wpointer-sign -Wextra -Wredundant-decls -Wunused -Wunused-function -Wunused-parameter -Wunused-value  -Wunused-variable -Wformat  -Wformat-nonliteral -Wparentheses -Wsequence-point -Wuninitialized -Wundef -Wbad-function-cast
+COMMON_FLAGS = -D__SIM_SSE3 -D_USE_ZLIB -msse3 -D_GNU_SOURCE -fomit-frame-pointer -funroll-loops -D_OPTIMIZED_FUNCTIONS -D_USE_ALLREDUCE #-Wall -Wunused-parameter -Wredundant-decls  -Wreturn-type  -Wswitch-default -Wunused-value -Wimplicit  -Wimplicit-function-declaration  -Wimplicit-int -Wimport  -Wunused  -Wunused-function  -Wunused-label -Wno-int-to-pointer-cast -Wbad-function-cast  -Wmissing-declarations -Wmissing-prototypes  -Wnested-externs  -Wold-style-definition -Wstrict-prototypes -Wpointer-sign -Wextra -Wredundant-decls -Wunused -Wunused-function -Wunused-parameter -Wunused-value  -Wunused-variable -Wformat  -Wformat-nonliteral -Wparentheses -Wsequence-point -Wuninitialized -Wundef -Wbad-function-cast
 
+OPT_FLAG_1 = -O1
+OPT_FLAG_2 = -O2
+
+CFLAGS = $(COMMON_FLAGS) $(OPT_FLAG_2)
 
 LIBRARIES = -lm -lz
 
@@ -18,6 +22,9 @@ GLOBAL_DEPS = axml.h globalVariables.h
 
 examl : $(objs)
 	$(CC) -o examl $(objs) $(LIBRARIES) 
+
+models.o : models.c $(GLOBAL_DEPS)
+	 $(CC) $(COMMON_FLAGS) $(OPT_FLAG_1) -c -o models.o models.c
 
 bipartitionList.o : bipartitionList.c $(GLOBAL_DEPS)
 evaluatePartialSpecialGeneric.o : evaluatePartialSpecialGeneric.c $(GLOBAL_DEPS)
