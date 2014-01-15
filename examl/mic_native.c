@@ -1,4 +1,3 @@
-//#include <omp.h>
 #include <immintrin.h>
 #include <string.h>
 #include <math.h>
@@ -11,35 +10,25 @@ static const int statesSquare = 16;
 static const int span = 4 * 4;
 static const int maxStateValue = 16;
 
+inline void mic_broadcast16x64_0123(const double* inv, double* outv)
+{
+    __mmask8 k1 = _mm512_int2mask(0x0F);
+    __mmask8 k2 = _mm512_int2mask(0xF0);
+    for(int l = 0; l < 2; ++l)
+    {
+        __m512d t1 = _mm512_setzero_pd();
+        __m512d t2 = _mm512_setzero_pd();
+        t1 = _mm512_extload_pd(&inv[l * 8], _MM_UPCONV_PD_NONE, _MM_BROADCAST_4X8, _MM_HINT_NONE);
+        t2 = _mm512_extload_pd(&inv[l * 8 + 4], _MM_UPCONV_PD_NONE, _MM_BROADCAST_4X8, _MM_HINT_NONE);
+
+        _mm512_store_pd(&outv[l*32], t1);
+        _mm512_store_pd(&outv[l*32 + 8], t1);
+        _mm512_store_pd(&outv[l*32 + 16], t2);
+        _mm512_store_pd(&outv[l*32 + 24], t2);
+    }
+}
+
 inline void mic_broadcast16x64(const double* inv, double* outv)
-{
-    __mmask8 k1 = _mm512_int2mask(0x0F);
-    __mmask8 k2 = _mm512_int2mask(0xF0);
-    for(int l = 0; l < 16; l += 2)
-    {
-        __m512d t = _mm512_setzero_pd();
-        t = _mm512_mask_extload_pd(t, k1, &inv[(l%4)*4 + l/4], _MM_UPCONV_PD_NONE, _MM_BROADCAST_1X8, _MM_HINT_NONE);
-        t = _mm512_mask_extload_pd(t, k2, &inv[((l+1)%4)*4 + (l+1)/4], _MM_UPCONV_PD_NONE, _MM_BROADCAST_1X8, _MM_HINT_NONE);
-
-        _mm512_store_pd(&outv[l*4], t);
-    }
-}
-
-inline void mic_broadcast16x64_2(const double* inv, double* outv)
-{
-    __mmask8 k1 = _mm512_int2mask(0x0F);
-    __mmask8 k2 = _mm512_int2mask(0xF0);
-    for(int l = 0; l < 16; l += 2)
-    {
-        __m512d t = _mm512_setzero_pd();
-        t = _mm512_mask_extload_pd(t, k1, &inv[(l%4)*4 + l/4], _MM_UPCONV_PD_NONE, _MM_BROADCAST_1X8, _MM_HINT_NONE);
-        t = _mm512_mask_extload_pd(t, k2, &inv[((l+1)%4)*4 + (l+1)/4], _MM_UPCONV_PD_NONE, _MM_BROADCAST_1X8, _MM_HINT_NONE);
-
-        _mm512_store_pd(&outv[l*4], t);
-    }
-}
-
-inline void mic_broadcast16x64_3(const double* inv, double* outv)
 {
     __mmask8 k1 = _mm512_int2mask(0x0F);
     __mmask8 k2 = _mm512_int2mask(0xF0);
@@ -90,6 +79,8 @@ void mic_newviewGTRGAMMA(int tipCase,
         aEV[l] = extEV[(l / 16) * 4 + (l % 4)];
     }
 
+//    mic_broadcast16x64_0123(extEV, aEV);
+
   switch(tipCase)
   {
     case TIP_TIP:
@@ -120,21 +111,28 @@ void mic_newviewGTRGAMMA(int tipCase,
               }
             }
 
-        double auX[64] __attribute__((align(64)));
+//    #pragma omp parallel
+//    {
+ //       int tr_num = omp_get_thread_num();
+ //       int tr_count =  omp_get_num_threads();
+ //       int chunk_size = n / tr_count;
+ //       int i_start = chunk_size * tr_num + MIN(n % tr_count, tr_num);
+ //       int i_end = i_start + chunk_size + (tr_num < n % tr_count ? 1 : 0);
+//        int i_end = (tr_num == tr_count - 1) ? n : (n / tr_count) * (tr_num+1);
 
-//        #pragma omp parallel for private(auX)
-        for(int i = 0; i < n; ++i)
+//        printf("diff: %d\n", n % tr_count);
+
+        #pragma omp parallel for
+        for (int i = 0; i < n; i++)
         {
-            _mm_prefetch(&x3[span*(i+8)], _MM_HINT_ET1);
-            _mm_prefetch(&x3[span*(i+8) + 8], _MM_HINT_ET1);
+            _mm_prefetch((const char *)&x3[span*(i+8)], _MM_HINT_ET1);
+            _mm_prefetch((const char *)&x3[span*(i+8) + 8], _MM_HINT_ET1);
 
-            _mm_prefetch(&x3[span*(i+1)], _MM_HINT_ET0);
-            _mm_prefetch(&x3[span*(i+1) + 8], _MM_HINT_ET0);
+            _mm_prefetch((const char *)&x3[span*(i+1)], _MM_HINT_ET0);
+            _mm_prefetch((const char *)&x3[span*(i+1) + 8], _MM_HINT_ET0);
 
             const double *uX1 = &umpX1[16 * tipX1[i]];
             const double *uX2 = &umpX2[16 * tipX2[i]];
-
-//          const double *uX = &umpX[256 * tipX1[i] + 16 * tipX2[i]];
 
             double uX[16] __attribute__((align(64)));
             double* v = &x3[i * 16];
@@ -147,8 +145,8 @@ void mic_newviewGTRGAMMA(int tipCase,
                 v[l] = 0.;
             }
 
+            double auX[64] __attribute__((align(64)));
             mic_broadcast16x64(uX, auX);
-
 
             for (int j = 0; j < 4; ++j)
             {
@@ -162,7 +160,7 @@ void mic_newviewGTRGAMMA(int tipCase,
             }
 
         } // sites loop
-
+//      }  // omp parallel
       }
       break;
     case TIP_INNER:
@@ -202,18 +200,18 @@ void mic_newviewGTRGAMMA(int tipCase,
             }
         }
 
-//        #pragma omp parallel for
+		#pragma omp parallel for
         for (int i = 0; i < n; i++)
         {
-            _mm_prefetch(&x2[span*(i+16)], _MM_HINT_T1);
-            _mm_prefetch(&x2[span*(i+16) + 8], _MM_HINT_T1);
-            _mm_prefetch(&x3[span*(i+16)], _MM_HINT_ET1);
-            _mm_prefetch(&x3[span*(i+16) + 8], _MM_HINT_ET1);
+            _mm_prefetch((const char *)&x2[span*(i+16)], _MM_HINT_T1);
+            _mm_prefetch((const char *)&x2[span*(i+16) + 8], _MM_HINT_T1);
+            _mm_prefetch((const char *)&x3[span*(i+16)], _MM_HINT_ET1);
+            _mm_prefetch((const char *)&x3[span*(i+16) + 8], _MM_HINT_ET1);
 
-            _mm_prefetch(&x2[span*(i+1)], _MM_HINT_T0);
-            _mm_prefetch(&x2[span*(i+1) + 8], _MM_HINT_T0);
-            _mm_prefetch(&x3[span*(i+1)], _MM_HINT_ET0);
-            _mm_prefetch(&x3[span*(i+1) + 8], _MM_HINT_ET0);
+            _mm_prefetch((const char *)&x2[span*(i+1)], _MM_HINT_T0);
+            _mm_prefetch((const char *)&x2[span*(i+1) + 8], _MM_HINT_T0);
+            _mm_prefetch((const char *)&x3[span*(i+1)], _MM_HINT_ET0);
+            _mm_prefetch((const char *)&x3[span*(i+1) + 8], _MM_HINT_ET0);
 
             /* access pre-computed value based on the raw sequence data tipX1 that is used as an index */
             double* uX1 = &umpX1[span * tipX1[i]];
@@ -254,7 +252,7 @@ void mic_newviewGTRGAMMA(int tipCase,
             }
 
             double auX[64] __attribute__((align(64)));
-            mic_broadcast16x64_3(uX, auX);
+            mic_broadcast16x64(uX, auX);
 
             for (int j = 0; j < 4; ++j)
             {
@@ -265,18 +263,6 @@ void mic_newviewGTRGAMMA(int tipCase,
                     v3[k] += auX[j*16 + k] * aEV[j*16 + k];
                 }
             }
-
-          /* also do numerical scaling as above. Note that here we need to scale
-             4 * 4 values for DNA or 4 * 20 values for protein data.
-             If they are ALL smaller than our threshold, we scale. Note that,
-             this can cause numerical problems with GAMMA, if the values generated
-             by the four discrete GAMMA rates are too different.
-
-             For details, see:
-
-             F. Izquierdo-Carrasco, S.A. Smith, A. Stamatakis: "Algorithms, Data Structures, and Numerics for Likelihood-based Phylogenetic Inference of Huge Trees"
-
-*/
 
             __m512d t1 = _mm512_load_pd(&v3[0]);
             double vmax1 = _mm512_reduce_gmax_pd(t1);
@@ -312,22 +298,22 @@ void mic_newviewGTRGAMMA(int tipCase,
             }
         }
 
-//        #pragma omp parallel for private(auX)
+        #pragma omp parallel for
         for (int i = 0; i < n; i++)
         {
-            _mm_prefetch(&x1[span*(i+8)], _MM_HINT_T1);
-            _mm_prefetch(&x1[span*(i+8) + 8], _MM_HINT_T1);
-            _mm_prefetch(&x2[span*(i+8)], _MM_HINT_T1);
-            _mm_prefetch(&x2[span*(i+8) + 8], _MM_HINT_T1);
-            _mm_prefetch(&x3[span*(i+8)], _MM_HINT_ET1);
-            _mm_prefetch(&x3[span*(i+8) + 8], _MM_HINT_ET1);
+            _mm_prefetch((const char *) &x1[span*(i+8)], _MM_HINT_T1);
+            _mm_prefetch((const char *) &x1[span*(i+8) + 8], _MM_HINT_T1);
+            _mm_prefetch((const char *) &x2[span*(i+8)], _MM_HINT_T1);
+            _mm_prefetch((const char *) &x2[span*(i+8) + 8], _MM_HINT_T1);
+            _mm_prefetch((const char *) &x3[span*(i+8)], _MM_HINT_ET1);
+            _mm_prefetch((const char *) &x3[span*(i+8) + 8], _MM_HINT_ET1);
 
-            _mm_prefetch(&x1[span*(i+1)], _MM_HINT_T0);
-            _mm_prefetch(&x1[span*(i+1) + 8], _MM_HINT_T0);
-            _mm_prefetch(&x2[span*(i+1)], _MM_HINT_T0);
-            _mm_prefetch(&x2[span*(i+1) + 8], _MM_HINT_T0);
-            _mm_prefetch(&x3[span*(i+1)], _MM_HINT_ET0);
-            _mm_prefetch(&x3[span*(i+1) + 8], _MM_HINT_ET0);
+            _mm_prefetch((const char *) &x1[span*(i+1)], _MM_HINT_T0);
+            _mm_prefetch((const char *) &x1[span*(i+1) + 8], _MM_HINT_T0);
+            _mm_prefetch((const char *) &x2[span*(i+1)], _MM_HINT_T0);
+            _mm_prefetch((const char *) &x2[span*(i+1) + 8], _MM_HINT_T0);
+            _mm_prefetch((const char *) &x3[span*(i+1)], _MM_HINT_ET0);
+            _mm_prefetch((const char *) &x3[span*(i+1) + 8], _MM_HINT_ET0);
 
             double uX1[16] __attribute__((align(64)));
             double uX2[16] __attribute__((align(64)));
@@ -345,9 +331,9 @@ void mic_newviewGTRGAMMA(int tipCase,
             const double* v1 = &(x1[span * i]);
             const double* v2 = &(x2[span * i]);
 
-            mic_broadcast16x64_2(v1, aV1);
+            mic_broadcast16x64(v1, aV1);
 
-            mic_broadcast16x64_2(v2, aV2);
+            mic_broadcast16x64(v2, aV2);
 
             for(int j = 0; j < 4; j++)
             {
@@ -371,7 +357,7 @@ void mic_newviewGTRGAMMA(int tipCase,
             }
 
             double auX[64] __attribute__((align(64)));
-            mic_broadcast16x64_3(uX, auX);
+            mic_broadcast16x64(uX, auX);
 
             for(int j = 0; j < 4; ++j)
             {
@@ -404,9 +390,6 @@ void mic_newviewGTRGAMMA(int tipCase,
       break;
   }
 
-  /* as above, increment the global counter that counts scaling multiplications by the scaling multiplications
-     carried out for computing the likelihood array at node p */
-
   *scalerIncrement = addScale;
 
 }
@@ -430,7 +413,7 @@ double mic_evaluateGAMMA(int *wgt, double *x1_start, double *x2_start, double *t
         }
 
         /* loop over the sites of this partition */
-//        #pragma omp parallel for reduction(+:sum)
+        #pragma omp parallel for reduction(+:sum)
         for (int i = 0; i < n; i++)
         {
           /* access pre-computed tip vector values via a lookup table */
@@ -445,33 +428,25 @@ double mic_evaluateGAMMA(int *wgt, double *x1_start, double *x2_start, double *t
           for(int j = 0; j < 16; j++)
               term += x1[j] * x2[j] * diagptable[j];
 
-          /* take the log of the likelihood and multiply the per-gamma rate likelihood by 1/4.
-             Under the GAMMA model the 4 discrete GAMMA rates all have the same probability
-             of 0.25 */
-
           term = log(0.25 * fabs(term));
-
-          /* if required get the per-site log likelihoods.
-             note that these are the plain per site log-likes, not
-             multiplied with the pattern weight value */
 
           sum += wgt[i] * term;
         }
     }
     else
     {
-//        #pragma omp parallel for reduction(+:sum)
+        #pragma omp parallel for reduction(+:sum)
         for (int i = 0; i < n; i++)
         {
-            _mm_prefetch(&x1_start[span*(i+8)], _MM_HINT_T1);
-            _mm_prefetch(&x1_start[span*(i+8) + 8], _MM_HINT_T1);
-            _mm_prefetch(&x2_start[span*(i+8)], _MM_HINT_T1);
-            _mm_prefetch(&x2_start[span*(i+8) + 8], _MM_HINT_T1);
+            _mm_prefetch((const char *) &x1_start[span*(i+8)], _MM_HINT_T1);
+            _mm_prefetch((const char *) &x1_start[span*(i+8) + 8], _MM_HINT_T1);
+            _mm_prefetch((const char *) &x2_start[span*(i+8)], _MM_HINT_T1);
+            _mm_prefetch((const char *) &x2_start[span*(i+8) + 8], _MM_HINT_T1);
 
-            _mm_prefetch(&x1_start[span*(i+1)], _MM_HINT_T0);
-            _mm_prefetch(&x1_start[span*(i+1) + 8], _MM_HINT_T0);
-            _mm_prefetch(&x2_start[span*(i+1)], _MM_HINT_T0);
-            _mm_prefetch(&x2_start[span*(i+1) + 8], _MM_HINT_T0);
+            _mm_prefetch((const char *) &x1_start[span*(i+1)], _MM_HINT_T0);
+            _mm_prefetch((const char *) &x1_start[span*(i+1) + 8], _MM_HINT_T0);
+            _mm_prefetch((const char *) &x2_start[span*(i+1)], _MM_HINT_T0);
+            _mm_prefetch((const char *) &x2_start[span*(i+1) + 8], _MM_HINT_T0);
 
           const double *x1 = &(x1_start[span * i]);
           const double *x2 = &(x2_start[span * i]);
@@ -495,8 +470,6 @@ double mic_evaluateGAMMA(int *wgt, double *x1_start, double *x2_start, double *t
 void mic_sumGAMMA(int tipCase, double *sumtable, double *x1_start, double *x2_start, double *tipVector,
     unsigned char *tipX1, unsigned char *tipX2, int n)
 {
-//    printf("sumGAMMA start\n");
-
     double aTipVec[256] __attribute__((align(64)));
     for(int k = 0; k < 16; k++)
     {
@@ -510,92 +483,81 @@ void mic_sumGAMMA(int tipCase, double *sumtable, double *x1_start, double *x2_st
     {
       case TIP_TIP:
       {
-//        #pragma omp parallel for
+        #pragma omp parallel for
         for(int i = 0; i < n; i++)
         {
             const double *left  = &(aTipVec[16 * tipX1[i]]);
             const double *right = &(aTipVec[16 * tipX2[i]]);
-            double* sum = &sumtable[i * span];
 
             #pragma ivdep
             #pragma vector aligned nontemporal
             for(int l = 0; l < 16; l++)
             {
-              sum[l] = left[l] * right[l];
+                sumtable[i * span + l] = left[l] * right[l];
             }
         }
       } break;
       case TIP_INNER:
       {
-//        #pragma omp parallel for
+        #pragma omp parallel for
         for(int i = 0; i < n; i++)
         {
-          _mm_prefetch(&x2_start[span*(i+32)], _MM_HINT_T1);
-          _mm_prefetch(&x2_start[span*(i+32) + 8], _MM_HINT_T1);
+          _mm_prefetch((const char *) &x2_start[span*(i+16)], _MM_HINT_T1);
+          _mm_prefetch((const char *) &x2_start[span*(i+16) + 8], _MM_HINT_T1);
 
-          _mm_prefetch(&x2_start[span*(i+4)], _MM_HINT_T0);
-          _mm_prefetch(&x2_start[span*(i+4) + 8], _MM_HINT_T0);
+          _mm_prefetch((const char *) &x2_start[span*(i+2)], _MM_HINT_T0);
+          _mm_prefetch((const char *) &x2_start[span*(i+2) + 8], _MM_HINT_T0);
 
           const double *left = &(aTipVec[16 * tipX1[i]]);
           const double *right = &(x2_start[span * i]);
-          double* sum = &sumtable[i * span];
 
           #pragma ivdep
           #pragma vector aligned nontemporal
           for(int l = 0; l < 16; l++)
           {
-              sum[l] = left[l] * right[l];
+              sumtable[i * span + l] = left[l] * right[l];
           }
         }
       } break;
       case INNER_INNER:
       {
-//        #pragma omp parallel for
+        #pragma omp parallel for
         for(int i = 0; i < n; i++)
         {
-            _mm_prefetch(&x1_start[span*(i+32)], _MM_HINT_T1);
-            _mm_prefetch(&x1_start[span*(i+32) + 8], _MM_HINT_T1);
-            _mm_prefetch(&x2_start[span*(i+32)], _MM_HINT_T1);
-            _mm_prefetch(&x2_start[span*(i+32) + 8], _MM_HINT_T1);
+            _mm_prefetch((const char *) &x1_start[span*(i+16)], _MM_HINT_T1);
+            _mm_prefetch((const char *) &x1_start[span*(i+16) + 8], _MM_HINT_T1);
+            _mm_prefetch((const char *) &x2_start[span*(i+16)], _MM_HINT_T1);
+            _mm_prefetch((const char *) &x2_start[span*(i+16) + 8], _MM_HINT_T1);
 
-            _mm_prefetch(&x1_start[span*(i+4)], _MM_HINT_T0);
-            _mm_prefetch(&x1_start[span*(i+4) + 8], _MM_HINT_T0);
-            _mm_prefetch(&x2_start[span*(i+4)], _MM_HINT_T0);
-            _mm_prefetch(&x2_start[span*(i+4) + 8], _MM_HINT_T0);
+            _mm_prefetch((const char *) &x1_start[span*(i+2)], _MM_HINT_T0);
+            _mm_prefetch((const char *) &x1_start[span*(i+2) + 8], _MM_HINT_T0);
+            _mm_prefetch((const char *) &x2_start[span*(i+2)], _MM_HINT_T0);
+            _mm_prefetch((const char *) &x2_start[span*(i+2) + 8], _MM_HINT_T0);
 
             const double *left  = &(x1_start[span * i]);
             const double *right = &(x2_start[span * i]);
-            double* sum = &sumtable[i * span];
 
             #pragma ivdep
             #pragma vector aligned nontemporal
             for(int l = 0; l < 16; l++)
             {
-                sum[l] = left[l] * right[l];
+                sumtable[i * span + l] = left[l] * right[l];
             }
         }
       } break;
   //    default:
   //      assert(0);
     }
-
-//    printf("sumGAMMA end\n");
 }
 
 void mic_coreGTRGAMMA(const int upper, double *sumtable,
     volatile double *ext_dlnLdlz,  volatile double *ext_d2lnLdlz2, double *EIGN, double *gammaRates, double lz, int *wgt)
 {
-//    printf("coreGAMMA start\n");
-//    fflush(0);
-
     double diagptable0[16] __attribute__((align(64)));
     double diagptable1[16] __attribute__((align(64)));
     double diagptable2[16] __attribute__((align(64)));
     double diagptable01[16] __attribute__((align(64)));
     double diagptable02[16] __attribute__((align(64)));
-
-//        printSum("sumBuffer MIC in core", g_presumStorage, n*span);
-//        fflush(0);
 
     /* pre-compute the derivatives of the P matrix for all discrete GAMMA rates */
 
@@ -627,21 +589,24 @@ void mic_coreGTRGAMMA(const int upper, double *sumtable,
 
     const int aligned_width = upper % 8 == 0 ? upper / 8 : upper / 8 + 1;
 
-    double dlnLBuf[8] __attribute__((align(64)));
-    double d2lnLBuf[8] __attribute__((align(64)));
-    for (int j = 0; j < 8; ++j)
-    {
-        dlnLBuf[j] = 0.;
-        d2lnLBuf[j] = 0.;
-    }
+//    double dlnLBuf[8] __attribute__((align(64)));
+//    double d2lnLBuf[8] __attribute__((align(64)));
+//    for (int j = 0; j < 8; ++j)
+//    {
+//        dlnLBuf[j] = 0.;
+//        d2lnLBuf[j] = 0.;
+//    }
+
+    double dlnLdlz = 0.;
+    double d2lnLdlz2 = 0.;
 
     __mmask16 k1 = _mm512_int2mask(0x000000FF);
 
-    //    #pragma omp parallel for reduction(+:dlnLdlz,d2lnLdlz2)
+    #pragma omp parallel for reduction(+:dlnLdlz,d2lnLdlz2)
     for (int i = 0; i < aligned_width; i++)
     {
-        _mm_prefetch(&sumtable[i * span * 8], _MM_HINT_T0);
-        _mm_prefetch(&sumtable[i * span * 8 + 8], _MM_HINT_T0);
+        _mm_prefetch((const char *) &sumtable[i * span * 8], _MM_HINT_T0);
+        _mm_prefetch((const char *) &sumtable[i * span * 8 + 8], _MM_HINT_T0);
 
         /* access the array with pre-computed values */
         const double *sum = &sumtable[i * span * 8];
@@ -652,8 +617,6 @@ void mic_coreGTRGAMMA(const int upper, double *sumtable,
         double d1Buf[8] __attribute__((align(64)));
         double d2Buf[8] __attribute__((align(64)));
 
-//        const int numit = i != lastIt ? 8 : lastItSize;
-
         __m512d invVec;
         __m512d d1Vec;
         __m512d d2Vec;
@@ -663,11 +626,11 @@ void mic_coreGTRGAMMA(const int upper, double *sumtable,
         #pragma unroll(8)
         for(int j = 0; j < 8; j++)
         {
-            _mm_prefetch(&sum[span*(j+8)], _MM_HINT_T1);
-            _mm_prefetch(&sum[span*(j+8) + 8], _MM_HINT_T1);
+            _mm_prefetch((const char *) &sum[span*(j+8)], _MM_HINT_T1);
+            _mm_prefetch((const char *) &sum[span*(j+8) + 8], _MM_HINT_T1);
 
-            _mm_prefetch(&sum[span*(j+1)], _MM_HINT_T0);
-            _mm_prefetch(&sum[span*(j+1) + 8], _MM_HINT_T0);
+            _mm_prefetch((const char *) &sum[span*(j+1)], _MM_HINT_T0);
+            _mm_prefetch((const char *) &sum[span*(j+1) + 8], _MM_HINT_T0);
 
             __m512d d0_1 = _mm512_load_pd(&diagptable0[0]);
             __m512d d0_2 = _mm512_load_pd(&diagptable0[8]);
@@ -708,25 +671,6 @@ void mic_coreGTRGAMMA(const int upper, double *sumtable,
             d2Vec = _mm512_mask_mov_pd(d2Vec, k1, d2_2);
         }
 
-//        __m512d onev = _mm512_set1_pd(1.0);
-//        __m512d inv_Li = _mm512_div_pd(onev, invVec);
-//        __m512d d1 = _mm512_mul_pd(d1Vec, inv_Li);
-//        __m512d d2 = _mm512_mul_pd(d2Vec, inv_Li);
-//
-//        __m512i wi = _mm512_setzero_epi32();
-//        wi = _mm512_loadunpacklo_epi32(wi, &wgt[i * 8]);
-//        __m512d w = _mm512_cvtepi32lo_pd(wi);
-//
-//        __m512d wd1 = _mm512_mul_pd(d1, w);
-//
-//        __m512d d1sqr = _mm512_mul_pd(d1, d1);
-//        __m512d d2d1d1 = _mm512_sub_pd(d2, d1sqr);
-//        __m512d wd2 = _mm512_mul_pd(d2d1d1, w);
-//
-//        dlnLdlz += _mm512_reduce_add_pd(wd1);
-//        d2lnLdlz2 += _mm512_reduce_add_pd(wd2);
-
-
         _mm512_store_pd(&invBuf[0], invVec);
         _mm512_store_pd(&d1Buf[0], d1Vec);
         _mm512_store_pd(&d2Buf[0], d2Vec);
@@ -740,186 +684,20 @@ void mic_coreGTRGAMMA(const int upper, double *sumtable,
             const double d1 = d1Buf[j] * inv_Li;
             const double d2 = d2Buf[j] * inv_Li;
 
-            dlnLBuf[j] += wgt[i * 8 + j] * d1;
-            d2lnLBuf[j] += wgt[i * 8 + j] * (d2 - d1 * d1);
+//            dlnLBuf[j] += wgt[i * 8 + j] * d1;
+//            d2lnLBuf[j] += wgt[i * 8 + j] * (d2 - d1 * d1);
+            dlnLdlz += wgt[i * 8 + j] * d1;
+            d2lnLdlz2 += wgt[i * 8 + j] * (d2 - d1 * d1);
         }
     } // site loop
 
-    double dlnLdlz = 0.;
-    double d2lnLdlz2 = 0.;
-    for (int j = 0; j < 8; ++j)
-    {
-        dlnLdlz += dlnLBuf[j];
-        d2lnLdlz2 += d2lnLBuf[j];
-    }
-
-    *ext_dlnLdlz   = dlnLdlz;
-    *ext_d2lnLdlz2 = d2lnLdlz2;
-
-//    printf("coreGAMMA end\n");
-}
-
-
-void mic_sumcoreGTRGAMMA(int tipCase, double *x1_start, double *x2_start, double *tipVector,
-        unsigned char *tipX1, unsigned char *tipX2, const int n,
-        volatile double *ext_dlnLdlz,  volatile double *ext_d2lnLdlz2, double *EIGN, double *gammaRates, double lz, int *wgt)
-{
-    double aTipVec[256] __attribute__((align(64)));
-    if (tipCase != INNER_INNER)
-    {
-        for(int k = 0; k < 16; k++)
-        {
-            for(int l = 0; l < 4; l++)
-            {
-                aTipVec[k*16 + l] = aTipVec[k*16 + 4 + l] = aTipVec[k*16 + 8 + l] = aTipVec[k*16 + 12 + l] = tipVector[k*4 + l];
-            }
-        }
-    }
-
-    double dlnLdlz = 0.;
-    double d2lnLdlz2 = 0.;
-
-    double diagptable0[16] __attribute__((align(64)));
-    double diagptable1[16] __attribute__((align(64)));
-    double diagptable2[16] __attribute__((align(64)));
-    double diagptable01[16] __attribute__((align(64)));
-    double diagptable02[16] __attribute__((align(64)));
-
-    for(int i = 0; i < 4; i++)
-    {
-        const double ki = gammaRates[i];
-        const double kisqr = ki * ki;
-
-        diagptable0[i*4] = 1.;
-        diagptable1[i*4] = 0.;
-        diagptable2[i*4] = 0.;
-
-        for(int l = 1; l < states; l++)
-        {
-          diagptable0[i * 4 + l]  = exp(EIGN[l] * ki * lz);
-          diagptable1[i * 4 + l] = EIGN[l] * ki;
-          diagptable2[i * 4 + l] = EIGN[l] * EIGN[l] * kisqr;
-        }
-    }
-
-    #pragma ivdep
-    for(int i = 0; i < 16; i++)
-    {
-        diagptable01[i] = diagptable0[i] * diagptable1[i];
-        diagptable02[i] = diagptable0[i] * diagptable2[i];
-    }
-
-    // *** main calculation starts here ***
-    switch(tipCase)
-    {
-      case TIP_TIP:
-      {
-//        #pragma omp parallel for
-        for(int i = 0; i < n; i++)
-        {
-            const double *left  = &(aTipVec[16 * tipX1[i]]);
-            const double *right = &(aTipVec[16 * tipX2[i]]);
-
-            double invSum = 0.;
-            double d1Sum = 0.;
-            double d2Sum = 0.;
-
-            #pragma ivdep
-            #pragma vector aligned
-            for(int l = 0; l < 16; l++)
-            {
-              double sum = left[l] * right[l];
-              invSum += sum * diagptable0[l];
-              d1Sum += sum * diagptable01[l];
-              d2Sum += sum * diagptable02[l];
-            }
-
-            const double inv_Li = 1.0 / invSum;
-            const double d1 = d1Sum * inv_Li;
-            const double d2 = d2Sum * inv_Li;
-
-            dlnLdlz += wgt[i] * d1;
-            d2lnLdlz2 += wgt[i] * (d2 - d1 * d1);
-        }
-      } break;
-      case TIP_INNER:
-      {
-//        #pragma omp parallel for
-        for(int i = 0; i < n; i++)
-        {
-          _mm_prefetch(&x2_start[span*(i+32)], _MM_HINT_T1);
-          _mm_prefetch(&x2_start[span*(i+32) + 8], _MM_HINT_T1);
-
-          _mm_prefetch(&x2_start[span*(i+4)], _MM_HINT_T0);
-          _mm_prefetch(&x2_start[span*(i+4) + 8], _MM_HINT_T0);
-
-          const double *left = &(aTipVec[16 * tipX1[i]]);
-          const double *right = &(x2_start[span * i]);
-
-          double invSum = 0.;
-          double d1Sum = 0.;
-          double d2Sum = 0.;
-
-          #pragma ivdep
-          #pragma vector aligned
-          for(int l = 0; l < 16; l++)
-          {
-            double sum = left[l] * right[l];
-            invSum += sum * diagptable0[l];
-            d1Sum += sum * diagptable01[l];
-            d2Sum += sum * diagptable02[l];
-          }
-
-          const double inv_Li = 1.0 / invSum;
-          const double d1 = d1Sum * inv_Li;
-          const double d2 = d2Sum * inv_Li;
-
-          dlnLdlz += wgt[i] * d1;
-          d2lnLdlz2 += wgt[i] * (d2 - d1 * d1);
-        }
-      } break;
-      case INNER_INNER:
-      {
-//        #pragma omp parallel for
-        for(int i = 0; i < n; i++)
-        {
-            _mm_prefetch(&x1_start[span*(i+32)], _MM_HINT_T1);
-            _mm_prefetch(&x1_start[span*(i+32) + 8], _MM_HINT_T1);
-            _mm_prefetch(&x2_start[span*(i+32)], _MM_HINT_T1);
-            _mm_prefetch(&x2_start[span*(i+32) + 8], _MM_HINT_T1);
-
-            _mm_prefetch(&x1_start[span*(i+4)], _MM_HINT_T0);
-            _mm_prefetch(&x1_start[span*(i+4) + 8], _MM_HINT_T0);
-            _mm_prefetch(&x2_start[span*(i+4)], _MM_HINT_T0);
-            _mm_prefetch(&x2_start[span*(i+4) + 8], _MM_HINT_T0);
-
-            const double *left  = &(x1_start[span * i]);
-            const double *right = &(x2_start[span * i]);
-            double invSum = 0.;
-            double d1Sum = 0.;
-            double d2Sum = 0.;
-
-            #pragma ivdep
-            #pragma vector aligned
-            for(int l = 0; l < 16; l++)
-            {
-              double sum = left[l] * right[l];
-              invSum += sum * diagptable0[l];
-              d1Sum += sum * diagptable01[l];
-              d2Sum += sum * diagptable02[l];
-            }
-
-            const double inv_Li = 1.0 / invSum;
-            const double d1 = d1Sum * inv_Li;
-            const double d2 = d2Sum * inv_Li;
-
-            dlnLdlz += wgt[i] * d1;
-            d2lnLdlz2 += wgt[i] * (d2 - d1 * d1);
-        }
-      } break;
-  //    default:
-  //      assert(0);
-    }
+//    double dlnLdlz = 0.;
+//    double d2lnLdlz2 = 0.;
+//    for (int j = 0; j < 8; ++j)
+//    {
+//        dlnLdlz += dlnLBuf[j];
+//        d2lnLdlz2 += d2lnLBuf[j];
+//    }
 
     *ext_dlnLdlz   = dlnLdlz;
     *ext_d2lnLdlz2 = d2lnLdlz2;

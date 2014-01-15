@@ -3,7 +3,7 @@
 
 CC = mpicc
 
-MICFLAGS = -D__MIC_NATIVE -mmic -opt-streaming-cache-evict=0
+MICFLAGS = -D__MIC_NATIVE -mmic -opt-streaming-cache-evict=0 -openmp -D_USE_OMP #-D_PROFILE_MPI
 COMMON_FLAGS = -std=c99 -D__SIM_SSE3 -D_OPTIMIZED_FUNCTIONS -D_GNU_SOURCE -fomit-frame-pointer -funroll-loops -D_USE_ALLREDUCE $(MICFLAGS) # -D_USE_ZLIB -Wall  -Wunused-parameter -Wredundant-decls  -Wreturn-type  -Wswitch-default -Wunused-value -Wimplicit  -Wimplicit-function-declaration  -Wimplicit-int -Wimport  -Wunused  -Wunused-function  -Wunused-label -Wno-int-to-pointer-cast -Wbad-function-cast  -Wmissing-declarations -Wmissing-prototypes  -Wnested-externs  -Wold-style-definition -Wstrict-prototypes -Wpointer-sign -Wextra -Wredundant-decls -Wunused -Wunused-function -Wunused-parameter -Wunused-value  -Wunused-variable -Wformat  -Wformat-nonliteral -Wparentheses -Wsequence-point -Wuninitialized -Wundef -Wbad-function-cast
 OPT1_FLAGS = -O1
 OPT2_FLAGS = -O2
@@ -11,7 +11,7 @@ OPT2_FLAGS = -O2
 CFLAGS = $(COMMON_FLAGS) $(OPT2_FLAGS)
 
 
-LIBRARIES = -lm -mmic #-lz
+LIBRARIES = -lm -mmic -openmp #-lz
 
 RM = rm -f
 
