@@ -2880,6 +2880,14 @@ int main (int argc, char *argv[])
 
   clean_MPI_Exit();
 
+    #ifdef _PROFILE_MPI
+        if (processID == 0)
+        {
+            printf("MPI_Allreduce time: eval %.3f, core %.3f, total %.3f s\n", totalReduceTime_eval, totalReduceTime_core, totalReduceTime_eval + totalReduceTime_core);
+        }
+    #endif
+
+
   return 0;
 }
 

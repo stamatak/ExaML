@@ -63,6 +63,12 @@
 extern int processID;
 extern const unsigned int mask32[32];
 
+/* MPI profiling */
+#ifdef _PROFILE_MPI
+extern double totalReduceTime_eval;
+extern double totalReduceTime_core;
+#endif
+
 /*******************/
 
 
@@ -636,6 +642,9 @@ void makenewzIterative(tree *tr)
 
   newviewIterative(tr, 1);
 
+#ifdef _USE_OMP1
+    #pragma omp barrier
+#endif
 
   /* 
      loop over all partoitions to do the precomputation of the sumTable buffer 
@@ -988,7 +997,7 @@ static void topLevelMakenewz(tree *tr, double *z0, int _maxiter, double *result)
 
       if(firstIteration)
 	{
-	  makenewzIterative(tr);
+      makenewzIterative(tr);
 	  firstIteration = FALSE;
 	}
       
@@ -1002,6 +1011,10 @@ static void topLevelMakenewz(tree *tr, double *z0, int _maxiter, double *result)
 	memcpy(&send[0],                dlnLdlz,   sizeof(double) * tr->numBranches);
 	memcpy(&send[tr->numBranches],  d2lnLdlz2, sizeof(double) * tr->numBranches);
 	
+#ifdef _PROFILE_MPI
+    double startTime = gettime();
+#endif
+
 #ifdef _USE_ALLREDUCE	  
 	/* the MPI_Allreduce implementation is apparently sometimes not deterministic */
 
@@ -1010,6 +1023,15 @@ static void topLevelMakenewz(tree *tr, double *z0, int _maxiter, double *result)
 	MPI_Reduce(send, recv, tr->numBranches * 2, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 	MPI_Bcast(recv,        tr->numBranches * 2, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 #endif   
+
+#ifdef _PROFILE_MPI
+    if (processID == 0)
+    {
+        const double jobTime = gettime() - startTime;
+        totalReduceTime_core += jobTime;
+//        printf("evaluate MPI_Allreduce: %.3f mcs\n", jobTime * 1e6);
+    }
+#endif
 
 	memcpy(dlnLdlz,   &recv[0],               sizeof(double) * tr->numBranches);
 	memcpy(d2lnLdlz2, &recv[tr->numBranches], sizeof(double) * tr->numBranches);

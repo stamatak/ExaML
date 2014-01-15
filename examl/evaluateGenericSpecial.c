@@ -75,6 +75,13 @@ extern int processID;
 
 extern const unsigned int mask32[32];
 
+/* MPI profiling */
+#ifdef _PROFILE_MPI
+extern double totalReduceTime_eval;
+extern double totalReduceTime_core;
+#endif
+
+
 /* the function below computes the P matrix from the decomposition of the Q matrix and the respective rate categories for a single partition */
    
 
@@ -785,12 +792,20 @@ void evaluateGeneric (tree *tr, nodeptr p, boolean fullTraversal)
   
   tr->td[0].traversalHasChanged = TRUE;
 
+#ifdef _USE_OMP1
+    #pragma omp barrier
+#endif
+
   evaluateIterative(tr);  
     		
   {
     double 
       *recv = (double *)malloc(sizeof(double) * tr->NumberOfModels);
     
+#ifdef _PROFILE_MPI
+    double startTime = gettime();
+#endif
+
 #ifdef _USE_ALLREDUCE   
     MPI_Allreduce(tr->perPartitionLH, recv, tr->NumberOfModels, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 #else
@@ -798,6 +813,15 @@ void evaluateGeneric (tree *tr, nodeptr p, boolean fullTraversal)
     MPI_Bcast(recv, tr->NumberOfModels, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 #endif
     
+#ifdef _PROFILE_MPI
+    if (processID == 0)
+    {
+        const double jobTime = gettime() - startTime;
+        totalReduceTime_eval += jobTime;
+//        printf("evaluate MPI_Allreduce: %.3f mcs\n", jobTime * 1e6);
+    }
+#endif
+
     memcpy(tr->perPartitionLH, recv, tr->NumberOfModels * sizeof(double));
 
     for(model = 0; model < tr->NumberOfModels; model++)        

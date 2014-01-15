@@ -168,7 +168,11 @@ partitionLengths pLengths[MAX_MODEL] = {
 
 partitionLengths pLength;
 
-     
+#ifdef _PROFILE_MPI
+double totalReduceTime_eval = 0.;
+double totalReduceTime_core = 0.;
+#endif
+
 
 
 
