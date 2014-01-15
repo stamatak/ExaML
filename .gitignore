@@ -1,7 +1,11 @@
 *.o
 
 parser/parser
+parser/parser-NOZIP
+
 examl-MIC
+examl-AVX
+
 .cproject
 .project
 
