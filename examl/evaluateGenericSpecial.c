@@ -664,9 +664,7 @@ void evaluateIterative(tree *tr)
 	    }	
 #endif
 	  
-	  /* check that there was no major numerical screw-up, the log likelihood should be < 0.0 always */
-	 	  
-	  assert(partitionLikelihood < 0.0);
+	  
 	  	     		      
 	  /* now here is a nasty part, for each partition and each node we maintain an integer counter to count how often 
 	     how many entries per node were scaled by a constant factor. Here we use this information generated during Felsenstein's 
@@ -681,6 +679,10 @@ void evaluateIterative(tree *tr)
 	     
 
 	  partitionLikelihood += (tr->partitionData[model].globalScaler[pNumber] + tr->partitionData[model].globalScaler[qNumber]) * LOG(minlikelihood);	  
+
+	  /* check that there was no major numerical screw-up, the log likelihood should be < 0.0 always */
+	 	  
+	  assert(partitionLikelihood < 0.0);
 
 	  /* now we have the correct log likelihood for the current partition after undoing scaling multiplications */	  	 
 	  
