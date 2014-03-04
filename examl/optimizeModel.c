@@ -2980,6 +2980,21 @@ static void checkMatrixSymnmetriesAndLinkage(tree *tr, linkageList *ll)
 }
 
 
+static void checkTolerance(double l1, double l2)
+{
+  if(l1 < l2)
+    {   
+      double 
+	tolerance = MAX(l1, l2) * 0.000000000001;
+
+      if(fabs(l1 - l2) > MIN(0.1, tolerance))
+	{
+	  printf("Likelihood problem in model optimization l1: %1.40f l2: %1.40f tolerance: %1.40f\n", l1, l2, tolerance);
+	  assert(0);	
+	}
+    }
+}
+
 void modOpt(tree *tr, double likelihoodEpsilon, analdef *adef, int treeIteration)
 { 
   int 
@@ -3132,9 +3147,13 @@ void modOpt(tree *tr, double likelihoodEpsilon, analdef *adef, int treeIteration
 	  assert(0);
 	}                                
 
-      if(tr->likelihood < currentLikelihood)
+      checkTolerance(tr->likelihood, currentLikelihood);
+
+      /*
+	if(tr->likelihood < currentLikelihood)
 	printf("%f %f\n", tr->likelihood, currentLikelihood);
-      assert(tr->likelihood >= currentLikelihood);
+	assert(tr->likelihood >= currentLikelihood);
+      */
       
       printAAmatrix(tr, fabs(currentLikelihood - tr->likelihood));            
     }
