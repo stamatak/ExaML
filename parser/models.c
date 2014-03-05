@@ -76,15 +76,15 @@ static void smoothFreqs(const int n, double *pfreqs, double *dst, pInfo *partiti
     loopCounter = 0;  
   
 
-  /*
-    for(l = 0; l < n; l++)
+ 
+  for(l = 0; l < n; l++)
     if(pfreqs[l] < FREQ_MIN)
       countScale++;
-  */
+  
 
-  for(l = 0; l < n; l++)
+  /*for(l = 0; l < n; l++)
     if(pfreqs[l] == 0.0)
-      countScale++;
+    countScale++;*/
 
   if(countScale > 0)
     {	     
