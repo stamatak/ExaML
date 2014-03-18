@@ -2026,7 +2026,13 @@ unsigned int precomputed16_bitcount (unsigned int n, char *bits_in_16bits)
 }
 
 
+static void clean_MPI_Exit(void)
+{
+  MPI_Barrier(MPI_COMM_WORLD);
+  MPI_Finalize();
 
+  return;
+}
  
 
 static int partCompare(const void *p1, const void *p2)
@@ -2067,103 +2073,109 @@ static void multiprocessorScheduling(tree *tr, int tid)
     arrayLength = sizeof(modelStates) / sizeof(int);
   
     /* check that we have not addedd any new models for data types with a different number of states
-       and forgot to update modelStates */
-    
+       and forgot to update modelStates */        
+
+    if(tr->NumberOfModels < processes)
+      {
+	printBothOpen("\nError: you are using the \"-Q\" flag for optimal data distribution with many partitions.\n");	  
+	printBothOpen("This option requires to start ExaML with at least as many processes as you have partitions.\n");
+	printBothOpen("You are using %d processes but only have %d partitions.\n\n", processes, tr->NumberOfModels);
+	clean_MPI_Exit();
+	exit(-1);
+      }
+
     tr->partitionAssignment = (int *)malloc(tr->NumberOfModels * sizeof(int));
     
-  for(model = 0; model < tr->NumberOfModels; model++)
-    {        
-      boolean 
-	exists = FALSE;
-
-      for(s = 0; s < arrayLength; s++)
-	{
-	  exists = exists || (tr->partitionData[model].states == modelStates[s]);
-	  if(tr->partitionData[model].states == modelStates[s])
-	    numberOfPartitions[s] += 1;
-	}
-
-      assert(exists);
-    }
-
-  if(tid == 0)
-    printBothOpen("\nMulti-processor partition data distribution enabled (-Q option)\n");
-
-  for(s = 0; s < arrayLength; s++)
-    {
-      if(numberOfPartitions[s] > 0)
-	{
-	  size_t   
-	    checkSum = 0,
-	    sum = 0;
-	  
-	  int    
-	    i,
-	    k,
-	    n = processes,
-	    p = numberOfPartitions[s],    
-	    *assignments = (int *)calloc(n, sizeof(int));  
-	  
-	  partitionType 
-	    *pt = (partitionType *)malloc(sizeof(partitionType) * p);
-	  
-	  
-	  for(i = 0, k = 0; i < tr->NumberOfModels; i++)
-	    {
-	      if(tr->partitionData[i].states == modelStates[s])
-		{
-		  pt[k].partitionNumber = i;
-		  pt[k].partitionLength = tr->partitionData[i].upper - tr->partitionData[i].lower;
-		  sum += (size_t)pt[k].partitionLength;
-		  k++;
-		}
-	    }
-	  
-	  assert(k == p);
-	  
-	  qsort(pt, p, sizeof(partitionType), partCompare);    
-	  
-	  for(i = 0; i < p; i++)
-	    {
-	      int 
-		k, 
-		min = INT_MAX,
-		minIndex = -1;
-	      
-	      for(k = 0; k < n; k++)	
-		if(assignments[k] < min)
+    for(model = 0; model < tr->NumberOfModels; model++)
+      {        
+	boolean 
+	  exists = FALSE;
+	
+	for(s = 0; s < arrayLength; s++)
+	  {
+	    exists = exists || (tr->partitionData[model].states == modelStates[s]);
+	    if(tr->partitionData[model].states == modelStates[s])
+	      numberOfPartitions[s] += 1;
+	  }
+	
+	assert(exists);
+      }
+    
+    if(tid == 0)
+      printBothOpen("\nMulti-processor partition data distribution enabled (-Q option)\n");
+    
+    for(s = 0; s < arrayLength; s++)
+      {
+	if(numberOfPartitions[s] > 0)
+	  {
+	    size_t   
+	      checkSum = 0,
+	      sum = 0;
+	    
+	    int    
+	      i,
+	      k,
+	      n = processes,
+	      p = numberOfPartitions[s],    
+	      *assignments = (int *)calloc(n, sizeof(int));  
+	    
+	    partitionType 
+	      *pt = (partitionType *)malloc(sizeof(partitionType) * p);
+	    
+	    
+	    for(i = 0, k = 0; i < tr->NumberOfModels; i++)
+	      {
+		if(tr->partitionData[i].states == modelStates[s])
 		  {
-		    min = assignments[k];
-		    minIndex = k;
+		    pt[k].partitionNumber = i;
+		    pt[k].partitionLength = tr->partitionData[i].upper - tr->partitionData[i].lower;
+		    sum += (size_t)pt[k].partitionLength;
+		    k++;
 		  }
-	      
-	      assert(minIndex >= 0);
-	      
-	      assignments[minIndex] +=  pt[i].partitionLength;
-	      assert(pt[i].partitionNumber >= 0 && pt[i].partitionNumber < tr->NumberOfModels);
-	      tr->partitionAssignment[pt[i].partitionNumber] = minIndex;
-	    }
-	  
-	  if(tid == 0)
-	    {
-	      for(i = 0; i < n; i++)	       
-		printBothOpen("Process %d has %d sites for %d state model \n", i, assignments[i], modelStates[s]);		  		
-	      
-	      printBothOpen("\n");
-	    }
-
-	  for(i = 0; i < n; i++)
-	    checkSum += (size_t)assignments[i];
-	  
-	  assert(sum == checkSum);
-	  
-	  free(assignments);
-	  free(pt);
-	}
-    }
-
-
- 
+	      }
+	    
+	    assert(k == p);
+	    
+	    qsort(pt, p, sizeof(partitionType), partCompare);    
+	    
+	    for(i = 0; i < p; i++)
+	      {
+		int 
+		  k, 
+		  min = INT_MAX,
+		  minIndex = -1;
+		
+		for(k = 0; k < n; k++)	
+		  if(assignments[k] < min)
+		    {
+		      min = assignments[k];
+		      minIndex = k;
+		    }
+		
+		assert(minIndex >= 0);
+		
+		assignments[minIndex] +=  pt[i].partitionLength;
+		assert(pt[i].partitionNumber >= 0 && pt[i].partitionNumber < tr->NumberOfModels);
+		tr->partitionAssignment[pt[i].partitionNumber] = minIndex;
+	      }
+	    
+	    if(tid == 0)
+	      {
+		for(i = 0; i < n; i++)	       
+		  printBothOpen("Process %d has %d sites for %d state model \n", i, assignments[i], modelStates[s]);		  		
+		
+		printBothOpen("\n");
+	      }
+	    
+	    for(i = 0; i < n; i++)
+	      checkSum += (size_t)assignments[i];
+	    
+	    assert(sum == checkSum);
+	    
+	    free(assignments);
+	    free(pt);
+	  }
+      } 
 }
 
 
@@ -2723,13 +2735,7 @@ static void optimizeTrees(tree *tr, analdef *adef)
     }
 }
 
-static void clean_MPI_Exit(void)
-{
-  MPI_Barrier(MPI_COMM_WORLD);
-  MPI_Finalize();
 
-  return;
-}
 
 int main (int argc, char *argv[])
 { 
