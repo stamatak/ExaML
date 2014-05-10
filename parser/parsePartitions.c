@@ -60,7 +60,7 @@ extern char secondaryStructureFileName[1024];
 
 extern char seq_file[1024];
 
-extern char *protModels[12];
+extern char *protModels[NUM_PROT_MODELS];
 
 static boolean lineContainsOnlyWhiteChars(char *line)
 {
