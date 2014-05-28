@@ -913,18 +913,16 @@ int rearrangeBIG(tree *tr, nodeptr p, int mintrav, int maxtrav)
 
 double treeOptimizeRapid(tree *tr, int mintrav, int maxtrav, analdef *adef, bestlist *bt, bestlist *bestML)
 {
-  int i, index,
+  int 
+    i, 
+    index,
     *perm = (int*)NULL;   
 
   nodeRectifier(tr);
 
- 
-
   if (maxtrav > tr->mxtips - 3)  
     maxtrav = tr->mxtips - 3;  
     
-  
-
   resetInfoList();
   
   resetBestTree(bt);
@@ -1129,8 +1127,8 @@ static void gatherDistributedCatInfos(tree *tr, int **rateCategory_result, doubl
    */ 
   
   int 
-    *countPerProc = NULL, 
-    *displPerProc = NULL;
+    *countPerProc = (int*)NULL, 
+    *displPerProc = (int*)NULL;
 
   calculateLengthAndDisplPerProcess(tr,  &countPerProc, &displPerProc);
   
@@ -1443,7 +1441,7 @@ static void readCheckpoint(tree *tr)
 	 
 	 => Andre: yes that works: before writing the checkpoint, we
 	 gather all lhs/patrat with gatherDistributedCatInfos. This
-	 function calls gatherDistributedArray in
+	 function calls gatherDisributedArray in
 	 communication.c. gatherDistributedArray takes care of
 	 reordering the data it obtained from the various processes,
 	 such the correct global array (i.e., indexing consistent with
@@ -1771,6 +1769,9 @@ void computeBIGRAPID (tree *tr, analdef *adef, boolean estimateModel)
  
   /* now here is the RAxML hill climbing search algorithm */
   
+  tr->lhAVG = 0.0;
+  tr->lhDEC = 0.0;
+
   /* initialization for the hash table to compute RF distances */
 
   if(tr->searchConvergenceCriterion && processID == 0)   

@@ -36,8 +36,7 @@ static void seekPos(ByteFile *bf, int pos)
 
 	toSkip +=  bf->numPartitions * ( sizeof(p.states) + sizeof(p.maxTipStates) + sizeof(p.lower) 
 					 + sizeof(p.upper) + sizeof(p.width) + sizeof(p.dataType) + sizeof(p.protModels) 
-					 + sizeof(p.autoProtModels) + sizeof(p.protFreqs) + sizeof(p.nonGTR) + sizeof(p.optimizeBaseFrequencies) 
-					 + sizeof(p.numberOfCategories))  ; 
+					 + sizeof(p.protFreqs) + sizeof(p.nonGTR) + sizeof(p.optimizeBaseFrequencies)); 
 	
 	/* skip the names and their lengths */
 	for( i = 0 ; i < bf->numPartitions; ++i)
@@ -168,11 +167,11 @@ void readPartitions(ByteFile *bf)
 
       READ_VAR(bf->fh, p->dataType);
       READ_VAR(bf->fh, p->protModels);
-      READ_VAR(bf->fh, p->autoProtModels);
+      //READ_VAR(bf->fh, p->autoProtModels);
       READ_VAR(bf->fh, p->protFreqs);
       READ_VAR(bf->fh, p->nonGTR);
       READ_VAR(bf->fh, p->optimizeBaseFrequencies);
-      READ_VAR(bf->fh, p->numberOfCategories);
+      //      READ_VAR(bf->fh, p->numberOfCategories);
 
       /* read string */
       unsigned int len = 0; 
@@ -304,12 +303,14 @@ void initializeTreeFromByteFile(ByteFile *bf, tree *tr)
   
   /* deep copy of taxa */
   int i ; 
-  tr->nameList = (char **)calloc((tr->mxtips + 1), sizeof(char *)  );
+  tr->nameList = (char **)calloc((size_t)(tr->mxtips + 1), sizeof(char *)  );
+  
+  tr->nameList[0] = (char *)NULL;
 
   for(i = 1; i <= bf->numTax; ++i)
     {
-      tr->nameList[i] = calloc(strlen(bf->taxaNames[i-1]), sizeof(char)); 
-      strncpy(tr->nameList[i], bf->taxaNames[i-1], strlen(bf->taxaNames[i-1]));
+      tr->nameList[i] = calloc(strlen(bf->taxaNames[i-1]) + 1, sizeof(char)); 
+      strcpy(tr->nameList[i], bf->taxaNames[i-1]);      
     }
 
   /* 

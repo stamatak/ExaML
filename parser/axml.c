@@ -424,13 +424,16 @@ static void uppercase (int *chptr)
 static void getyspace (rawdata *rdta)
 {
   size_t size = 4 * ((size_t)(rdta->sites / 4 + 1));
+  
+ 
+
   int    i;
   unsigned char *y0;
 
   rdta->y = (unsigned char **) malloc((rdta->numsp + 1) * sizeof(unsigned char *));
   assert(rdta->y);   
 
-  y0 = (unsigned char *) malloc(((size_t)(rdta->numsp + 1)) * size * sizeof(unsigned char));
+  y0 = (unsigned char *)calloc(((size_t)(rdta->numsp + 1)) * size, sizeof(unsigned char));
 
   /*
     printf("Raw alignment data Assigning %Zu bytes\n", ((size_t)(rdta->numsp + 1)) * size * sizeof(unsigned char));
@@ -1085,6 +1088,9 @@ static void getinput(analdef *adef, rawdata *rdta, cruncheddata *cdta, tree *tr)
       int dataType = -1;
 	              
       tr->initialPartitionData  = (pInfo*)malloc(sizeof(pInfo));
+      tr->initialPartitionData->optimizeBaseFrequencies = FALSE;
+      
+      
       tr->initialPartitionData[0].partitionName = (char*)malloc(128 * sizeof(char));
       strcpy(tr->initialPartitionData[0].partitionName, "No Name Provided");
       
@@ -1093,8 +1099,7 @@ static void getinput(analdef *adef, rawdata *rdta, cruncheddata *cdta, tree *tr)
       
       
       tr->NumberOfModels = 1;
-      
-     
+           
       
       if(adef->model == M_PROTCAT || adef->model == M_PROTGAMMA)
 	dataType = AA_DATA;
@@ -2648,7 +2653,7 @@ int main (int argc, char *argv[])
 	myBinFwrite(&len, sizeof(int), 1);
 	myBinFwrite(tr->nameList[i], sizeof(char), len);	
       }  
-	  	
+    
     for(model = 0; model < (size_t)tr->NumberOfModels; model++)
       {
 	int 
@@ -2657,18 +2662,19 @@ int main (int argc, char *argv[])
 	pInfo 
 	  *p = &(tr->partitionData[model]);
 	
+	
 	myBinFwrite(&(p->states),             sizeof(int), 1);
 	myBinFwrite(&(p->maxTipStates),       sizeof(int), 1);
 	myBinFwrite(&(p->lower),              sizeof(size_t), 1);
 	myBinFwrite(&(p->upper),              sizeof(size_t), 1);
 	myBinFwrite(&(p->width),              sizeof(size_t), 1);
 	myBinFwrite(&(p->dataType),           sizeof(int), 1);
-	myBinFwrite(&(p->protModels),         sizeof(int), 1);
-	myBinFwrite(&(p->autoProtModels),     sizeof(int), 1);
+	myBinFwrite(&(p->protModels),         sizeof(int), 1);	
 	myBinFwrite(&(p->protFreqs),          sizeof(int), 1);	
 	myBinFwrite(&(p->nonGTR),                      sizeof(boolean), 1); 	
 	myBinFwrite(&(p->optimizeBaseFrequencies),     sizeof(boolean), 1);
-	myBinFwrite(&(p->numberOfCategories), sizeof(int), 1);	 
+	
+	
 	
 	/* later on if adding secondary structure data
 	   

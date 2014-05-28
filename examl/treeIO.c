@@ -130,8 +130,8 @@ void addword(char *s, stringHashtable *h, int nodeNumber)
   
   p->nodeNumber = nodeNumber;
 
-  p->word = calloc(strlen(s), sizeof(char)); 
-  strncpy(p->word, s, strlen(s)); 
+  p->word = (char*)calloc(strlen(s) + 1, sizeof(char)); 
+  strcpy(p->word, s); 
   
   p->next =  h->table[position];
   

@@ -532,13 +532,16 @@ static unsigned int KISS32(void)
 
 static boolean setupTree (tree *tr)
 {
-  nodeptr  p0, p, q;
+  nodeptr  
+    p0, 
+    p, 
+    q;
+  
   int
     i,
     j,   
     tips,
     inter; 
-
   
   tr->bigCutoff = FALSE;
   
@@ -550,13 +553,10 @@ static boolean setupTree (tree *tr)
     tr->partitionContributions[i] = -1.0;
   
   tr->perPartitionLH = (double *)malloc(sizeof(double) * tr->NumberOfModels);
-  
-  
+    
   for(i = 0; i < tr->NumberOfModels; i++)    
     tr->perPartitionLH[i] = 0.0;	    
-  
- 
-  
+     
   tips  = tr->mxtips;
   inter = tr->mxtips - 1;
 
@@ -565,9 +565,6 @@ static boolean setupTree (tree *tr)
   
   tr->fracchanges  = (double *)malloc(tr->NumberOfModels * sizeof(double));
   
-
- 
-
   tr->treeStringLength = tr->mxtips * (nmlngth+128) + 256 + tr->mxtips * 2;
 
   tr->tree_string  = (char*)calloc(tr->treeStringLength, sizeof(char)); 
