@@ -3959,36 +3959,30 @@ void initModel(tree *tr, double **empiricalFrequencies)
 {  
   int 
     model;
-  
-  size_t
-    j;
-  
-  double  temp;  
-     
+
+
   optimizeRateCategoryInvocations = 1;      
   tr->numberOfInvariableColumns = 0;
   tr->weightOfInvariableColumns = 0;	       
-  
+
   if(tr->rateHetModel == CAT)
     {
-      for (j = 0; j < tr->originalCrunchedLength; j++) 
-	{
-	  tr->patrat[j] = temp = 1.0;
-	  tr->patratStored[j] = 1.0;
-	  tr->rateCategory[j] = 0;           
-	} 
+      for(model = 0; model < tr->NumberOfModels; model++)
+	{            
+	  tr->partitionData[model].numberOfCategories = 1;           
+	  tr->partitionData[model].perSiteRates[0] = 1.0; 
+
+	  size_t i; 
+	  for(i = 0; i < tr->partitionData[model].width; ++i)
+	    {
+	      tr->partitionData[model].rateCategory[i] = 0; 
+	      tr->partitionData[model].patrat[i] = 1.; 
+	    }
+	}
+
+      checkPerSiteRates(tr); 
     }
 
-  for(model = 0; model < tr->NumberOfModels; model++)
-    {            
-      tr->partitionData[model].numberOfCategories = 1;           
-      tr->partitionData[model].perSiteRates[0] = 1.0; 
-    }
-  
-  /* TODO */
-  if(tr->rateHetModel == CAT)
-    updatePerSiteRates(tr, FALSE);
- 
   setupSecondaryStructureSymmetries(tr);
   
   initRateMatrix(tr); 

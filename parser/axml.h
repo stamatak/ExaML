@@ -173,8 +173,8 @@ extern double exp_approx (double x);
 #define PointGamma(prob,alpha,beta)  PointChi2(prob,2.0*(alpha))/(2.0*(beta))
 
 #define programName        "the phylip file parser for ExaML"
-#define programVersion     "1.0.3"
-#define programDate        "March 5 2014"
+#define programVersion     "2.0.0"
+#define programDate        "May 28 2014"
 
 
 #define  TREE_EVALUATION            0
@@ -536,7 +536,7 @@ typedef  struct {
   int             *alias;       /* site representing a pattern */
   int             *aliaswgt;    /* weight by pattern */
   int             *rateCategory;
-  int              endsite;     /* # of sequence patterns */
+  size_t              endsite;     /* # of sequence patterns */
   double          *patrat;      /* rates per pattern */
   double          *patratStored; 
 } cruncheddata;

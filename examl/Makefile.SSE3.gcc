@@ -3,22 +3,23 @@
 
 CC = mpicc
 
-COMMON_FLAGS = -D__SIM_SSE3 -D_USE_ZLIB -msse3 -D_GNU_SOURCE -fomit-frame-pointer -funroll-loops -D_OPTIMIZED_FUNCTIONS -D_USE_ALLREDUCE #-Wall -Wunused-parameter -Wredundant-decls  -Wreturn-type  -Wswitch-default -Wunused-value -Wimplicit  -Wimplicit-function-declaration  -Wimplicit-int -Wimport  -Wunused  -Wunused-function  -Wunused-label -Wno-int-to-pointer-cast -Wbad-function-cast  -Wmissing-declarations -Wmissing-prototypes  -Wnested-externs  -Wold-style-definition -Wstrict-prototypes -Wpointer-sign -Wextra -Wredundant-decls -Wunused -Wunused-function -Wunused-parameter -Wunused-value  -Wunused-variable -Wformat  -Wformat-nonliteral -Wparentheses -Wsequence-point -Wuninitialized -Wundef -Wbad-function-cast
 
-OPT_FLAG_1 = -O1
+COMMON_FLAGS = -D_GNU_SOURCE -D__SIM_SSE3  -msse3 -fomit-frame-pointer -funroll-loops -D_OPTIMIZED_FUNCTIONS -D_USE_ALLREDUCE #-Wall -Wunused-parameter -Wredundant-decls  -Wreturn-type  -Wswitch-default -Wunused-value -Wimplicit  -Wimplicit-function-declaration  -Wimplicit-int -Wimport  -Wunused  -Wunused-function  -Wunused-label -Wno-int-to-pointer-cast -Wbad-function-cast  -Wmissing-declarations -Wmissing-prototypes  -Wnested-externs  -Wold-style-definition -Wstrict-prototypes -Wpointer-sign -Wextra -Wredundant-decls -Wunused -Wunused-function -Wunused-parameter -Wunused-value  -Wunused-variable -Wformat  -Wformat-nonliteral -Wparentheses -Wsequence-point -Wuninitialized -Wundef -Wbad-function-cast -Wno-unused-parameter
+
+OPT_FLAG_1 = -O1 
 OPT_FLAG_2 = -O2
 
 CFLAGS = $(COMMON_FLAGS) $(OPT_FLAG_2)
 
-LIBRARIES = -lm -lz
+LIBRARIES = -lm
 
 RM = rm -f
 
-objs    = axml.o optimizeModel.o trash.o searchAlgo.o topologies.o  treeIO.o models.o evaluatePartialGenericSpecial.o evaluateGenericSpecial.o newviewGenericSpecial.o makenewzGenericSpecial.o bipartitionList.o restartHashTable.o 
+objs    = axml.o optimizeModel.o trash.o searchAlgo.o topologies.o  treeIO.o models.o evaluatePartialGenericSpecial.o evaluateGenericSpecial.o newviewGenericSpecial.o makenewzGenericSpecial.o bipartitionList.o restartHashTable.o  byteFile.o partitionAssignment.o communication.o
 
 all : examl
 
-GLOBAL_DEPS = axml.h globalVariables.h
+GLOBAL_DEPS = axml.h globalVariables.h 
 
 examl : $(objs)
 	$(CC) -o examl $(objs) $(LIBRARIES) 
@@ -40,6 +41,9 @@ evaluateGenericSpecial.o : evaluateGenericSpecial.c $(GLOBAL_DEPS)
 newviewGenericSpecial.o : newviewGenericSpecial.c $(GLOBAL_DEPS)
 makenewzGenericSpecial.o : makenewzGenericSpecial.c $(GLOBAL_DEPS)
 restartHashTable.o : restartHashTable.c $(GLOBAL_DEPS)
+byteFile.o : byteFile.c
+partitionAssignment.o : partitionAssignment.c  $(GLOBAL_DEPS) 
+communication.o : communication.c $(GLOBAL_DEPS) 
 
 clean : 
 	$(RM) *.o examl

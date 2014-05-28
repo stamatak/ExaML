@@ -29,6 +29,10 @@
  *  Bioinformatics 2006; doi: 10.1093/bioinformatics/btl446
  */
 
+#ifndef _AXML_H
+#define _AXML_H
+
+
 #include <assert.h>
 #include <stdint.h>
 
@@ -38,12 +42,34 @@
 #define BYTE_ALIGNMENT 16
 #endif
 
-
-
-
 #include <mpi.h>
 
 
+/* BEGIN: file streams */
+#ifdef _GNU_SOURCE
+
+/* notice, that the gnu source macro implies posix compliance */
+
+
+/* these are posix compliant functions. They potentially work on files
+   larger than 2 GB (for gcc this can be ensured using the following
+   macro) */
+#define exa_fseek fseeko
+#define exa_ftell ftello 
+#define exa_off_t off_t
+
+/* only usefull for ftello/fseeko: ensure that we are using 64-bit
+   types for representing an offset */
+#define _FILE_OFFSET_BITS 64 
+
+#else 
+
+#define exa_fseek fseek 
+#define exa_ftell ftell 
+#define exa_off_t long 
+
+#endif
+/* END: file streams  */
 
 
 #define MAX_TIP_EV     0.999999999 /* max tip vector value, sum of EVs needs to be smaller than 1.0, otherwise the numerics break down */
@@ -171,8 +197,8 @@
 #define PointGamma(prob,alpha,beta)  PointChi2(prob,2.0*(alpha))/(2.0*(beta))
 
 #define programName        "ExaML"
-#define programVersion     "1.0.12"
-#define programDate        "March 18 2014"
+#define programVersion     "2.0.0"
+#define programDate        "May 28 2014"
 
 
 #define  TREE_EVALUATION            0
@@ -475,9 +501,9 @@ typedef struct iL {
 
 
 
-
-
 typedef unsigned int parsimonyNumber;
+
+
 
 
 typedef struct {
@@ -486,6 +512,13 @@ typedef struct {
   size_t     lower;
   size_t     upper;
   size_t     width;
+
+  size_t offset; 		/* NEW: makes the data assigned to
+				   this process identifiable (since we
+				   now, that all data from one
+				   partition must be in one contiguous
+				   chunk).  */
+
   int     dataType;
   int     protModels;
   int     autoProtModels;
@@ -524,13 +557,14 @@ typedef struct {
   double *tipVector; 
   double *substRates;    
   double *perSiteRates;
-  int    *wgt; 
+  int    *wgt;			
   int    *rateCategory;
   double alpha;
 
   double          **xVector;
   size_t           *xSpaceVector;
   unsigned char   **yVector;
+  unsigned char    *yResource; 	/* contains the entire array, that is referenced in yVector */
   unsigned int     *globalScaler; 
 
   int               gapVectorLength;
@@ -539,6 +573,9 @@ typedef struct {
 
   size_t parsimonyLength;
   parsimonyNumber *parsVect; 
+
+  double *lhs;
+  double *patrat;
 
 } pInfo;
 
@@ -635,6 +672,16 @@ typedef struct {
   double right[1600] __attribute__ ((aligned (BYTE_ALIGNMENT)));
 } siteAAModels;
 
+
+typedef struct assign
+{
+  int partitionId;
+  int procId;	     /* to which process is the partition assigned  */
+  size_t offset;     /* what is the offset of this assignment */
+  size_t width; 
+} Assign ; 
+
+
 typedef  struct  {
 
   int *ti;
@@ -644,23 +691,6 @@ typedef  struct  {
   boolean useGappedImplementation;
   boolean saveMemory;  
   int              saveBestTrees;
-
-  double          *lhs;
-  double          *patrat;      /* rates per pattern */
-  double          *patratStored; 
-  int             *rateCategory;
-  int             *aliaswgt;    /* weight by pattern */ 
-  boolean    manyPartitions;
-
-  int *partitionAssignment;     
- 
-  unsigned char *y_ptr; 
-
-
-
- 
-  
- 
 
   stringHashtable  *nameHash;
 
@@ -785,6 +815,38 @@ typedef  struct  {
   double *likelihoods;
 
   boolean fastTreeEvaluation;
+  
+  int numAssignments; 
+  Assign *partAssigns;
+
+
+
+  /** 
+      IMPORTANT: 
+      
+      introducing a few resource pointers. All memeory needed for
+      example for per-partition patrats is owned by these
+      basepointers, the per-partition pointer just points at the
+      contiguous block of memory.
+      
+      The big advantage, why I really think, this is worth it is, that
+      these base pointers can be used to conveniently gather/scatter
+      all data at a master. The master still has to reorder the
+      gathered data, but less copying is necessary at the workers
+
+      REQUIREMENTS: 
+
+      * all memory necessary for a partition must be in a contiguous
+      block,
+
+      * memory for partitions is ordered by partition id (first
+      * partition 1, then partition 2,... )
+   */ 
+
+  double *patrat_basePtr; 
+  int *rateCategory_basePtr; 
+  double *lhs_basePtr; 
+
 } tree;
 
 
@@ -1155,7 +1217,7 @@ extern boolean compatible(entry* e1, entry* e2, unsigned int bvlen);
 
 extern int *permutationSH(tree *tr, int nBootstrap, long _randomSeed);
 
-extern void updatePerSiteRates(tree *tr, boolean scaleRates);
+extern void checkPerSiteRates(const tree * const tr ); 
 
 extern void restart(tree *tr, analdef *adef);
 
@@ -1232,3 +1294,15 @@ void newviewGTRGAMMAPROT_AVX_GAPPED_SAVE(int tipCase,
 					 unsigned int *x1_gap, unsigned int *x2_gap, unsigned int *x3_gap, 
 					 double *x1_gapColumn, double *x2_gapColumn, double *x3_gapColumn); 
 #endif
+
+
+
+/* from communication.c */
+void calculateLengthAndDisplPerProcess(tree *tr, int **length_result, int **disp_result);
+void scatterDistrbutedArray(tree *tr, void *src, void *destination, MPI_Datatype type, int *countPerProc, int *displPerProc);
+void gatherDistributedArray(tree *tr, void **destination, void *src, MPI_Datatype type, int* countPerProc, int *displPerProc);
+
+
+#endif
+
+

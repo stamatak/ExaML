@@ -891,6 +891,9 @@ boolean noGap(unsigned int *x, int pos)
    So in a sense, this function has no clue that there is any tree-like structure 
    in the traversal descriptor, it just operates on an array of structs of given length */ 
 
+
+extern const char inverseMeaningDNA[16]; 
+
 void newviewIterative (tree *tr, int startIndex)
 {
   traversalInfo 
@@ -907,6 +910,9 @@ void newviewIterative (tree *tr, int startIndex)
     {
       traversalInfo *tInfo = &ti[i];
 
+      
+      /* printf("%d = %d,%d\n", tInfo->pNumber , tInfo->qNumber, tInfo->rNumber);  */
+
       /* now loop over all partitions for nodes p, q, and r of the current traversal vector entry */
 
       for(model = 0; model < tr->NumberOfModels; model++)
@@ -916,6 +922,9 @@ void newviewIterative (tree *tr, int startIndex)
 	    width  = (size_t)tr->partitionData[model].width;
 
 	  /* this conditional statement is exactly identical to what we do in evaluateIterative */
+
+
+	  /* printf("new view on model %d with width %d\n", model, width);  */
 
 	  if(tr->td[0].executeModel[model] && width > 0)
 	    {	      
@@ -1198,7 +1207,26 @@ void newviewIterative (tree *tr, int startIndex)
 					     tipX1, tipX2,
 					     width, left, right, wgt, &scalerIncrement);
 #else
-			 newviewGTRGAMMA(tInfo->tipCase,
+
+		       /* if(tipX1 != NULL) */
+		       /* 	 { */
+		       /* 	   int j ;  */
+		       /* 	   printf("tipX1=");  */
+		       /* 	   for(j = 0;  j < tr->partitionData[model].width; ++j) */
+		       /* 	     printf("%c", inverseMeaningDNA[tipX1[j]]); */
+		       /* 	   printf("\n");  */
+		       /* 	 } */
+		       
+		       /* if(tipX2 != NULL) */
+		       /* 	 { */
+		       /* 	   int j ;  */
+		       /* 	   printf("tipX2=");  */
+		       /* 	   for(j = 0; j < tr->partitionData[model].width ; ++j) */
+		       /* 	     printf("%c", inverseMeaningDNA[tipX2[j]]);  */
+		       /* 	   printf("\n");  */
+		       /* 	 } */
+		       
+		       newviewGTRGAMMA(tInfo->tipCase,
 					 x1_start, x2_start, x3_start, tr->partitionData[model].EV, tr->partitionData[model].tipVector,
 					 tipX1, tipX2,
 					 width, left, right, wgt, &scalerIncrement);

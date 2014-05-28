@@ -48,11 +48,6 @@
 #include <stdarg.h>
 #include <limits.h>
 
-#ifdef _USE_ZLIB
-
-#include <zlib.h>
-
-#endif
 
 #include <mpi.h>
 
@@ -69,8 +64,12 @@
 #endif
 
 #include "axml.h"
+
+
 #include "globalVariables.h"
 
+#include "byteFile.h"
+#include "partitionAssignment.h"
 
 
 
@@ -97,115 +96,22 @@ void storeValuesInTraversalDescriptor(tree *tr, double *value)
 
 void myBinFwrite(void *ptr, size_t size, size_t nmemb, FILE *byteFile)
 {
-#ifdef _USE_ZLIB
-  int 
-    s;
-  
-  const int 
-    max = INT_MAX;
-   
-   if((size * nmemb) > (size_t)max)
-    {
-      size_t 	
-	toRead = size * nmemb,
-	offset = 0;
-     
-      unsigned char 
-	*localPtr = (unsigned char*)ptr;
-
-      size_t 
-	rest;
-
-      for(offset = 0; offset < toRead - (size_t)max; offset += (size_t)max)
-	{
-	  s = gzwrite(byteFile, (void *)(&localPtr[offset]), max);
-
-	  assert(s == max);      
-	}
-            
-      
-      rest = (toRead - offset);
-
-      if(rest > 0)
-	{
-	  assert(rest <= (size_t)max);
-	  
-	  s = gzwrite(byteFile, (void *)(&localPtr[offset]), (int)rest);
-	  
-	  assert(s == (int)rest);
-	}
-    }
-  else    
-    {
-      s = gzwrite(byteFile, ptr, (unsigned int)(size * nmemb));
-
-      assert(s == (int)(size * nmemb));
-    }
-#else
   size_t
     bytes_read;
   
   bytes_read = fwrite(ptr, size, nmemb, byteFile);
 
   assert(bytes_read == nmemb);
-#endif
 }
 
 void myBinFread(void *ptr, size_t size, size_t nmemb, FILE *byteFile)
 {  
-#ifdef _USE_ZLIB
-  int 
-    s;
-  
-   const int 
-     max = INT_MAX;
-   
-   if((size * nmemb) > (size_t)max)
-    {
-      size_t 	
-	toRead = size * nmemb,
-	offset = 0;
-     
-      unsigned char 
-	*localPtr = (unsigned char*)ptr;
-
-      size_t 
-	rest;
-
-      for(offset = 0; offset < toRead - (size_t)max; offset += (size_t)max)
-	{
-	  s = gzread(byteFile, (void *)(&localPtr[offset]), max);
-
-	  assert(s == max);      
-	}
-            
-      
-      rest = (toRead - offset);
-
-      if(rest > 0)
-	{
-	  assert(rest <= (size_t)max);
-	  
-	  s = gzread(byteFile, (void *)(&localPtr[offset]), (int)rest);
-	  
-	  assert(s == (int)rest);
-	}
-    }
-  else    
-    {
-      s = gzread(byteFile, ptr, (unsigned int)(size * nmemb));
-
-      assert(s == (int)(size * nmemb));
-    }
-
-#else
   size_t
     bytes_read;
   
   bytes_read = fread(ptr, size, nmemb, byteFile);
 
   assert(bytes_read == nmemb);
-#endif
 }
 
 
@@ -249,6 +155,7 @@ void *malloc_aligned(size_t size)
 
 
 
+
 static void printBoth(FILE *f, const char* format, ... )
 {
   if(processID == 0)
@@ -263,6 +170,9 @@ static void printBoth(FILE *f, const char* format, ... )
       va_end(args);
     }
 }
+
+
+
 
 void printBothOpen(const char* format, ... )
 {
@@ -650,7 +560,7 @@ static boolean setupTree (tree *tr)
   tips  = tr->mxtips;
   inter = tr->mxtips - 1;
 
- 
+  /* printf("%d tips\t%d inner\n", tips, inter); */
  
   
   tr->fracchanges  = (double *)malloc(tr->NumberOfModels * sizeof(double));
@@ -665,10 +575,10 @@ static boolean setupTree (tree *tr)
   tr->tree1 = (char*)calloc(tr->treeStringLength, sizeof(char));
 
 
-  /*TODO, must that be so long ?*/
+  /* TODO, must that be so long ? */
+  /* assert(0);  */
 
-  
-            
+
   tr->td[0].count = 0;
   tr->td[0].ti    = (traversalInfo *)malloc(sizeof(traversalInfo) * tr->mxtips);
   tr->td[0].executeModel = (boolean *)malloc(sizeof(boolean) * tr->NumberOfModels);
@@ -679,9 +589,7 @@ static boolean setupTree (tree *tr)
   tr->fracchange = -1.0;
   
   tr->constraintVector = (int *)malloc((2 * tr->mxtips) * sizeof(int));
-  
-  tr->nameList = (char **)malloc(sizeof(char *) * (tips + 1));
-   
+
 
   if (!(p0 = (nodeptr) malloc((tips + 3*inter) * sizeof(node))))
     {
@@ -756,20 +664,8 @@ static boolean setupTree (tree *tr)
   
   tr->nameHash = initStringHashTable(10 * tr->mxtips);
 
-  tr->partitionData = (pInfo*)malloc(sizeof(pInfo) * tr->NumberOfModels);
-
   return TRUE;
 }
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -794,7 +690,6 @@ static void initAdef(analdef *adef)
 #endif
 
 }
-
 
 
 
@@ -952,8 +847,7 @@ static void printREADME(void)
       printf("      [-f d|e|E|o]\n");    
       printf("      [-h] \n");
       printf("      [-i initialRearrangementSetting] \n");
-      printf("      [-M]\n");     
-      printf("      [-Q]\n");
+      printf("      [-M]\n");          
       printf("      [-S]\n");
       printf("      [-v]\n"); 
       printf("      [-w outputDirectory] \n"); 
@@ -1011,9 +905,6 @@ static void printREADME(void)
       printf("      -n      Specifies the name of the output file.\n"); 
       printf("\n");
       printf("      -p      Specify a random number seed, required in conjunction with the \"-g\" option for constraint trees\n");
-      printf("\n");
-      printf("      -Q      Enable alternative data/load distribution algorithm for datasets with many partitions\n");
-      printf("              In particular under PSR this can lead to parallel performance improvements of up to factor 10!\n");
       printf("\n");
       printf("      -R      read in a binary checkpoint file called ExaML_binaryCheckpoint.RUN_ID_number\n");
       printf("\n");
@@ -1104,7 +995,7 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
   tr->saveMemory = FALSE;
   tr->constraintTree = FALSE;
 
-  tr->manyPartitions = FALSE;
+  /* tr->manyPartitions = FALSE; */
 
   tr->categories             = 25;
 
@@ -1118,7 +1009,7 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 
 
 
-  while(!bad_opt && ((c = mygetopt(argc,argv,"R:B:e:c:f:i:m:t:g:w:n:s:p:vhMSDQa", &optind, &optarg))!=-1))
+  while(!bad_opt && ((c = mygetopt(argc,argv,"R:B:e:c:f:i:m:t:g:w:n:s:p:vhMSDa", &optind, &optarg))!=-1))
     {
     switch(c)
       {    
@@ -1137,9 +1028,6 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	    errorExit(-1);	 
 	  }
 	break;       
-      case 'Q':
-	tr->manyPartitions = TRUE;   	
-	break;
       case 's':		 	
 	strcpy(byteFileName, optarg);	 	
 	byteFileSet = TRUE;
@@ -1920,75 +1808,6 @@ static void finalizeInfoFile(tree *tr, analdef *adef)
 /************************************************************************************/
 
 
-
-
-
-
-
-boolean isThisMyPartition(tree *tr, int tid, int model)
-{ 
-  assert(tr->manyPartitions);
-
-  if(tr->partitionAssignment[model] == tid)
-    return TRUE;
-  else
-    return FALSE;
-}
-
-static void computeFractionMany(tree *tr, int tid)
-{
-  int
-    sites = 0;
-
-  int   
-    model;
-
-  assert(tr->manyPartitions);
-
-  for(model = 0; model < tr->NumberOfModels; model++)
-    {
-      if(isThisMyPartition(tr, tid, model))
-	{	 
-	  tr->partitionData[model].width = tr->partitionData[model].upper - tr->partitionData[model].lower;
-	  sites += tr->partitionData[model].width;
-	}
-      else       	  
-	tr->partitionData[model].width = 0;       
-    }
-
-  
-}
-
-
-
-static void computeFraction(tree *tr, int tid, int n)
-{
-  int
-    model;
-
-  size_t 
-    i;
-
-  for(model = 0; model < tr->NumberOfModels; model++)
-    {
-      size_t 
-	width = 0;
-
-      for(i = tr->partitionData[model].lower; i < tr->partitionData[model].upper; i++)
-	if(i % (size_t)n == (size_t)tid)
-	  width++;      
-
-      tr->partitionData[model].width = width;
-    }
-}
-
-
-
-
-
-
-
-
 static int iterated_bitcount(unsigned int n)
 {
     int 
@@ -2033,186 +1852,26 @@ static void clean_MPI_Exit(void)
 
   return;
 }
- 
-
-static int partCompare(const void *p1, const void *p2)
-{
- partitionType 
-   *rc1 = (partitionType *)p1,
-   *rc2 = (partitionType *)p2;
-
- int 
-   i = rc1->partitionLength,
-   j = rc2->partitionLength;
-  
-  if (i > j)
-    return (-1);
-  if (i < j)
-    return (1);
-  return (0);
-}
 
 
-/* 
-	 tr->manyPartitions is set to TRUE if the user has indicated via -Q that there are substantially more partitions 
-	 than threads/cores available. In that case we do not distribute sites from each partition in a cyclic fashion to the cores 
-	 , but distribute entire partitions to cores. 
-	 Achieving a good balance of alignment sites to cores boils down to the mult-processor scheduling problem known from theoretical comp. sci.
-	 which si NP-complete.
-	 We have implemented very simple "standard" heuristics for solving the multiprocessor scheduling problem that turn out to work very well
-	 and are cheap to compute 
-*/
-
-static void multiprocessorScheduling(tree *tr, int tid)
-{
-  int 
-    s,
-    model,
-    modelStates[2] = {4, 20},
-    numberOfPartitions[2] = {0 , 0},
-    arrayLength = sizeof(modelStates) / sizeof(int);
-  
-    /* check that we have not addedd any new models for data types with a different number of states
-       and forgot to update modelStates */        
-
-    if(tr->NumberOfModels < processes)
-      {
-	printBothOpen("\nError: you are using the \"-Q\" flag for optimal data distribution with many partitions.\n");	  
-	printBothOpen("This option requires to start ExaML with at least as many processes as you have partitions.\n");
-	printBothOpen("You are using %d processes but only have %d partitions.\n\n", processes, tr->NumberOfModels);
-	clean_MPI_Exit();
-	exit(-1);
-      }
-
-    tr->partitionAssignment = (int *)malloc(tr->NumberOfModels * sizeof(int));
-    
-    for(model = 0; model < tr->NumberOfModels; model++)
-      {        
-	boolean 
-	  exists = FALSE;
-	
-	for(s = 0; s < arrayLength; s++)
-	  {
-	    exists = exists || (tr->partitionData[model].states == modelStates[s]);
-	    if(tr->partitionData[model].states == modelStates[s])
-	      numberOfPartitions[s] += 1;
-	  }
-	
-	assert(exists);
-      }
-    
-    if(tid == 0)
-      printBothOpen("\nMulti-processor partition data distribution enabled (-Q option)\n");
-    
-    for(s = 0; s < arrayLength; s++)
-      {
-	if(numberOfPartitions[s] > 0)
-	  {
-	    size_t   
-	      checkSum = 0,
-	      sum = 0;
-	    
-	    int    
-	      i,
-	      k,
-	      n = processes,
-	      p = numberOfPartitions[s],    
-	      *assignments = (int *)calloc(n, sizeof(int));  
-	    
-	    partitionType 
-	      *pt = (partitionType *)malloc(sizeof(partitionType) * p);
-	    
-	    
-	    for(i = 0, k = 0; i < tr->NumberOfModels; i++)
-	      {
-		if(tr->partitionData[i].states == modelStates[s])
-		  {
-		    pt[k].partitionNumber = i;
-		    pt[k].partitionLength = tr->partitionData[i].upper - tr->partitionData[i].lower;
-		    sum += (size_t)pt[k].partitionLength;
-		    k++;
-		  }
-	      }
-	    
-	    assert(k == p);
-	    
-	    qsort(pt, p, sizeof(partitionType), partCompare);    
-	    
-	    for(i = 0; i < p; i++)
-	      {
-		int 
-		  k, 
-		  min = INT_MAX,
-		  minIndex = -1;
-		
-		for(k = 0; k < n; k++)	
-		  if(assignments[k] < min)
-		    {
-		      min = assignments[k];
-		      minIndex = k;
-		    }
-		
-		assert(minIndex >= 0);
-		
-		assignments[minIndex] +=  pt[i].partitionLength;
-		assert(pt[i].partitionNumber >= 0 && pt[i].partitionNumber < tr->NumberOfModels);
-		tr->partitionAssignment[pt[i].partitionNumber] = minIndex;
-	      }
-	    
-	    if(tid == 0)
-	      {
-		for(i = 0; i < n; i++)	       
-		  printBothOpen("Process %d has %d sites for %d state model \n", i, assignments[i], modelStates[s]);		  		
-		
-		printBothOpen("\n");
-	      }
-	    
-	    for(i = 0; i < n; i++)
-	      checkSum += (size_t)assignments[i];
-	    
-	    assert(sum == checkSum);
-	    
-	    free(assignments);
-	    free(pt);
-	  }
-      } 
-}
-
-
-
-static void initializePartitions(tree *tr, FILE *byteFile)
+static void initializePartitions(tree *tr)
 { 
   size_t
     i,
-    j,
-    width,
-    model,
-    countOffset,
-    myLength = 0;
+    len, 
+    j,    
+    width;
 
   int
+    model, 
     maxCategories;
 
-  unsigned char 
-    *y;
-
   compute_bits_in_16bits(tr->bits_in_16bits);
-  
-  for(model = 0; model < (size_t)tr->NumberOfModels; model++)
-    tr->partitionData[model].width        = 0;
 
-  if(tr->manyPartitions)
-    {
-      multiprocessorScheduling(tr, processID);  
-      computeFractionMany(tr, processID);
-    }
-  else
-    computeFraction(tr, processID, processes);
-  	   
   maxCategories = tr->maxCategories;
 
-  for(model = 0; model < (size_t)tr->NumberOfModels; model++)
-    {                       
+  for(model = 0; model < tr->NumberOfModels; model++)
+    {    
       const partitionLengths 
 	*pl = getPartitionLengths(&(tr->partitionData[model])); 
 
@@ -2222,8 +1881,9 @@ static void initializePartitions(tree *tr, FILE *byteFile)
 	 globalScaler needs to be 2 * tr->mxtips such that scalers of inner AND tip nodes can be added without a case switch
 	 to this end, it must also be initialized with zeros -> calloc
        */
-
-      tr->partitionData[model].globalScaler    = (unsigned int *)calloc(2 * tr->mxtips, sizeof(unsigned int));  	         
+      
+      len = 2 * tr->mxtips; 
+      tr->partitionData[model].globalScaler    = (unsigned int *)calloc(len, sizeof(unsigned int));  	         
 
       tr->partitionData[model].left              = (double *)malloc_aligned(pl->leftLength * (maxCategories + 1) * sizeof(double));
       tr->partitionData[model].right             = (double *)malloc_aligned(pl->rightLength * (maxCategories + 1) * sizeof(double));
@@ -2236,6 +1896,7 @@ static void initializePartitions(tree *tr, FILE *byteFile)
       tr->partitionData[model].freqExponents     = (double*)malloc(pl->frequenciesLength * sizeof(double));
       tr->partitionData[model].empiricalFrequencies       = (double*)malloc(pl->frequenciesLength * sizeof(double));
       tr->partitionData[model].tipVector         = (double *)malloc_aligned(pl->tipVectorLength * sizeof(double));
+
 
       if(tr->partitionData[model].protModels == LG4)      
 	{	  	  
@@ -2264,9 +1925,7 @@ static void initializePartitions(tree *tr, FILE *byteFile)
       
 
       tr->partitionData[model].gammaRates = (double*)malloc(sizeof(double) * 4);
-      tr->partitionData[model].yVector = (unsigned char **)malloc(sizeof(unsigned char*) * (tr->mxtips + 1));
 
-      
       tr->partitionData[model].xVector = (double **)malloc(sizeof(double*) * tr->mxtips);   
       	
       for(j = 0; j < (size_t)tr->mxtips; j++)	        	  	  	  	 
@@ -2279,17 +1938,16 @@ static void initializePartitions(tree *tr, FILE *byteFile)
 									   discreteRateCategories(tr->rateHetModel) *
 									   sizeof(double));
 	    
-      tr->partitionData[model].wgt = (int *)malloc_aligned(width * sizeof(int));	  
+      /* tr->partitionData[model].wgt = (int *)malloc_aligned(width * sizeof(int));	   */
 
       /* rateCategory must be assigned using calloc() at start up there is only one rate category 0 for all sites */
-
-      tr->partitionData[model].rateCategory = (int *)calloc(width, sizeof(int));
 
       if(width > 0 && tr->saveMemory)
 	{
 	  tr->partitionData[model].gapVectorLength = ((int)width / 32) + 1;
-	    
-	  tr->partitionData[model].gapVector = (unsigned int*)calloc(tr->partitionData[model].gapVectorLength * 2 * tr->mxtips, sizeof(unsigned int));	  	    	  	  
+	  
+	  len = tr->partitionData[model].gapVectorLength * 2 * tr->mxtips; 
+	  tr->partitionData[model].gapVector = (unsigned int*)calloc(len, sizeof(unsigned int));	  	    	  	  
 	    
 	  tr->partitionData[model].gapColumn = (double *)malloc_aligned(((size_t)tr->mxtips) *								      
 									       ((size_t)(tr->partitionData[model].states)) *
@@ -2305,149 +1963,51 @@ static void initializePartitions(tree *tr, FILE *byteFile)
 	}              
     }
 
-        
-  for(model = 0; model < (size_t)tr->NumberOfModels; model++)
-    myLength += tr->partitionData[model].width;         
-   
-  /* assign local memory for storing sequence data */
 
-  tr->y_ptr = (unsigned char *)malloc(myLength * (size_t)(tr->mxtips) * sizeof(unsigned char));
-  assert(tr->y_ptr != NULL);
-   
-  for(i = 0; i < (size_t)tr->mxtips; i++)
-    {
-      for(model = 0, countOffset = 0; model < (size_t)tr->NumberOfModels; model++)
-	{
-	  tr->partitionData[model].yVector[i+1]   = &tr->y_ptr[i * myLength + countOffset];
-	  countOffset +=  tr->partitionData[model].width;
-	}
-      assert(countOffset == myLength);
-    }
-
-  /* figure in data */
-
-  if(tr->manyPartitions)
-    {
-      for(model = 0; model < (size_t)tr->NumberOfModels; model++)
-	{
-	  if(isThisMyPartition(tr, processID, model))
-	    {
-	      width = tr->partitionData[model].upper - tr->partitionData[model].lower;	     
-	      
-	      memcpy(&(tr->partitionData[model].wgt[0]), &(tr->aliaswgt[tr->partitionData[model].lower]), sizeof(int) * width);
-	    }
-	}
-    }
-  else
-    {
-      size_t 	   
-	globalCounter, 
-	r, 
-	localCounter;
-      
-      for(model = 0, globalCounter = 0; model < (size_t)tr->NumberOfModels; model++)
-	{
-	  for(localCounter = 0, r = (size_t)tr->partitionData[model].lower;  r < (size_t)tr->partitionData[model].upper; r++)
-	    {
-	      if(r % (size_t)processes == (size_t)processID)
-		{
-		  tr->partitionData[model].wgt[localCounter] = tr->aliaswgt[globalCounter];	      	     		 		  					     
-		  
-		  localCounter++;
-		}
-	      globalCounter++;
-	    }
-	  assert(localCounter == tr->partitionData[model].width);
-	}   
-      assert(globalCounter == tr->originalCrunchedLength);
-    }
-   
   /* set up the averaged frac changes per partition such that no further reading accesses to aliaswgt are necessary
      and we can free the array for the GAMMA model */
 
   if(tr->NumberOfModels > 1)
-    {        
+    {      
+      /* definitions: 
+	 sizeof(short) <= sizeof(int) <= sizeof(long)
+	 size_t defined by address space (here: 64 bit). 
+	 
+	 size_t + MPI is a bad idea: in the mpi2.2 standard, they do
+	 not mention it once.
+       */
+      unsigned long 
+	*modelWeights = (unsigned long*) calloc(tr->NumberOfModels, sizeof(unsigned long)); 
       size_t
-	*modelWeights = (size_t *)calloc(tr->NumberOfModels, sizeof(size_t)),
 	wgtsum = 0;  
-      
-      for(model = 0; model < (size_t)tr->NumberOfModels; model++)      
+
+      /* determine my weights per partition    */
+      for(model = 0; model < tr->NumberOfModels; model++)      
 	 {
-	   size_t
-	     lower = tr->partitionData[model].lower,
-	     upper = tr->partitionData[model].upper,
-	     i;
-	   
-	   for(i = lower; i < upper; i++)
-	     {
-	       modelWeights[model] += (size_t)tr->aliaswgt[i];
-	       wgtsum              += (size_t)tr->aliaswgt[i];
-	     }
+	   const pInfo partition =  tr->partitionData[ model] ; 
+	   size_t i = 0; 
+	   for(i = 0; i < partition.width; ++i)
+	     modelWeights[model] += (long) partition.wgt[i]; 
+
 	 }
+      MPI_Allreduce(MPI_IN_PLACE, modelWeights, tr->NumberOfModels, MPI_UNSIGNED_LONG, MPI_SUM, MPI_COMM_WORLD); 
        
-      for(model = 0; model < (size_t)tr->NumberOfModels; model++)      	
-	 tr->partitionContributions[model] = ((double)modelWeights[model]) / ((double)wgtsum); 
+      /* determine sum */
+      for(model = 0; model < tr->NumberOfModels; ++model)
+	wgtsum += modelWeights[model]; 
+
+      for(model = 0; model < tr->NumberOfModels; model++)      	
+	tr->partitionContributions[model] = ((double)modelWeights[model]) / ((double)wgtsum); 
        
        free(modelWeights);
     }
 
-  if(tr->rateHetModel == GAMMA)
-    free(tr->aliaswgt);
 
-
-  y = (unsigned char *)malloc(sizeof(unsigned char) * tr->originalCrunchedLength);
-
-  for(i = 1; i <= (size_t)tr->mxtips; i++)
-    {
-      myBinFread(y, sizeof(unsigned char), ((size_t)tr->originalCrunchedLength), byteFile);
-	
-      if(tr->manyPartitions)
-	{
-	  for(model = 0; model < (size_t)tr->NumberOfModels; model++)
-	    {
-	      if(isThisMyPartition(tr, processID, model))	  
-		{
-		  memcpy(tr->partitionData[model].yVector[i], &(y[tr->partitionData[model].lower]), sizeof(unsigned char) * tr->partitionData[model].width);					    
-		  assert(tr->partitionData[model].width == tr->partitionData[model].upper - tr->partitionData[model].lower);
-		}
-	      else
-		assert(tr->partitionData[model].width == 0);
-	    }
-	}
-      else
-	{
-	  size_t 	  
-	    globalCounter, 
-	    r, 
-	    localCounter;
-
-	  for(model = 0, globalCounter = 0; model < (size_t)tr->NumberOfModels; model++)
-	    {
-	      for(localCounter = 0, r = (size_t)tr->partitionData[model].lower;  r < (size_t)tr->partitionData[model].upper; r++)
-		{
-		  if(r % (size_t)processes == (size_t)processID)
-		    {		      
-		      tr->partitionData[model].yVector[i][localCounter] = y[globalCounter]; 	     
-		      
-		      localCounter++;
-		    }
-		  globalCounter++;
-		}
-	      
-	      assert(localCounter == tr->partitionData[model].width);
-	    }
-
-	  assert(globalCounter == tr->originalCrunchedLength);
-	}
-    }
-
-  free(y);
-    
   /* initialize gap bit vectors at tips when memory saving option is enabled */
   
   if(tr->saveMemory)
     {
-      for(model = 0; model < (size_t)tr->NumberOfModels; model++)
+      for(model = 0; model <tr->NumberOfModels; model++)
 	{
 	  int        
 	    undetermined = getUndetermined(tr->partitionData[model].dataType);
@@ -2466,67 +2026,45 @@ static void initializePartitions(tree *tr, FILE *byteFile)
 }
 
 
+
 static void initializeTree(tree *tr, analdef *adef)
 {
   size_t 
-    i,
-    model;
-  
-#ifdef _USE_ZLIB
-  gzFile
-    byteFile = gzopen(byteFileName, "rb");
+    i ;
 
-  if(byteFile == Z_NULL)
-    {
-      if(processID == 0)
-	{
-	  printf("\nCan not open sequence file for reading: %s\n", byteFileName);
-	  printf("Check if this file exists and you have read access rights for it.\n");
-	}
-      errorExit(-1);
-      return;
-    }
-#else
-  FILE 
-    *byteFile = myfopen(byteFileName, "rb");
-#endif
+  int 
+    model; 
 
   double 
     **empiricalFrequencies;	 
-  
-  myBinFread(&(tr->mxtips),                 sizeof(int), 1, byteFile);
-  myBinFread(&(tr->originalCrunchedLength), sizeof(size_t), 1, byteFile);
-  myBinFread(&(tr->NumberOfModels),         sizeof(int), 1, byteFile);
-  myBinFread(&(tr->gapyness),            sizeof(double), 1, byteFile);
-   
+
+
   empiricalFrequencies = (double **)malloc(sizeof(double *) * tr->NumberOfModels);
   
   if(adef->perGeneBranchLengths)
     tr->numBranches = tr->NumberOfModels;
   else
     tr->numBranches = 1;
-  
+
+
+  if(NUM_BRANCHES < tr->numBranches)
+    {
+      if(processID == 0 )
+	printf("You have specified per-partition branch lengths (-M option) with %d  models. \n\
+Please set #define NUM_BRANCHES in axml.h to %d (or higher) and recompile %s\n", 
+	       tr->NumberOfModels,tr->NumberOfModels, programName );
+      clean_MPI_Exit();
+    }
+
+
   /* If we use the RF-based convergence criterion we will need to allocate some hash tables.
      let's not worry about this right now, because it is indeed ExaML-specific */
-  
- 
-    
-  tr->aliaswgt                   = (int *)malloc(tr->originalCrunchedLength * sizeof(int));
-  myBinFread(tr->aliaswgt, sizeof(int), tr->originalCrunchedLength, byteFile);	       
-  
-  if(tr->rateHetModel == CAT)
-    {
-      tr->rateCategory    = (int *)    calloc(tr->originalCrunchedLength, sizeof(int));	    
-      tr->patrat          = (double*)  malloc(tr->originalCrunchedLength * sizeof(double));
-      tr->patratStored    = (double*)  malloc(tr->originalCrunchedLength * sizeof(double)); 
-      tr->lhs             = (double*)  malloc(tr->originalCrunchedLength * sizeof(double)); 
-    }
-  
-  tr->executeModel   = (boolean *)malloc(sizeof(boolean) * tr->NumberOfModels);
+
+  tr->executeModel   = (boolean *)calloc( tr->NumberOfModels, sizeof(boolean));
   
   for(i = 0; i < (size_t)tr->NumberOfModels; i++)
     tr->executeModel[i] = TRUE;
-   
+  
   setupTree(tr); 
   
   if(tr->searchConvergenceCriterion && processID == 0)
@@ -2536,70 +2074,29 @@ static void initializeTree(tree *tr, analdef *adef)
     }
   
   for(i = 1; i <= (size_t)tr->mxtips; i++)
+    addword(tr->nameList[i], tr->nameHash, i);
+
+
+  /* we have read the empirical frequencies variable, let's fix that
+     here; ownership of the data is shifted to empiricalFrequencies */
+  for(model = 0; model < tr->NumberOfModels; ++model)
     {
-      int 
-	len;
-      
-      myBinFread(&len, sizeof(int), 1, byteFile);
-      tr->nameList[i] = (char*)malloc(sizeof(char) * len);
-      myBinFread(tr->nameList[i], sizeof(char), len, byteFile);
-      addword(tr->nameList[i], tr->nameHash, i);        
-    }  
- 
-  for(model = 0; model < (size_t)tr->NumberOfModels; model++)
-    {      
-      int 
-	len;
-      
-      pInfo 
-	*p = &(tr->partitionData[model]);	   
-      
-      myBinFread(&(p->states),             sizeof(int), 1, byteFile);
-      myBinFread(&(p->maxTipStates),       sizeof(int), 1, byteFile);
-      myBinFread(&(p->lower),              sizeof(size_t), 1, byteFile);
-      myBinFread(&(p->upper),              sizeof(size_t), 1, byteFile);
-      myBinFread(&(p->width),              sizeof(size_t), 1, byteFile);
-      myBinFread(&(p->dataType),           sizeof(int), 1, byteFile);
-      myBinFread(&(p->protModels),         sizeof(int), 1, byteFile);
-      myBinFread(&(p->autoProtModels),     sizeof(int), 1, byteFile);
-      myBinFread(&(p->protFreqs),          sizeof(int), 1, byteFile);     
-      myBinFread(&(p->nonGTR),             sizeof(boolean), 1, byteFile);     
-      myBinFread(&(p->optimizeBaseFrequencies), sizeof(boolean), 1, byteFile);
-      myBinFread(&(p->numberOfCategories),      sizeof(int), 1, byteFile);	 
-      
-      /* later on if adding secondary structure data
-	 
-	 int    *symmetryVector;
-	 int    *frequencyGrouping;
-      */
-      
-      myBinFread(&len, sizeof(int), 1, byteFile);
-      p->partitionName = (char*)malloc(sizeof(char) * len);
-      myBinFread(p->partitionName, sizeof(char), len, byteFile);
-      
-      empiricalFrequencies[model] = (double *)malloc(sizeof(double) * p->states);
-      myBinFread(empiricalFrequencies[model], sizeof(double), p->states, byteFile);	   
-    }     
+      empiricalFrequencies[model] = tr->partitionData[model].frequencies; 
+      tr->partitionData[model].frequencies = NULL; 
+    }
   
-  initializePartitions(tr, byteFile);
-  
-  
-#ifdef _USE_ZLIB
-  gzclose(byteFile);
-#else
-  fclose(byteFile);
-#endif
+  initializePartitions(tr);
 
   initModel(tr, empiricalFrequencies); 
- 
-  for(model = 0; model < (size_t)tr->NumberOfModels; model++)
+  
+  for(model = 0; model < tr->NumberOfModels; model++)
     free(empiricalFrequencies[model]);
 
   free(empiricalFrequencies);
 }
 
 
-static int getNumberOfTrees(char *fileName, boolean getOffsets, long *treeOffsets)
+static int getNumberOfTrees(char *fileName, boolean getOffsets, exa_off_t *treeOffsets)
 {
   FILE 
     *f = myfopen(fileName, "r");
@@ -2617,7 +2114,7 @@ static int getNumberOfTrees(char *fileName, boolean getOffsets, long *treeOffset
 	{
 	  trees++;
 	  if(getOffsets)	    
-	    treeOffsets[trees] = ftell(f) + 1;	 	      	   
+	    treeOffsets[trees] = exa_ftell(f) + 1;	 	      	   
 	}
     }
 
@@ -2630,18 +2127,18 @@ static int getNumberOfTrees(char *fileName, boolean getOffsets, long *treeOffset
 
 static void optimizeTrees(tree *tr, analdef *adef)
 {
-  long 
+  exa_off_t
     *treeOffsets;
 
   int 
     i;   
 
-  tr->numberOfTrees = getNumberOfTrees(tree_file, FALSE, (long *)NULL);
+  tr->numberOfTrees = getNumberOfTrees(tree_file, FALSE, (exa_off_t *)NULL);
   
   if(processID == 0)
     accumulatedTime = 0.0;
 
-  treeOffsets = (long *)malloc(sizeof(long) * (tr->numberOfTrees + 1));
+  treeOffsets = (exa_off_t *)malloc(sizeof(exa_off_t) * (tr->numberOfTrees + 1));
 
   tr->likelihoods = (double *)malloc(sizeof(double) * tr->numberOfTrees);
   tr->treeStrings = (char   *)malloc(sizeof(char) * (size_t)tr->treeStringLength * (size_t)tr->numberOfTrees);
@@ -2680,7 +2177,7 @@ static void optimizeTrees(tree *tr, analdef *adef)
       FILE 
 	*treeFile = myfopen(tree_file, "rb");
 	    
-      if(fseek(treeFile, treeOffsets[i], SEEK_SET) != 0)
+      if(exa_fseek(treeFile, treeOffsets[i], SEEK_SET) != 0)
 	assert(0);
 
       tr->likelihood = unlikely;
@@ -2737,6 +2234,52 @@ static void optimizeTrees(tree *tr, analdef *adef)
 
 
 
+
+
+
+
+
+
+
+static void readByteFile (tree *tr, int commRank, int commSize )
+{
+  /* read stuff that is cheap; do not change the order! */
+  ByteFile *bFile = NULL; 
+  initializeByteFile(&bFile, byteFileName); 
+  readHeader(bFile);
+  readTaxa(bFile);
+  readPartitions(bFile); 
+
+  /* calculate optimal distribution of data */
+  PartitionAssignment *pAss = NULL; 
+  initializePartitionAssignment(&pAss, bFile->partitions, bFile->numPartitions, commSize); 
+  assign(pAss);
+
+  if(commRank == 0 )
+    {
+      printf("\n"); 
+      printAssignments(pAss); 
+      printf("\n"); 
+      printLoad(pAss); 
+      printf("\n");
+    }
+
+  /* now the data of this process is in this struct */
+  readMyData(bFile,pAss, commRank );
+
+  /* carry over the information to the tree */
+  initializeTreeFromByteFile(bFile, tr); 
+  
+  /* just fills up tr->partAssigns that contains the representation of
+     the assignment that we will need */
+  copyAssignmentInfoToTree(pAss, tr);
+
+  deletePartitionAssignment(pAss);
+  deleteByteFile(bFile);
+}
+
+
+
 int main (int argc, char *argv[])
 { 
   MPI_Init(&argc, &argv);
@@ -2778,8 +2321,10 @@ int main (int argc, char *argv[])
     
     makeFileNames();
 
-    initializeTree(tr, adef);                               
-    
+    readByteFile(tr, processID, processes );
+
+    initializeTree(tr, adef);
+
     if(processID == 0)  
       {	
 	printModelAndProgramInfo(tr, adef, argc, argv);  
@@ -2847,7 +2392,7 @@ int main (int argc, char *argv[])
 	   and do an initial likelihood computation traversal 
 	   which we maybe should skip, TODO */
 	    
-	    getStartingTree(tr);     
+	    getStartingTree(tr); 
 	    
 	    /* 
 	       here we do an initial full tree traversal on the starting tree using the Felsenstein pruning algorithm 

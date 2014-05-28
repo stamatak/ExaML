@@ -42,13 +42,9 @@
 #include <ctype.h>
 #include <string.h>
 
-#ifdef _USE_ZLIB
-
-#include <zlib.h>
-
-#endif
-
 #include "axml.h"
+
+extern int processes; 
 
 extern int Thorough;
 extern int optimizeRateCategoryInvocations;
@@ -126,7 +122,7 @@ boolean initrav (tree *tr, nodeptr p)
 
 
 
-//#define _DEBUG_UPDATE
+/* #define _DEBUG_UPDATE */ 
 
 boolean update(tree *tr, nodeptr p)
 {       
@@ -1104,26 +1100,6 @@ void restoreTreeFast(tree *tr)
   testInsertRestoreBIG(tr, tr->removeNode, tr->insertNode);
 }
 
-/*static void myfwrite(const void *ptr, size_t size, size_t nmemb, FILE *stream)
-{
-  size_t  
-    bytes_written = fwrite(ptr, size, nmemb, stream);
-
-  assert(bytes_written == nmemb);
-}
-
-static void myfread(void *ptr, size_t size, size_t nmemb, FILE *stream)
-{
-  size_t
-    bytes_read;
-  
-  bytes_read = fread(ptr, size, nmemb, stream);
-
-  assert(bytes_read == nmemb);
-  }*/
-
-
-
 
 static void writeTree(tree *tr, FILE *f)
 {
@@ -1141,7 +1117,42 @@ static void writeTree(tree *tr, FILE *f)
 
 int ckpCount = 0;
 
-void writeCheckpoint(tree *tr)
+
+/**
+    gathers patrat and rateCategory
+ */
+static void gatherDistributedCatInfos(tree *tr, int **rateCategory_result, double **patrat_result)
+{
+  /*
+    countPerProc and displPerProc must be int, since the MPI functino
+    signatures demand so
+   */ 
+  
+  int 
+    *countPerProc = NULL, 
+    *displPerProc = NULL;
+
+  calculateLengthAndDisplPerProcess(tr,  &countPerProc, &displPerProc);
+  
+  if(processID == 0)
+    {
+      *rateCategory_result = (int*)calloc((size_t)tr->originalCrunchedLength , sizeof(int));
+      *patrat_result       = (double*)calloc((size_t)tr->originalCrunchedLength, sizeof(double));
+    }
+  
+  gatherDistributedArray(tr, (void**) patrat_result,  tr->patrat_basePtr, MPI_DOUBLE , countPerProc, displPerProc); 
+  gatherDistributedArray(tr, (void**) rateCategory_result, tr->rateCategory_basePtr, MPI_INT, countPerProc, displPerProc ); 
+
+  free(countPerProc);
+  free(displPerProc);
+}
+
+
+/** 
+    added parameters patrat and rateCategory. The checkpoint writer
+    has to gather this distributed information first. 
+ */ 
+static void writeCheckpointInner(tree *tr, int *rateCategory, double *patrat )
 {
   int   
     model; 
@@ -1150,13 +1161,11 @@ void writeCheckpoint(tree *tr)
     extendedName[2048],
     buf[64];
 
-#ifdef _USE_ZLIB
-  gzFile
-    f;
-#else
   FILE 
     *f;
-#endif
+
+  /* only master should write the checkpoint */
+  assert(processID == 0); 
 
   strcpy(extendedName,  binaryCheckpointName);
   strcat(extendedName, "_");
@@ -1165,11 +1174,7 @@ void writeCheckpoint(tree *tr)
 
   ckpCount++;
 
-#ifdef _USE_ZLIB
-  f = gzopen(extendedName, "w");
-#else
   f = myfopen(extendedName, "w"); 
-#endif
 
   /* cdta */   
 
@@ -1187,22 +1192,20 @@ void writeCheckpoint(tree *tr)
   myBinFwrite(tr->tree0, sizeof(char), tr->treeStringLength, f);
   myBinFwrite(tr->tree1, sizeof(char), tr->treeStringLength, f);
 
+
   if(tr->rateHetModel == CAT)
     {
-      myBinFwrite(tr->rateCategory, sizeof(int), tr->originalCrunchedLength, f);
-      myBinFwrite(tr->patrat, sizeof(double), tr->originalCrunchedLength, f);
-      myBinFwrite(tr->patratStored, sizeof(double), tr->originalCrunchedLength, f);
+      myBinFwrite(rateCategory, sizeof(int), tr->originalCrunchedLength, f);
+      myBinFwrite(patrat, sizeof(double), tr->originalCrunchedLength, f);
     }
-  
-  
+
   /* need to store this as well in checkpoints, otherwise the branch lengths 
      in the output tree files will be wrong, not the internal branch lengths though */
   
   myBinFwrite(tr->fracchanges,  sizeof(double), tr->NumberOfModels, f);
   myBinFwrite(&(tr->fracchange),   sizeof(double), 1, f);
 
-  /* pInfo */
-   
+
   for(model = 0; model < tr->NumberOfModels; model++)
     {
       int 
@@ -1247,14 +1250,37 @@ void writeCheckpoint(tree *tr)
 
   writeTree(tr, f);
 
-#ifdef _USE_ZLIB
-  gzclose(f);
-#else
   fclose(f); 
-#endif
 
   /* printBothOpen("\nCheckpoint written to: %s likelihood: %f\n", extendedName, tr->likelihood); */
 }
+
+
+void writeCheckpoint(tree *tr)
+{
+  int 
+    *rateCategory = (int *)NULL; 
+  
+  double 
+    *patrat = (double *)NULL; 
+
+  if(tr->rateHetModel == CAT)
+    gatherDistributedCatInfos(tr, &rateCategory, &patrat); 
+
+  if(processID == 0)
+    {
+      writeCheckpointInner(tr, rateCategory, patrat); 
+
+      if(tr->rateHetModel == CAT)
+	{
+	  free(rateCategory); 
+	  free(patrat); 
+	}
+    }
+}
+
+
+
 
 static void readTree(tree *tr, FILE *f)
 {
@@ -1331,13 +1357,8 @@ static void readCheckpoint(tree *tr)
   int   
     model; 
 
-#ifdef _USE_ZLIB
-  gzFile
-    f = gzopen(binaryCheckpointInputName, "r");
-#else
   FILE 
-    *f = myfopen(binaryCheckpointInputName, "r");
-#endif
+    *f = myfopen(binaryCheckpointInputName, "rb");
 
   /* cdta */   
 
@@ -1412,22 +1433,78 @@ static void readCheckpoint(tree *tr)
 	}
     }
 
-  if(tr->rateHetModel == CAT)
-    {
-      myBinFread(tr->rateCategory, sizeof(int), tr->originalCrunchedLength, f);
-      myBinFread(tr->patrat, sizeof(double), tr->originalCrunchedLength, f);
-      myBinFread(tr->patratStored, sizeof(double), tr->originalCrunchedLength, f);
-    }
   
+  if(tr->rateHetModel == CAT )
+    {
+      /* every process reads its data */
+
+      /* Andre will this also work if we re-start with a different
+	 number of processors? have you tested? 
+	 
+	 => Andre: yes that works: before writing the checkpoint, we
+	 gather all lhs/patrat with gatherDistributedCatInfos. This
+	 function calls gatherDistributedArray in
+	 communication.c. gatherDistributedArray takes care of
+	 reordering the data it obtained from the various processes,
+	 such the correct global array (i.e., indexing consistent with
+	 character position) is obtained.  Thus, the indexing below
+	 (for reading in the patrat/lhs again) works correctly.  */
+      
+
+      /* Andre I think tr->originalCrunchedLength is of type size_t???
+	 -> casting required ?  
+	 
+	 Andre: in the very worst case, pPos overflows. There is not
+	 much one can do here. See explanation about fseek/fseeko at
+	 other location. But I have added an assert, in case something
+	 goes wrong */
+      exa_off_t
+	rPos = exa_ftell(f),      
+	pPos  = rPos + sizeof(int) * tr->originalCrunchedLength; 
+
+      /* fails, in case reading failed (ftello returns -1) or an overflow happened */
+      assert( ! ( rPos < 0 || pPos < 0 ) && rPos <= pPos ) ;
+      
+      /* first patrat then rateCategory */
+      
+      Assign *aIter =  tr->partAssigns,
+	*aEnd = &(tr->partAssigns [ tr->numAssignments ]) ; 
+      
+      /* Andre coould you maybe add a drawing (scanned drawn by hand if you like) documenting this layout ? => Andre: TODO  */
+
+      while(aIter != aEnd)
+	{
+	  if(aIter->procId == processID)
+	    {
+	      pInfo
+		*partition = &(tr->partitionData[aIter->partitionId]); 
+	      exa_off_t
+		theOffset = pPos + (partition->lower + aIter->offset)  * sizeof(double); 
+	      assert(pPos <= theOffset); 
+
+	      exa_fseek(f,  theOffset, SEEK_SET); 
+	      
+	      myBinFread(partition->patrat, sizeof(double), aIter->width, f);  
+
+	      theOffset = rPos + (partition->lower + aIter->offset) * sizeof(int); 
+	      assert(rPos <= theOffset); 
+	      exa_fseek(f, theOffset, SEEK_SET); 
+	      myBinFread(partition->rateCategory, sizeof(int), aIter->width, f); 
+	    } 
+	  ++aIter; 
+	}
+
+      /* Set file pointer to the end of both of the arrays    */
+      exa_fseek(f, pPos + tr->originalCrunchedLength * sizeof(double) , SEEK_SET); 
+    }
+
 
   /* need to read this as well in checkpoints, otherwise the branch lengths 
      in the output tree files will be wrong, not the internal branch lengths though */
   
   myBinFread(tr->fracchanges,  sizeof(double), tr->NumberOfModels, f);
   myBinFread(&(tr->fracchange),   sizeof(double), 1, f);
-  
-  /* pInfo */
-   
+
   for(model = 0; model < tr->NumberOfModels; model++)
     {
       int 
@@ -1462,7 +1539,9 @@ static void readCheckpoint(tree *tr)
 
       myBinFread(&(tr->partitionData[model].alpha), sizeof(double), 1, f);
 
-      makeGammaCats(tr->partitionData[model].alpha, tr->partitionData[model].gammaRates, 4, tr->useMedian); 
+      //conditional added by Andre 
+      if(tr->rateHetModel != CAT)
+	makeGammaCats(tr->partitionData[model].alpha, tr->partitionData[model].gammaRates, 4, tr->useMedian); 
 
       myBinFread(&(tr->partitionData[model].protModels), sizeof(int), 1, f);
       myBinFread(&(tr->partitionData[model].autoProtModels), sizeof(int), 1, f);
@@ -1474,14 +1553,11 @@ static void readCheckpoint(tree *tr)
       myBinFread(tr->treeStrings, sizeof(char), (size_t)tr->treeStringLength * (size_t)tr->numberOfTrees, f);
     }
 
-  updatePerSiteRates(tr, FALSE); 
+  if(tr->rateHetModel == CAT)
+    checkPerSiteRates(tr); 
 
   readTree(tr, f);
-#ifdef _USE_ZLIB
-  gzclose(f);
-#else
   fclose(f); 
-#endif
 }
 
 
@@ -1553,31 +1629,36 @@ int determineRearrangementSetting(tree *tr,  analdef *adef, bestlist *bestT, bes
     {	
       recallBestTree(bestT, 1, tr);     
       nodeRectifier(tr);            
-    
-      if(processID == 0)
-	{
-	  ckp.optimizeRateCategoryInvocations = optimizeRateCategoryInvocations;
+      
+      /* Andre I believe that the code below, except for
+	 writeCheckpoint cann still only be executed by process 0 =>
+	 Andre: all other processes need to enter writeCheckpoint,
+	 because of the gather that happens there. But the assignments
+	 to the checkpoint state are not necessary for all processes;
+	 does it matter? */
+      {
+	ckp.optimizeRateCategoryInvocations = optimizeRateCategoryInvocations;
 	  
-	  ckp.cutoff = cutoff;
-	  ckp.state = REARR_SETTING;     
-	  ckp.maxtrav = maxtrav;
-	  ckp.bestTrav = bestTrav;
-	  ckp.startLH  = startLH;
-	  ckp.impr = impr;
+	ckp.cutoff = cutoff;
+	ckp.state = REARR_SETTING;     
+	ckp.maxtrav = maxtrav;
+	ckp.bestTrav = bestTrav;
+	ckp.startLH  = startLH;
+	ckp.impr = impr;
 	  
-	  ckp.tr_startLH  = tr->startLH;
-	  ckp.tr_endLH    = tr->endLH;
-	  ckp.tr_likelihood = tr->likelihood;
-	  ckp.tr_bestOfNode = tr->bestOfNode;
+	ckp.tr_startLH  = tr->startLH;
+	ckp.tr_endLH    = tr->endLH;
+	ckp.tr_likelihood = tr->likelihood;
+	ckp.tr_bestOfNode = tr->bestOfNode;
 	  
-	  ckp.tr_lhCutoff = tr->lhCutoff;
-	  ckp.tr_lhAVG    = tr->lhAVG;
-	  ckp.tr_lhDEC    = tr->lhDEC;      
-	  ckp.tr_itCount  = tr->itCount;
+	ckp.tr_lhCutoff = tr->lhCutoff;
+	ckp.tr_lhAVG    = tr->lhAVG;
+	ckp.tr_lhDEC    = tr->lhDEC;      
+	ckp.tr_itCount  = tr->itCount;
 	  
 	  
-	  writeCheckpoint(tr);    
-	}
+	writeCheckpoint(tr);    
+      }
 
       if (maxtrav > tr->mxtips - 3)  
 	maxtrav = tr->mxtips - 3;    
@@ -1863,46 +1944,49 @@ void computeBIGRAPID (tree *tr, analdef *adef, boolean estimateModel)
 
       /* save states of algorithmic/heuristic variables for printing the next checkpoint */
 
-      if(processID == 0)
-	{              
-	  ckp.state = FAST_SPRS;  
-	  ckp.optimizeRateCategoryInvocations = optimizeRateCategoryInvocations;              
+      /* 
+	 Andre I believe that the code below, except for
+	 writeCheckpoint cann still only be executed by process 0 =>
+	 Andre: see above
+       */ 
+      {              
+	ckp.state = FAST_SPRS;  
+	ckp.optimizeRateCategoryInvocations = optimizeRateCategoryInvocations;              
 	  
 	  
-	  ckp.impr = impr;
-	  ckp.Thorough = Thorough;
-	  ckp.bestTrav = bestTrav;
-	  ckp.treeVectorLength = treeVectorLength;
-	  ckp.rearrangementsMax = rearrangementsMax;
-	  ckp.rearrangementsMin = rearrangementsMin;
-	  ckp.thoroughIterations = thoroughIterations;
-	  ckp.fastIterations = fastIterations;
+	ckp.impr = impr;
+	ckp.Thorough = Thorough;
+	ckp.bestTrav = bestTrav;
+	ckp.treeVectorLength = treeVectorLength;
+	ckp.rearrangementsMax = rearrangementsMax;
+	ckp.rearrangementsMin = rearrangementsMin;
+	ckp.thoroughIterations = thoroughIterations;
+	ckp.fastIterations = fastIterations;
 	  
 	  
-	  ckp.lh = lh;
-	  ckp.previousLh = previousLh;
-	  ckp.difference = difference;
-	  ckp.epsilon    = epsilon; 
+	ckp.lh = lh;
+	ckp.previousLh = previousLh;
+	ckp.difference = difference;
+	ckp.epsilon    = epsilon; 
 	  
 	  
-	  ckp.bestTrav = bestTrav;       
-	  ckp.impr = impr;
+	ckp.bestTrav = bestTrav;       
+	ckp.impr = impr;
 	  
-	  ckp.tr_startLH  = tr->startLH;
-	  ckp.tr_endLH    = tr->endLH;
-	  ckp.tr_likelihood = tr->likelihood;
-	  ckp.tr_bestOfNode = tr->bestOfNode;
+	ckp.tr_startLH  = tr->startLH;
+	ckp.tr_endLH    = tr->endLH;
+	ckp.tr_likelihood = tr->likelihood;
+	ckp.tr_bestOfNode = tr->bestOfNode;
 	  
-	  ckp.tr_lhCutoff = tr->lhCutoff;
-	  ckp.tr_lhAVG    = tr->lhAVG;
-	  ckp.tr_lhDEC    = tr->lhDEC;       
-	  ckp.tr_itCount  = tr->itCount;
-	  ckp.tr_doCutoff = tr->doCutoff;
+	ckp.tr_lhCutoff = tr->lhCutoff;
+	ckp.tr_lhAVG    = tr->lhAVG;
+	ckp.tr_lhDEC    = tr->lhDEC;       
+	ckp.tr_itCount  = tr->itCount;
+	ckp.tr_doCutoff = tr->doCutoff;
 	  
-	  /* write a binary checkpoint */
-	  writeCheckpoint(tr); 
-	}
-
+	/* write a binary checkpoint */
+	writeCheckpoint(tr); 
+      }	
 
       /* this is the aforementioned convergence criterion that requires computing the RF,
 	 let's not worry about this right now */
@@ -2133,8 +2217,9 @@ void computeBIGRAPID (tree *tr, analdef *adef, boolean estimateModel)
 	recallBestTree(bestT, 1, tr);
 
       /* now, we write a checkpoint */
-      
-      if(processID == 0)
+      /* Andre I believe that the code below, except for
+	 writeCheckpoint cann still only be executed by process 0
+	 => Andre: see above */
 	{              
 	  ckp.state = SLOW_SPRS;  
 	  ckp.optimizeRateCategoryInvocations = optimizeRateCategoryInvocations;              

@@ -48,11 +48,6 @@
 #include <stdarg.h>
 #include <limits.h>
 
-#ifdef _USE_ZLIB
-
-#include <zlib.h>
-
-#endif
 
 #ifdef  _FINE_GRAIN_MPI
 #include <mpi.h>
@@ -91,59 +86,10 @@
 
 void myBinFwrite(const void *ptr, size_t size, size_t nmemb)
 { 
-#ifdef _USE_ZLIB    
-  int 
-    s;
-  
-  const int 
-    max = INT_MAX;
-   
-  if((size * nmemb) > (size_t)max)
-    {
-      size_t 	
-	toRead = size * nmemb,
-	offset = 0;
-      
-      unsigned char 
-	*localPtr = (unsigned char*)ptr;
-
-      size_t 
-	rest;
-      
-      for(offset = 0; offset < toRead - (size_t)max; offset += (size_t)max)
-	{
-	  s = gzwrite(byteFile, (void *)(&localPtr[offset]), max);
-	  
-	  assert(s == max);      
-	}
-            
-      
-      rest = (toRead - offset);
-
-      if(rest > 0)
-	{
-	  assert(rest <= (size_t)max);
-	  
-	  s = gzwrite(byteFile, (void *)(&localPtr[offset]), (int)rest);
-	  
-	  assert(s == (int)rest);
-	}
-    }
-  else    
-    {
-      s = gzwrite(byteFile, ptr, (unsigned int)(size * nmemb));
-
-      assert(s == (int)(size * nmemb));
-    }
-#else
   size_t  
     bytes_written = fwrite(ptr, size, nmemb, byteFile);
   
   assert(bytes_written == nmemb);
- 
-#endif
-
-      /*bytes_written = fwrite(ptr, size, nmemb, byteFile);*/
 }
 
 
@@ -1659,7 +1605,7 @@ static void sitecombcrunch (rawdata *rdta, cruncheddata *cdta, tree *tr, analdef
 	  int p  = tr->patternPosition[i];
 	  int c  = tr->columnPosition[i];
 
-	  assert(p >= 0 && p < cdta->endsite);
+	  assert(p >= 0 && (size_t) p < cdta->endsite);
 	  assert(c >= 1 && c <= rdta->sites);
 	}
     }
@@ -1704,9 +1650,11 @@ static boolean makevalues(rawdata *rdta, cruncheddata *cdta, tree *tr, analdef *
 {
   int  
     i, 
-    j, 
     model, 
     modelCounter;
+  
+  size_t 
+    j;
 
   unsigned char
     *y    = (unsigned char *)malloc(((size_t)rdta->numsp) * ((size_t)cdta->endsite) * sizeof(unsigned char));
@@ -1731,8 +1679,6 @@ static boolean makevalues(rawdata *rdta, cruncheddata *cdta, tree *tr, analdef *
       free(rdta->y0);
       free(rdta->y);
       
-   
-      
     }
 
   rdta->y0 = y;
@@ -1749,7 +1695,7 @@ static boolean makevalues(rawdata *rdta, cruncheddata *cdta, tree *tr, analdef *
      
       i            = 1;
 
-      while(i <  cdta->endsite)
+      while((size_t) i <  cdta->endsite)
 	{
 	  if(tr->model[i] != model)
 	    {
@@ -1773,7 +1719,7 @@ static boolean makevalues(rawdata *rdta, cruncheddata *cdta, tree *tr, analdef *
       tr->model[0] = modelCounter;
       i            = 1;
 	
-      while(i < cdta->endsite)
+      while((size_t) i < cdta->endsite)
 	{	 
 	  if(tr->model[i] != model)
 	    {
@@ -2222,11 +2168,8 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
       exit(0);
     }
 
-#ifdef _USE_ZLIB
-  byteFile = gzopen(byteFileName, "wb");
-#else
   byteFile = fopen(byteFileName, "wb");
-#endif
+
   if ( !byteFile )  
     printf("%s\n", byteFileName);
 
@@ -2682,14 +2625,21 @@ int main (int argc, char *argv[])
  
 
   {
+    int sizeOfSizeT = sizeof(size_t); 
+    
     size_t 
       i,
       model;
     
+
+    /* NEW, we firstly write, how many bytes size_t comprises */
+    
+    myBinFwrite(&(sizeOfSizeT),                sizeof(sizeOfSizeT), 1); 
     myBinFwrite(&(tr->mxtips),                 sizeof(int), 1);
     myBinFwrite(&(tr->originalCrunchedLength), sizeof(size_t), 1);
     myBinFwrite(&(tr->NumberOfModels),         sizeof(int), 1);
     myBinFwrite(&(adef->gapyness),             sizeof(double), 1);
+    
     myBinFwrite(tr->cdta->aliaswgt,               sizeof(int), tr->originalCrunchedLength);	  	  	       	
 	
     for(i = 1; i <= (size_t)tr->mxtips; i++)
@@ -2731,18 +2681,12 @@ int main (int argc, char *argv[])
 	myBinFwrite(p->partitionName, sizeof(char), len);	    
 	myBinFwrite(tr->partitionData[model].frequencies, sizeof(double), tr->partitionData[model].states);
       }	            
-      
-    
-    myBinFwrite(rdta->y0, sizeof(unsigned char), (tr->originalCrunchedLength) * ((size_t)tr->mxtips));          
+
+    myBinFwrite(rdta->y0, sizeof(unsigned char), (tr->originalCrunchedLength) * ((size_t)tr->mxtips)); 
   }
 
-
-#ifdef _USE_ZLIB
-  gzclose(byteFile);
-#else
   fclose(byteFile);  
-#endif
-  
+
   printBothOpen("\n\nBinary and compressed alignment file written to file %s\n\n", byteFileName);
   printBothOpen("Parsing completed, exiting now ... \n\n");
 

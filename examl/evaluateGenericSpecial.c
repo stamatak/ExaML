@@ -440,6 +440,7 @@ void evaluateIterative(tree *tr)
 
       if(tr->td[0].executeModel[model] && width > 0)
 	{	
+
 	  int 
 	    rateHet = (int)discreteRateCategories(tr->rateHetModel),
 	    categories,
@@ -775,8 +776,9 @@ void evaluateGeneric (tree *tr, nodeptr p, boolean fullTraversal)
   
   tr->td[0].traversalHasChanged = TRUE;
 
+
   evaluateIterative(tr);  
-    		
+  
   {
     double 
       *recv = (double *)malloc(sizeof(double) * tr->NumberOfModels);
@@ -810,6 +812,10 @@ void evaluateGeneric (tree *tr, nodeptr p, boolean fullTraversal)
   /* do some bookkeeping to have traversalHasChanged in a consistent state */
 
   tr->td[0].traversalHasChanged = FALSE;  
+
+  
+  
+  /* printf("after eval: %f\n", tr->likelihood);  */
 }
 
 
