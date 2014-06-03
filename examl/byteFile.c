@@ -78,7 +78,7 @@ static void seekPos(ByteFile *bf, int pos)
  */ 
 void initializeByteFile(ByteFile **bf, char *name)
 {
-  *bf = calloc(1,sizeof(ByteFile)); 
+  *bf = (ByteFile *)calloc(1,sizeof(ByteFile)); 
   ByteFile *result = *bf; 
   result->fh  = myfopen(name, "rb"); 
 
@@ -149,11 +149,11 @@ void readPartitions(ByteFile *bf)
   
   seekPos(bf, ALN_PARTITIONS); 
   
-  assert(bf->partitions == NULL); 
-  bf->partitions = calloc(bf->numPartitions, sizeof(pInfo*) ); 
+  assert(bf->partitions == (pInfo **)NULL); 
+  bf->partitions = (pInfo **)calloc(bf->numPartitions, sizeof(pInfo*) ); 
   for(i = 0; i < bf->numPartitions; ++i)
     {
-      bf->partitions[i] = calloc(1,sizeof(pInfo)); 
+      bf->partitions[i] = (pInfo*)calloc(1,sizeof(pInfo)); 
       pInfo* p = bf->partitions[i]; 
 
       READ_VAR(bf->fh, p->states);
@@ -176,10 +176,10 @@ void readPartitions(ByteFile *bf)
       /* read string */
       unsigned int len = 0; 
       READ_VAR(bf->fh, len); 
-      p->partitionName = calloc(len,sizeof(char));
+      p->partitionName = (char*)calloc(len,sizeof(char));
       READ_ARRAY(bf->fh, p->partitionName, len, sizeof(char)); 
 
-      p->frequencies = calloc(p->states, sizeof(double)); 
+      p->frequencies = (double*)calloc(p->states, sizeof(double)); 
       READ_ARRAY(bf->fh, p->frequencies, p->states , sizeof(double)); 
     }
   
@@ -194,15 +194,15 @@ void readTaxa(ByteFile *bf)
 {
   int i; 
 
-  assert(bf->taxaNames == NULL);
+  assert(bf->taxaNames == (char **)NULL);
   seekPos(bf,  ALN_TAXA); 
 
-  bf->taxaNames = calloc(bf->numTax, sizeof(char*));
+  bf->taxaNames = (char **)calloc(bf->numTax, sizeof(char*));
   for(i = 0; i < bf->numTax; ++i)
     {
       int len = 0; 
       READ_VAR(bf->fh, len ); 
-      bf->taxaNames[i] = calloc(len, sizeof(char)); 
+      bf->taxaNames[i] = (char*)calloc(len, sizeof(char)); 
       READ_ARRAY(bf->fh, bf->taxaNames[i], len, sizeof(char)); 
     }
 
@@ -267,7 +267,7 @@ void readMyData(ByteFile *bf, PartitionAssignment *pa, int procId)
       Assignment a = myAssigns[i]; 
       pInfo *partition = bf->partitions[a.partId]; 
       len = a.width * sizeof(int); 
-      partition->wgt = malloc_aligned( len); 
+      partition->wgt = (int*)malloc_aligned( len); 
       memset(partition->wgt, 0, len); 
 
       exa_off_t pos = wgtPos +  (partition->lower  + a.offset) * sizeof(int); 
@@ -309,7 +309,7 @@ void initializeTreeFromByteFile(ByteFile *bf, tree *tr)
 
   for(i = 1; i <= bf->numTax; ++i)
     {
-      tr->nameList[i] = calloc(strlen(bf->taxaNames[i-1]) + 1, sizeof(char)); 
+      tr->nameList[i] = (char*)calloc(strlen(bf->taxaNames[i-1]) + 1, sizeof(char)); 
       strcpy(tr->nameList[i], bf->taxaNames[i-1]);      
     }
 
@@ -320,13 +320,13 @@ void initializeTreeFromByteFile(ByteFile *bf, tree *tr)
    * needed to be initialized at this point
    */
   int myLength = 0; 
-  tr->partitionData = calloc( tr->NumberOfModels, sizeof(pInfo));
+  tr->partitionData = (pInfo*)calloc( tr->NumberOfModels, sizeof(pInfo));
   for(i = 0; i < tr->NumberOfModels; ++i)
     {
       tr->partitionData[i] = *(bf->partitions[i]);
       myLength += tr->partitionData[i].width; 
-      assert( bf->partitions[i]->wgt != NULL || bf->partitions[i]->width == 0); 
-      assert( ( tr->partitionData[i].wgt != NULL)  || ( tr->partitionData[i].width == 0 ) ); 
+      assert( bf->partitions[i]->wgt != (int*)NULL || bf->partitions[i]->width == 0); 
+      assert( ( tr->partitionData[i].wgt != (int*)NULL)  || ( tr->partitionData[i].width == 0 ) ); 
     }
 } 
 

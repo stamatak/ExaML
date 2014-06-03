@@ -64,15 +64,20 @@ static size_t mapMpiTypeToSize(MPI_Datatype type)
 */ 
 void scatterDistrbutedArray(tree *tr, void *src, void *destination, MPI_Datatype type, int *countPerProc, int *displPerProc)
 {
-  int i; 
-  size_t typeLen = mapMpiTypeToSize(type); 
-  char *srcReordered = NULL; 
+  int 
+    i; 
+  
+  size_t 
+    typeLen = mapMpiTypeToSize(type); 
+  
+  char 
+    *srcReordered = (char *)NULL; 
 
   /* master must reorder the data   */
   if(processID == 0)
     {
-      srcReordered = malloc(tr->originalCrunchedLength * typeLen); 
-      int *seenPerProcesses = calloc((size_t) processes, sizeof(int)); 
+      srcReordered = (char *)malloc(tr->originalCrunchedLength * typeLen); 
+      int *seenPerProcesses = (int *)calloc((size_t) processes, sizeof(int)); 
       
       Assign *aIter = tr->partAssigns; 
       Assign *aEnd = &(tr->partAssigns[ tr->numAssignments ] ); 
@@ -117,18 +122,19 @@ void gatherDistributedArray(tree *tr, void **destinationPtr, void *src, MPI_Data
   /* this is the raw array that the master will obtain from his
      peers. Data in this arrays are ordered per process */
   char 
-    *destinationUnordered = NULL; 
+    *destinationUnordered = (char*)NULL; 
   
   char
-    *destination = NULL; 
+    *destination = (char*)NULL; 
   
   size_t
     typeLen = mapMpiTypeToSize(type); 
   
   if(processID == 0)
     {
-      *destinationPtr = malloc( tr->originalCrunchedLength *  typeLen); 
-      destinationUnordered = malloc( tr->originalCrunchedLength * typeLen); 
+      //TODO one pointer is of type void the other of type char, not really nice
+      *destinationPtr = (void *)malloc( tr->originalCrunchedLength *  typeLen); 
+      destinationUnordered = (char *)malloc( tr->originalCrunchedLength * typeLen); 
       destination = *destinationPtr; 
     }
   

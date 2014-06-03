@@ -83,7 +83,7 @@
 
 #define badRear         -1
 
-#define NUM_BRANCHES     1
+//#define NUM_BRANCHES     1
 
 #define TRUE             1
 #define FALSE            0
@@ -173,8 +173,8 @@ extern double exp_approx (double x);
 #define PointGamma(prob,alpha,beta)  PointChi2(prob,2.0*(alpha))/(2.0*(beta))
 
 #define programName        "the phylip file parser for ExaML"
-#define programVersion     "2.0.0"
-#define programDate        "May 28 2014"
+#define programVersion     "2.0.1"
+#define programDate        "June 3 2014"
 
 
 #define  TREE_EVALUATION            0
@@ -413,8 +413,8 @@ typedef struct
   int pNumber;
   int qNumber;
   int rNumber;
-  double qz[NUM_BRANCHES];
-  double rz[NUM_BRANCHES];
+  //double qz[NUM_BRANCHES];
+  //double rz[NUM_BRANCHES];
 } traversalInfo;
 
 typedef struct
@@ -446,7 +446,7 @@ typedef struct epBrData
   int *rightScaling;
   parsimonyVector *leftParsimony;
   parsimonyVector *rightParsimony;
-  double branchLengths[NUM_BRANCHES];
+  //double branchLengths[NUM_BRANCHES];
   double *left;
   double *right;
   int branchNumber; 
@@ -489,9 +489,9 @@ typedef  struct noderec
 {
  
   branchInfo      *bInf;
-  double           z[NUM_BRANCHES];
+  //  double           z[NUM_BRANCHES];
 #ifdef _BAYESIAN 
-  double           z_tmp[NUM_BRANCHES];
+  //double           z_tmp[NUM_BRANCHES];
 #endif 
   struct noderec  *next;
   struct noderec  *back;
@@ -753,7 +753,7 @@ typedef  struct  {
   double           *wr;
   double           *wr2;
   
-  double           coreLZ[NUM_BRANCHES];
+  //  double           coreLZ[NUM_BRANCHES];
   int              modelNumber;
   int              numBranches;
   int              bootStopCriterion;
@@ -772,7 +772,7 @@ typedef  struct  {
   int              multiStateModel;
 
 
-  boolean curvatOK[NUM_BRANCHES];
+  //  boolean curvatOK[NUM_BRANCHES];
   /* the stuff below is shared among DNA and AA, span does
      not change depending on datatype */
 
@@ -823,8 +823,8 @@ typedef  struct  {
   int              checkPointCounter;
   int              treeID;  
   boolean          bigCutoff;
-  boolean          partitionSmoothed[NUM_BRANCHES];
-  boolean          partitionConverged[NUM_BRANCHES];
+  //  boolean          partitionSmoothed[NUM_BRANCHES];
+  //  boolean          partitionConverged[NUM_BRANCHES];
   boolean          rooted;
   boolean          grouped;
   boolean          constrained;
@@ -843,6 +843,7 @@ typedef  struct  {
   nodeptr removeNode;
   nodeptr insertNode;
 
+  /*
   double zqr[NUM_BRANCHES];
   double currentZQR[NUM_BRANCHES];
 
@@ -854,7 +855,7 @@ typedef  struct  {
   double lzq[NUM_BRANCHES];
   double lzr[NUM_BRANCHES];
   double lzi[NUM_BRANCHES];
-
+  */
  
   int mr_thresh;
 
@@ -878,7 +879,7 @@ typedef struct {
 
 typedef struct
 {
-  double z[NUM_BRANCHES];
+  //  double z[NUM_BRANCHES];
   nodeptr p, q;
   int cp, cq;
 }
@@ -906,7 +907,7 @@ typedef  struct
 
 
 typedef struct conntyp {
-    double           z[NUM_BRANCHES];           /* branch length */
+  //    double           z[NUM_BRANCHES];           /* branch length */
     node            *p, *q;       /* parent and child sectors */
     void            *valptr;      /* pointer to value of subtree */
     int              descend;     /* pointer to first connect of child */

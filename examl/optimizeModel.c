@@ -181,7 +181,7 @@ static linkageList* initLinkageListString(char *linkageString, tree *tr)
   char
     *str1,
     *saveptr,
-    *ch = calloc(strlen(linkageString), sizeof(char)),
+    *ch = (char *)calloc(strlen(linkageString), sizeof(char)),
     *token;
   strncpy(ch, linkageString, strlen(linkageString));
 
@@ -216,7 +216,7 @@ static void init_Q_MatrixSymmetries(char *linkageString, tree *tr, int model)
   char
     *str1,
     *saveptr,
-    *ch = calloc(strlen(linkageString), sizeof(char)), 
+    *ch = (char*)calloc(strlen(linkageString), sizeof(char)), 
     *token;
   
   strncpy(ch, linkageString, strlen(linkageString)); 

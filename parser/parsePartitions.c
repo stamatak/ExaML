@@ -1269,7 +1269,7 @@ void parseSecondaryStructure(tree *tr, analdef *adef, int sites)
 	  
 	  if(adef->perGeneBranchLengths)
 	    {
-	      if(tr->NumberOfModels > NUM_BRANCHES)
+	      /*if(tr->NumberOfModels > NUM_BRANCHES)
 		{
 		  printf("You are trying to use %d partitioned models for an individual per-gene branch length estimate.\n", tr->NumberOfModels);
 		  printf("Currently only %d are allowed to improve efficiency.\n", NUM_BRANCHES);
@@ -1279,7 +1279,7 @@ void parseSecondaryStructure(tree *tr, analdef *adef, int sites)
 		  printf("by \"#define NUM_BRANCHES   %d\" and then re-compile RAxML.\n", tr->NumberOfModels);
 		  exit(-1);
 		}
-	      else
+		else*/
 		{		  
 		  tr->numBranches = tr->NumberOfModels;
 		}

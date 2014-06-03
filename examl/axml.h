@@ -113,7 +113,7 @@
 
 #define badRear         -1
 
-#define NUM_BRANCHES     16
+#define NUM_BRANCHES     256
 
 #define TRUE             1
 #define FALSE            0
@@ -197,8 +197,8 @@
 #define PointGamma(prob,alpha,beta)  PointChi2(prob,2.0*(alpha))/(2.0*(beta))
 
 #define programName        "ExaML"
-#define programVersion     "2.0.0"
-#define programDate        "May 28 2014"
+#define programVersion     "2.0.1"
+#define programDate        "June 3 2014"
 
 
 #define  TREE_EVALUATION            0
