@@ -1,0 +1,2 @@
+To disable per-site rate category scaling in ExaML it suffices to comment out the function invocations for:
+updatePerSiteRates() and checkPerSiteRates() in the source code.
