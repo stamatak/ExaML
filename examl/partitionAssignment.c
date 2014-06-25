@@ -264,22 +264,27 @@ static void assignThesePartitions(PartitionAssignment* pa, Partition *partitions
   procsLowIter = (int *)calloc((size_t)pa->numProc + 1, sizeof(int)); 
   procsLowStart = procsLowIter; 
   procsHighStart = procsHighIter;
+    
+
+  numFull = 0; 
   
   for(proc = 0; proc < pa->numProc; ++proc)
     {
       if(sizeAssigned[proc] < cap)
-	{
-	  if(numAssigned[proc] == numLow)
-	    {
-	      ++procsLowIter; 
-	      *procsLowIter = proc; 
-	    }
-	  else  
-	    {
-	      ++procsHighIter;
-	      *procsHighIter = proc; 
-	    }
-	}
+ 	{
+ 	  if(numAssigned[proc] == numLow)
+ 	    {
+ 	      ++procsLowIter; 
+ 	      *procsLowIter = proc; 
+ 	    }
+ 	  else  
+ 	    {
+ 	      ++procsHighIter;
+ 	      *procsHighIter = proc; 
+ 	    }
+ 	}
+      else 	
+	++numFull; 
     }
   
   assert((procsHighIter - procsHighStart) + (procsLowIter - procsLowStart) + numFull == pa->numProc); 
