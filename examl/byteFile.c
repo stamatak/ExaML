@@ -87,7 +87,10 @@ void initializeByteFile(ByteFile **bf, char *name)
 
   if(sizeOfSizeT != sizeof(size_t))
     {
-      printf("Error: size_t has a different size on this system than on the system on which you created the binary alignment file. Please re-parse the binary alignment file.\n"); 
+      printf("Error: the address data type has a size of %d bits on the current system while on the system on which you created the binary alignment file using the parser the address size is %d bits!\n", 
+	     8 * (int)sizeof(size_t), 8 * sizeOfSizeT);
+      printf("Usually this indicates that the parser was executed on a 32-bit system while you are trying to run ExaML on a 64-bit system.\n");
+      printf("Please parse the binary alignment file on the same hardware on which you intend to run ExaML.\n"); 
       MPI_Finalize();
     }
 } 
