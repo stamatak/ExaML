@@ -37,6 +37,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <sys/types.h>
+#include "../versionHeader/version.h"
 
 #ifdef __AVX
 #define BYTE_ALIGNMENT 32
@@ -198,9 +199,9 @@
 
 #define PointGamma(prob,alpha,beta)  PointChi2(prob,2.0*(alpha))/(2.0*(beta))
 
-#define programName        "ExaML"
-#define programVersion     "2.0.3"
-#define programDate        "June 25 2014"
+//#define programName        "ExaML"
+//#define programVersion     "2.0.3"
+//#define programDate        "June 25 2014"
 
 
 #define  TREE_EVALUATION            0

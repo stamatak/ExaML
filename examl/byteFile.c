@@ -2,12 +2,12 @@
 #include <malloc.h>
 
 #include "byteFile.h"
-
+#include <stdlib.h>
 
 #define READ_VAR(file,var) assert( fread(&var, sizeof(var),1, file ) == 1  )
 #define READ_ARRAY(file, arrPtr, numElem, size)  assert( fread(arrPtr, size, numElem, file) ==  (unsigned int) numElem)
 
-
+extern int processID;
 
 /** 
     seekPos finds the position in the byte file where a certain type
@@ -64,7 +64,7 @@ static void seekPos(ByteFile *bf, int pos)
 	  + sizeof(bf->numPartitions) + sizeof(bf->gappyness); 
       }
     case ALN_HEAD : 
-      toSkip += sizeof(int); 		/* skips the initial int that tells us how many bytes a size_t has */
+      toSkip += (3 * sizeof(int)); 		/* skips the initial int that tells us how many bytes a size_t has as well as the integer for the version number and the magic integer number */
       break; 
     default : 
       assert(0); 
@@ -82,17 +82,61 @@ void initializeByteFile(ByteFile **bf, char *name)
   ByteFile *result = *bf; 
   result->fh  = myfopen(name, "rb"); 
 
-  int sizeOfSizeT = 0; 
+  int 
+    sizeOfSizeT = 0, 
+    version = 0,
+    magicNumber = 0;
+  
   READ_VAR(result->fh, sizeOfSizeT); 
 
   if(sizeOfSizeT != sizeof(size_t))
     {
-      printf("Error: the address data type has a size of %d bits on the current system while on the system on which you created the binary alignment file using the parser the address size is %d bits!\n", 
-	     8 * (int)sizeof(size_t), 8 * sizeOfSizeT);
-      printf("Usually this indicates that the parser was executed on a 32-bit system while you are trying to run ExaML on a 64-bit system.\n");
-      printf("Please parse the binary alignment file on the same hardware on which you intend to run ExaML.\n"); 
+      if(processID == 0)
+	{
+	  printf("\nError: the address data type has a size of %d bits on the current system while on the system on which you created the binary alignment file using the parser the address size is %d bits!\n", 
+		 8 * (int)sizeof(size_t), 8 * sizeOfSizeT);
+	  printf("Usually this indicates that the parser was executed on a 32-bit system while you are trying to run ExaML on a 64-bit system.\n");
+	  printf("Please parse the binary alignment file on the same hardware on which you intend to run ExaML.\n\n\n"); 
+	}
+	  
+      MPI_Barrier(MPI_COMM_WORLD);
       MPI_Finalize();
+      exit(-1);
     }
+
+  //check that version numbers of parser and ExaML match
+  READ_VAR(result->fh, version); 
+
+  if(version != (int)programVersionInt)
+    {
+      if(processID == 0)
+	{
+	  printf("\nError: Version number %d of ExaML parser and version number %d of ExaML don't match.\n", version, (int)programVersionInt);
+	  printf("You are either using an outdated version of the parser or of ExaML.\n");
+	  printf("Hasta siempre comandante.\n\n\n");
+	}
+      
+      MPI_Barrier(MPI_COMM_WORLD);
+      MPI_Finalize();     
+      exit(-1);
+    }
+
+  READ_VAR(result->fh, magicNumber);
+
+  if(magicNumber != 6517718)
+    { 
+      if(processID == 0)
+	{
+	  printf("\nError: The magic number %d of ExaML parser and magic number %d of ExaML don't match.\n", magicNumber, 6517718);
+	  printf("Something went terribly wrong here.\n");
+	  printf("Hasta la victoria siempre.\n\n\n");
+	}
+
+      MPI_Barrier(MPI_COMM_WORLD);
+      MPI_Finalize();   
+      exit(-1);
+    }
+
 } 
 
 

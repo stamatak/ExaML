@@ -31,6 +31,8 @@
 
 #include <assert.h>
 #include <stdint.h>
+#include "../versionHeader/version.h"
+
 
 #ifdef __AVX
 #define BYTE_ALIGNMENT 32
@@ -172,9 +174,9 @@ extern double exp_approx (double x);
 
 #define PointGamma(prob,alpha,beta)  PointChi2(prob,2.0*(alpha))/(2.0*(beta))
 
-#define programName        "the phylip file parser for ExaML"
-#define programVersion     "2.0.1"
-#define programDate        "June 3 2014"
+//#define programName        "the phylip file parser for ExaML"
+//#define programVersion     "2.0.1"
+//#define programDate        "June 3 2014"
 
 
 #define  TREE_EVALUATION            0

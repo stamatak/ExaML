@@ -1878,7 +1878,7 @@ static int dataExists(char *model, analdef *adef)
 
 static void printVersionInfo(void)
 {
-  printf("\n\nThis is %s version %s released by Alexandros Stamatakis in %s.\n\n",  programName, programVersion, programDate); 
+  printf("\n\nThis is the %s parse-examl version %s released by Alexandros Stamatakis in %s.\n\n",  programName, programVersion, programDate); 
 }
 
 static void printREADME(void)
@@ -1889,7 +1889,7 @@ static void printREADME(void)
   printf("Please send us all input files, the exact invocation, details of the HW and operating system,\n");
   printf("as well as all error messages printed to screen.\n\n\n");
 
-  printf("parser\n");
+  printf("parse-examl\n");
   printf("      -s sequenceFileName\n");
   printf("      -n outputFileName\n");
   printf("      -m substitutionModel\n");
@@ -2630,16 +2630,24 @@ int main (int argc, char *argv[])
  
 
   {
-    int sizeOfSizeT = sizeof(size_t); 
+    int 
+      sizeOfSizeT = sizeof(size_t),
+      version = (int)programVersionInt,
+      magicNumber = 6517718;
     
     size_t 
       i,
-      model;
+      model;   
     
-
     /* NEW, we firstly write, how many bytes size_t comprises */
     
     myBinFwrite(&(sizeOfSizeT),                sizeof(sizeOfSizeT), 1); 
+
+    //error checking for parser!
+    myBinFwrite(&version,     sizeof(int), 1);
+    myBinFwrite(&magicNumber, sizeof(int), 1);
+    //error checking for correct parser end
+
     myBinFwrite(&(tr->mxtips),                 sizeof(int), 1);
     myBinFwrite(&(tr->originalCrunchedLength), sizeof(size_t), 1);
     myBinFwrite(&(tr->NumberOfModels),         sizeof(int), 1);
