@@ -48,11 +48,6 @@
 #include <stdarg.h>
 #include <limits.h>
 
-#ifdef _USE_ZLIB
-
-#include <zlib.h>
-
-#endif
 
 #ifdef  _FINE_GRAIN_MPI
 #include <mpi.h>
@@ -91,59 +86,10 @@
 
 void myBinFwrite(const void *ptr, size_t size, size_t nmemb)
 { 
-#ifdef _USE_ZLIB    
-  int 
-    s;
-  
-  const int 
-    max = INT_MAX;
-   
-  if((size * nmemb) > (size_t)max)
-    {
-      size_t 	
-	toRead = size * nmemb,
-	offset = 0;
-      
-      unsigned char 
-	*localPtr = (unsigned char*)ptr;
-
-      size_t 
-	rest;
-      
-      for(offset = 0; offset < toRead - (size_t)max; offset += (size_t)max)
-	{
-	  s = gzwrite(byteFile, (void *)(&localPtr[offset]), max);
-	  
-	  assert(s == max);      
-	}
-            
-      
-      rest = (toRead - offset);
-
-      if(rest > 0)
-	{
-	  assert(rest <= (size_t)max);
-	  
-	  s = gzwrite(byteFile, (void *)(&localPtr[offset]), (int)rest);
-	  
-	  assert(s == (int)rest);
-	}
-    }
-  else    
-    {
-      s = gzwrite(byteFile, ptr, (unsigned int)(size * nmemb));
-
-      assert(s == (int)(size * nmemb));
-    }
-#else
   size_t  
     bytes_written = fwrite(ptr, size, nmemb, byteFile);
   
   assert(bytes_written == nmemb);
- 
-#endif
-
-      /*bytes_written = fwrite(ptr, size, nmemb, byteFile);*/
 }
 
 
@@ -478,13 +424,16 @@ static void uppercase (int *chptr)
 static void getyspace (rawdata *rdta)
 {
   size_t size = 4 * ((size_t)(rdta->sites / 4 + 1));
+  
+ 
+
   int    i;
   unsigned char *y0;
 
   rdta->y = (unsigned char **) malloc((rdta->numsp + 1) * sizeof(unsigned char *));
   assert(rdta->y);   
 
-  y0 = (unsigned char *) malloc(((size_t)(rdta->numsp + 1)) * size * sizeof(unsigned char));
+  y0 = (unsigned char *)calloc(((size_t)(rdta->numsp + 1)) * size, sizeof(unsigned char));
 
   /*
     printf("Raw alignment data Assigning %Zu bytes\n", ((size_t)(rdta->numsp + 1)) * size * sizeof(unsigned char));
@@ -1139,6 +1088,9 @@ static void getinput(analdef *adef, rawdata *rdta, cruncheddata *cdta, tree *tr)
       int dataType = -1;
 	              
       tr->initialPartitionData  = (pInfo*)malloc(sizeof(pInfo));
+      tr->initialPartitionData->optimizeBaseFrequencies = FALSE;
+      
+      
       tr->initialPartitionData[0].partitionName = (char*)malloc(128 * sizeof(char));
       strcpy(tr->initialPartitionData[0].partitionName, "No Name Provided");
       
@@ -1147,8 +1099,7 @@ static void getinput(analdef *adef, rawdata *rdta, cruncheddata *cdta, tree *tr)
       
       
       tr->NumberOfModels = 1;
-      
-     
+           
       
       if(adef->model == M_PROTCAT || adef->model == M_PROTGAMMA)
 	dataType = AA_DATA;
@@ -1659,7 +1610,7 @@ static void sitecombcrunch (rawdata *rdta, cruncheddata *cdta, tree *tr, analdef
 	  int p  = tr->patternPosition[i];
 	  int c  = tr->columnPosition[i];
 
-	  assert(p >= 0 && p < cdta->endsite);
+	  assert(p >= 0 && (size_t) p < cdta->endsite);
 	  assert(c >= 1 && c <= rdta->sites);
 	}
     }
@@ -1704,9 +1655,11 @@ static boolean makevalues(rawdata *rdta, cruncheddata *cdta, tree *tr, analdef *
 {
   int  
     i, 
-    j, 
     model, 
     modelCounter;
+  
+  size_t 
+    j;
 
   unsigned char
     *y    = (unsigned char *)malloc(((size_t)rdta->numsp) * ((size_t)cdta->endsite) * sizeof(unsigned char));
@@ -1731,8 +1684,6 @@ static boolean makevalues(rawdata *rdta, cruncheddata *cdta, tree *tr, analdef *
       free(rdta->y0);
       free(rdta->y);
       
-   
-      
     }
 
   rdta->y0 = y;
@@ -1749,7 +1700,7 @@ static boolean makevalues(rawdata *rdta, cruncheddata *cdta, tree *tr, analdef *
      
       i            = 1;
 
-      while(i <  cdta->endsite)
+      while((size_t) i <  cdta->endsite)
 	{
 	  if(tr->model[i] != model)
 	    {
@@ -1773,7 +1724,7 @@ static boolean makevalues(rawdata *rdta, cruncheddata *cdta, tree *tr, analdef *
       tr->model[0] = modelCounter;
       i            = 1;
 	
-      while(i < cdta->endsite)
+      while((size_t) i < cdta->endsite)
 	{	 
 	  if(tr->model[i] != model)
 	    {
@@ -1927,7 +1878,7 @@ static int dataExists(char *model, analdef *adef)
 
 static void printVersionInfo(void)
 {
-  printf("\n\nThis is %s version %s released by Alexandros Stamatakis in %s.\n\n",  programName, programVersion, programDate); 
+  printf("\n\nThis is the parse-examl version %s released by Alexandros Stamatakis in %s.\n\n",  programVersion, programDate); 
 }
 
 static void printREADME(void)
@@ -1938,7 +1889,7 @@ static void printREADME(void)
   printf("Please send us all input files, the exact invocation, details of the HW and operating system,\n");
   printf("as well as all error messages printed to screen.\n\n\n");
 
-  printf("parser\n");
+  printf("parse-examl\n");
   printf("      -s sequenceFileName\n");
   printf("      -n outputFileName\n");
   printf("      -m substitutionModel\n");
@@ -2222,11 +2173,8 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
       exit(0);
     }
 
-#ifdef _USE_ZLIB
-  byteFile = gzopen(byteFileName, "wb");
-#else
   byteFile = fopen(byteFileName, "wb");
-#endif
+
   if ( !byteFile )  
     printf("%s\n", byteFileName);
 
@@ -2682,14 +2630,29 @@ int main (int argc, char *argv[])
  
 
   {
+    int 
+      sizeOfSizeT = sizeof(size_t),
+      version = (int)programVersionInt,
+      magicNumber = 6517718;
+    
     size_t 
       i,
-      model;
+      model;   
     
+    /* NEW, we firstly write, how many bytes size_t comprises */
+    
+    myBinFwrite(&(sizeOfSizeT),                sizeof(sizeOfSizeT), 1); 
+
+    //error checking for parser!
+    myBinFwrite(&version,     sizeof(int), 1);
+    myBinFwrite(&magicNumber, sizeof(int), 1);
+    //error checking for correct parser end
+
     myBinFwrite(&(tr->mxtips),                 sizeof(int), 1);
     myBinFwrite(&(tr->originalCrunchedLength), sizeof(size_t), 1);
     myBinFwrite(&(tr->NumberOfModels),         sizeof(int), 1);
     myBinFwrite(&(adef->gapyness),             sizeof(double), 1);
+    
     myBinFwrite(tr->cdta->aliaswgt,               sizeof(int), tr->originalCrunchedLength);	  	  	       	
 	
     for(i = 1; i <= (size_t)tr->mxtips; i++)
@@ -2698,7 +2661,7 @@ int main (int argc, char *argv[])
 	myBinFwrite(&len, sizeof(int), 1);
 	myBinFwrite(tr->nameList[i], sizeof(char), len);	
       }  
-	  	
+    
     for(model = 0; model < (size_t)tr->NumberOfModels; model++)
       {
 	int 
@@ -2707,18 +2670,19 @@ int main (int argc, char *argv[])
 	pInfo 
 	  *p = &(tr->partitionData[model]);
 	
+	
 	myBinFwrite(&(p->states),             sizeof(int), 1);
 	myBinFwrite(&(p->maxTipStates),       sizeof(int), 1);
 	myBinFwrite(&(p->lower),              sizeof(size_t), 1);
 	myBinFwrite(&(p->upper),              sizeof(size_t), 1);
 	myBinFwrite(&(p->width),              sizeof(size_t), 1);
 	myBinFwrite(&(p->dataType),           sizeof(int), 1);
-	myBinFwrite(&(p->protModels),         sizeof(int), 1);
-	myBinFwrite(&(p->autoProtModels),     sizeof(int), 1);
+	myBinFwrite(&(p->protModels),         sizeof(int), 1);	
 	myBinFwrite(&(p->protFreqs),          sizeof(int), 1);	
 	myBinFwrite(&(p->nonGTR),                      sizeof(boolean), 1); 	
 	myBinFwrite(&(p->optimizeBaseFrequencies),     sizeof(boolean), 1);
-	myBinFwrite(&(p->numberOfCategories), sizeof(int), 1);	 
+	
+	
 	
 	/* later on if adding secondary structure data
 	   
@@ -2731,18 +2695,12 @@ int main (int argc, char *argv[])
 	myBinFwrite(p->partitionName, sizeof(char), len);	    
 	myBinFwrite(tr->partitionData[model].frequencies, sizeof(double), tr->partitionData[model].states);
       }	            
-      
-    
-    myBinFwrite(rdta->y0, sizeof(unsigned char), (tr->originalCrunchedLength) * ((size_t)tr->mxtips));          
+
+    myBinFwrite(rdta->y0, sizeof(unsigned char), (tr->originalCrunchedLength) * ((size_t)tr->mxtips)); 
   }
 
-
-#ifdef _USE_ZLIB
-  gzclose(byteFile);
-#else
   fclose(byteFile);  
-#endif
-  
+
   printBothOpen("\n\nBinary and compressed alignment file written to file %s\n\n", byteFileName);
   printBothOpen("Parsing completed, exiting now ... \n\n");
 

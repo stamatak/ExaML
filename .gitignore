@@ -2,11 +2,15 @@
 
 parser/parser
 parser/parser-NOZIP
+parser/parse-examl
 
 examl-MIC
 examl-AVX
+examl-AVX.debug
+examl-MIC.debug
 
 .cproject
 .project
+.settings
 
 loop_prof*

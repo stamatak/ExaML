@@ -49,11 +49,10 @@
 /*#include <tmmintrin.h>*/
 #endif
 
-/* includes MIC-optimized functions */
-
 #ifdef __MIC_NATIVE
 #include "mic_native.h"
 #endif
+
 
 /* 
    global variables of pthreads version, reductionBuffer is the global array 
@@ -74,13 +73,6 @@ extern int processID;
 /* a pre-computed 32-bit integer mask */
 
 extern const unsigned int mask32[32];
-
-/* MPI profiling */
-#ifdef _PROFILE_MPI
-extern double totalReduceTime_eval;
-extern double totalReduceTime_core;
-#endif
-
 
 /* the function below computes the P matrix from the decomposition of the Q matrix and the respective rate categories for a single partition */
    
@@ -411,8 +403,7 @@ void evaluateIterative(tree *tr)
 
   int    
     pNumber = tr->td[0].ti[0].pNumber, 
-    qNumber = tr->td[0].ti[0].qNumber, 
-    model;
+    qNumber = tr->td[0].ti[0].qNumber;
  
   /* before we can compute the likelihood at the virtual root, we need to do a partial or full tree traversal to compute 
      the conditional likelihoods of the vectors as specified in the traversal descriptor. Maintaining this tarversal descriptor consistent 
@@ -421,20 +412,124 @@ void evaluateIterative(tree *tr)
   */
      
   /* iterate over all valid entries in the traversal descriptor */
+  newviewIterative(tr, 1);
 
-  newviewIterative(tr, 1);  
+  int m;
+
+#ifdef _USE_OMP
+#pragma omp parallel for
+#endif
+  for(m = 0; m < tr->NumberOfModels; m++)
+    {
+      /* check if this partition has to be processed now - otherwise no need to compute P matrix */
+	if(!tr->td[0].executeModel[m] || tr->partitionData[m].width == 0)
+	  continue;
+
+	int
+	  categories,
+	  states = tr->partitionData[m].states;
+
+	double
+	  z,
+	  *rateCategories,
+	  *diagptable = tr->partitionData[m].left;
+
+	/* if we are using a per-partition branch length estimate, the branch has an index, otherwise, for a joint branch length
+	   estimate over all partitions we just use the branch length value with index 0 */
+	if(tr->numBranches > 1)
+	  z = pz[m];
+	else
+	  z = pz[0];
+
+	if(tr->rateHetModel == CAT)
+	  {
+	    rateCategories = tr->partitionData[m].perSiteRates;
+	    categories = tr->partitionData[m].numberOfCategories;
+	  }
+	else
+	  {
+	    rateCategories = tr->partitionData[m].gammaRates;
+	    categories = 4;
+	  }
+
+	if(tr->partitionData[m].protModels == LG4)
+	  calcDiagptableFlex_LG4(z, 4, tr->partitionData[m].gammaRates, tr->partitionData[m].EIGN_LG4, diagptable, 20);
+	else
+	  calcDiagptable(z, states, categories, rateCategories, tr->partitionData[m].EIGN, diagptable);
+    }
 
   /* after the above call we are sure that we have properly and consistently computed the 
      conditionals to the right and left of the virtual root and we can now invoke the 
      the log likelihood computation */
 
   /* we need to loop over all partitions. Note that we may have a mix of DNA, protein binary data etc partitions */
+#ifdef _USE_OMP
+#pragma omp parallel
+#endif
+  {
+    int
+      m,
+      model,
+      maxModel;
 
-  for(model = 0; model < tr->NumberOfModels; model++)
+#ifdef _USE_OMP
+    maxModel = tr->maxModelsPerThread;
+#else
+    maxModel = tr->NumberOfModels;
+#endif
+
+  for(m = 0; m < maxModel; m++)
     {    
-      /* whats' the number of sites of this partition (at the current thread) */
-      int 	    
-	width = tr->partitionData[model].width;
+      /* just defaults -> if partion wasn't assigned to this thread, it will be ignored later on */
+      size_t
+	width = 0,
+	offset = 0;
+
+      double
+	*diagptable     = (double*)NULL,
+	*perPartitionLH = (double*)NULL;
+
+      unsigned int
+	*globalScaler = (unsigned int*)NULL;
+
+
+#ifdef _USE_OMP
+
+    	  int
+    	    tid = omp_get_thread_num();
+
+    	  /* check if this thread should process this partition */
+    	  Assign* pAss = tr->threadPartAssigns[tid * tr->maxModelsPerThread + m];
+
+    	  if (pAss)
+    	  {
+      	    model  = pAss->partitionId;
+      	    width  = pAss->width;
+      	    offset = pAss->offset;
+
+      	    assert(model < tr->NumberOfModels);
+
+      	    diagptable = tr->partitionData[model].left;
+	    globalScaler = tr->partitionData[model].threadGlobalScaler[tid];
+	    perPartitionLH = &tr->partitionData[model].reductionBuffer[tid];
+    	  }
+    	  else
+    	    break;
+
+#else
+    	  model = m;
+
+    	  /* number of sites in this partition */
+	  width  = (size_t)tr->partitionData[model].width;
+	  offset = 0;
+
+	  /* set this pointer to the memory area where space has been reserved a priori for storing the
+	     P matrix at the root */
+	  diagptable = tr->partitionData[model].left;
+	  globalScaler = tr->partitionData[model].globalScaler;
+	  perPartitionLH = &tr->perPartitionLH[model];
+#endif
+
         
       /* 
 	 Important part of the tarversal descriptor: 
@@ -459,7 +554,16 @@ void evaluateIterative(tree *tr)
 	    
 	    /* get the number of states in the partition, e.g.: 4 = DNA, 20 = Protein */
 
-	    states = tr->partitionData[model].states;
+	    states = tr->partitionData[model].states,
+
+	    /* span for single alignment site (in doubles!) */
+	    span = rateHet * states,
+
+	    /* offset for current thread's data in global xVector (in doubles!) */
+	    x_offset = offset * span,
+
+	    /* integer wieght vector with pattern compression weights */
+	    *wgt = tr->partitionData[model].wgt + offset;
 	  
 	  double 
 	    *rateCategories = (double*)NULL,
@@ -467,7 +571,6 @@ void evaluateIterative(tree *tr)
 	    partitionLikelihood = 0.0, 	   
 	    *x1_start   = (double*)NULL, 
 	    *x2_start   = (double*)NULL,
-	    *diagptable = (double*)NULL,  
 	    *x1_gapColumn = (double*)NULL,
 	    *x2_gapColumn = (double*)NULL;
 	  	    	 	  
@@ -499,11 +602,6 @@ void evaluateIterative(tree *tr)
 	      categories = 4;
 	    }
 	  
-	  /* set this pointer to the memory area where space has been reserved a priori for storing the 
-	     P matrix at the root */
-
-	  diagptable = tr->partitionData[model].left;
-
 	  /* figure out if we need to address tip vectors (a char array that indexes into a precomputed tip likelihood 
 	     value array or if we need to address inner vectors */
 
@@ -519,11 +617,11 @@ void evaluateIterative(tree *tr)
 		     note that inner nodes are enumerated/indexed starting at 0 to save allocating some 
 		     space for additional pointers */
 		  		 
-		  x2_start = tr->partitionData[model].xVector[pNumber - tr->mxtips -1];		  
+		  x2_start = tr->partitionData[model].xVector[pNumber - tr->mxtips -1] + x_offset;
 
 		  /* get the corresponding tip vector */
 
-		  tip      = tr->partitionData[model].yVector[qNumber];	 
+		  tip      = tr->partitionData[model].yVector[qNumber] + offset;
 
 		  /* memory saving stuff, let's deal with this later or ask Fernando ;-) */
 
@@ -537,8 +635,8 @@ void evaluateIterative(tree *tr)
 		{	
 		  /* p is a tip, same as above */
 	 
-		  x2_start = tr->partitionData[model].xVector[qNumber - tr->mxtips - 1];		  		  
-		  tip = tr->partitionData[model].yVector[pNumber];
+		  x2_start = tr->partitionData[model].xVector[qNumber - tr->mxtips - 1] + x_offset;
+		  tip = tr->partitionData[model].yVector[pNumber] + offset;
 
 		  if(tr->saveMemory)
 		    {
@@ -553,8 +651,8 @@ void evaluateIterative(tree *tr)
 	 
 	      /* neither p nor q are tips, hence we need to get the addresses of two inner vectors */
     
-	      x1_start = tr->partitionData[model].xVector[pNumber - tr->mxtips - 1];
-	      x2_start = tr->partitionData[model].xVector[qNumber - tr->mxtips - 1];
+	      x1_start = tr->partitionData[model].xVector[pNumber - tr->mxtips - 1] + x_offset;
+	      x2_start = tr->partitionData[model].xVector[qNumber - tr->mxtips - 1] + x_offset;
 
 	      /* memory saving option */
 
@@ -567,25 +665,7 @@ void evaluateIterative(tree *tr)
 		}
 	
 	    }
-
-	 
 	  
-
-	  /* if we are using a per-partition branch length estimate, the branch has an index, otherwise, for a joint branch length
-	     estimate over all partitions we just use the branch length value with index 0 */
-
-	  if(tr->numBranches > 1)
-	    z = pz[model];
-	  else
-	    z = pz[0];
-
-	  /* calc P-Matrix at root for branch z connecting nodes p and q */
-	  
-	  if(tr->partitionData[model].protModels == LG4)					  
-	    calcDiagptableFlex_LG4(z, 4, tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN_LG4, diagptable, 20);
-	  else
-	    calcDiagptable(z, states, categories, rateCategories, tr->partitionData[model].EIGN, diagptable);	 
-
 #ifndef _OPTIMIZED_FUNCTIONS
 
 	  /* generic slow functions, memory saving option is not implemented for these */
@@ -595,18 +675,13 @@ void evaluateIterative(tree *tr)
 	  /* decide wheter CAT or GAMMA is used and compute log like */
 
 	  if(tr->rateHetModel == CAT)
-	     partitionLikelihood = evaluateCAT_FLEX(tr->partitionData[model].rateCategory, tr->partitionData[model].wgt,
+	     partitionLikelihood = evaluateCAT_FLEX(tr->partitionData[model].rateCategory, wgt,
 						    x1_start, x2_start, tr->partitionData[model].tipVector, 
 						    tip, width, diagptable, states);
 	  else
-	    partitionLikelihood = evaluateGAMMA_FLEX(tr->partitionData[model].wgt,
+	    partitionLikelihood = evaluateGAMMA_FLEX(wgt,
 						     x1_start, x2_start, tr->partitionData[model].tipVector,
 						     tip, width, diagptable, states);
-#elif defined(__MIC_NATIVE)
-	  partitionLikelihood = mic_evaluateGAMMA(tr->partitionData[model].wgt,
-                         x1_start, x2_start, tr->partitionData[model].tipVector,
-                         tip, width, diagptable);
-
 #else
 
 	  /* for the optimized functions we have a dedicated, optimized function implementation 
@@ -620,25 +695,43 @@ void evaluateIterative(tree *tr)
 		if(tr->rateHetModel == CAT)
 		  {		  		  
 		    if(tr->saveMemory)
-		      partitionLikelihood =  evaluateGTRCAT_SAVE(tr->partitionData[model].rateCategory, tr->partitionData[model].wgt,
+#ifdef __MIC_NATIVE
+		     assert(0 && "Neither CAT model of rate heterogeneity nor memory saving are implemented on Intel MIC");
+#else
+		      partitionLikelihood =  evaluateGTRCAT_SAVE(tr->partitionData[model].rateCategory, wgt,
 								 x1_start, x2_start, tr->partitionData[model].tipVector, 
 								 tip, width, diagptable, x1_gapColumn, x2_gapColumn, x1_gap, x2_gap);
+#endif
 		    else
-		      partitionLikelihood =  evaluateGTRCAT(tr->partitionData[model].rateCategory, tr->partitionData[model].wgt,
+#ifdef __MIC_NATIVE
+		     assert(0 && "CAT model of rate heterogeneity is not implemented on Intel MIC");
+#else
+		      partitionLikelihood =  evaluateGTRCAT(tr->partitionData[model].rateCategory, wgt,
 							    x1_start, x2_start, tr->partitionData[model].tipVector, 
 							    tip, width, diagptable);
+#endif
 		  }
 		else
 		  {		
 		    if(tr->saveMemory)		   
-		      partitionLikelihood =  evaluateGTRGAMMA_GAPPED_SAVE(tr->partitionData[model].wgt,
+#ifdef __MIC_NATIVE
+ 		      assert(0 && "Memory saving is not implemented on Intel MIC");
+#else
+		      partitionLikelihood =  evaluateGTRGAMMA_GAPPED_SAVE(wgt,
 									  x1_start, x2_start, tr->partitionData[model].tipVector,
 									  tip, width, diagptable,
-									  x1_gapColumn, x2_gapColumn, x1_gap, x2_gap);		    
+									  x1_gapColumn, x2_gapColumn, x1_gap, x2_gap);
+#endif
 		    else
-		      partitionLikelihood =  evaluateGTRGAMMA(tr->partitionData[model].wgt,
+#ifdef __MIC_NATIVE
+              partitionLikelihood = evaluateGAMMA_MIC(wgt,
+	                                 x1_start, x2_start, tr->partitionData[model].mic_tipVector,
+	                                 tip, width, diagptable);
+#else
+		      partitionLikelihood =  evaluateGTRGAMMA(wgt,
 							      x1_start, x2_start, tr->partitionData[model].tipVector,
-							      tip, width, diagptable); 		    		  
+							      tip, width, diagptable);
+#endif
 		  }
 	      }
 	      break;	  	   		   
@@ -647,32 +740,55 @@ void evaluateIterative(tree *tr)
 		if(tr->rateHetModel == CAT)
 		  {		   		  
 		    if(tr->saveMemory)
-		      partitionLikelihood = evaluateGTRCATPROT_SAVE(tr->partitionData[model].rateCategory, tr->partitionData[model].wgt,
+#ifdef __MIC_NATIVE
+		     assert(0 && "Neither CAT model of rate heterogeneity nor memory saving are implemented on Intel MIC");
+#else
+		      partitionLikelihood = evaluateGTRCATPROT_SAVE(tr->partitionData[model].rateCategory, wgt,
 								    x1_start, x2_start, tr->partitionData[model].tipVector,
 								    tip, width, diagptable,  x1_gapColumn, x2_gapColumn, x1_gap, x2_gap);
+#endif
 		    else
-		      partitionLikelihood = evaluateGTRCATPROT(tr->partitionData[model].rateCategory, tr->partitionData[model].wgt,
+#ifdef __MIC_NATIVE
+		     assert(0 && "CAT model of rate heterogeneity is not implemented on Intel MIC");
+#else
+		      partitionLikelihood = evaluateGTRCATPROT(tr->partitionData[model].rateCategory, wgt,
 							       x1_start, x2_start, tr->partitionData[model].tipVector,
-							       tip, width, diagptable);		  
+							       tip, width, diagptable);
+#endif
 		  }
 		else
 		  {		    		    		      
 		    if(tr->saveMemory)
-		      partitionLikelihood = evaluateGTRGAMMAPROT_GAPPED_SAVE(tr->partitionData[model].wgt,
+#ifdef __MIC_NATIVE
+ 		      assert(0 && "Memory saving is not implemented on Intel MIC");
+#else
+		      partitionLikelihood = evaluateGTRGAMMAPROT_GAPPED_SAVE(wgt,
 									     x1_start, x2_start, tr->partitionData[model].tipVector,
 									     tip, width, diagptable,
 									     x1_gapColumn, x2_gapColumn, x1_gap, x2_gap);
-		    
+#endif
 		    else
 		      {
 			if(tr->partitionData[model].protModels == LG4)
-			  partitionLikelihood =  evaluateGTRGAMMAPROT_LG4((int *)NULL, (int *)NULL, tr->partitionData[model].wgt,
+#ifdef __MIC_NATIVE
+			 partitionLikelihood = evaluateGAMMAPROT_LG4_MIC(wgt,
+                               x1_start, x2_start, tr->partitionData[model].mic_tipVector,
+                               tip, width, diagptable);
+#else
+			  partitionLikelihood =  evaluateGTRGAMMAPROT_LG4((int *)NULL, (int *)NULL, wgt,
 									  x1_start, x2_start, tr->partitionData[model].tipVector_LG4,
 									  tip, width, diagptable, TRUE);
+#endif
 			else
-			  partitionLikelihood = evaluateGTRGAMMAPROT(tr->partitionData[model].wgt,
+#ifdef __MIC_NATIVE
+	            partitionLikelihood = evaluateGAMMAPROT_MIC(wgt,
+	                               x1_start, x2_start, tr->partitionData[model].mic_tipVector,
+	                               tip, width, diagptable);
+#else
+			  partitionLikelihood = evaluateGTRGAMMAPROT(wgt,
 								     x1_start, x2_start, tr->partitionData[model].tipVector,
-								     tip, width, diagptable);		         
+								     tip, width, diagptable);
+#endif
 		      }
 		  }
 	      }
@@ -682,11 +798,6 @@ void evaluateIterative(tree *tr)
 	    }	
 #endif
 	  
-	  /* check that there was no major numerical screw-up, the log likelihood should be < 0.0 always */
-//	  printf("partitionLikelihood: %f\n", partitionLikelihood);
-	 	  
-	  assert(partitionLikelihood < 0.0);
-	  	     		      
 	  /* now here is a nasty part, for each partition and each node we maintain an integer counter to count how often 
 	     how many entries per node were scaled by a constant factor. Here we use this information generated during Felsenstein's 
 	     pruning algorithm by the newview() functions to undo the preceding scaling multiplications at the root, for mathematical details 
@@ -697,16 +808,19 @@ void evaluateIterative(tree *tr)
 
 	     There's a copy of this book in my office 
 	  */
-	     
 
-	  partitionLikelihood += (tr->partitionData[model].globalScaler[pNumber] + tr->partitionData[model].globalScaler[qNumber]) * LOG(minlikelihood);	  
+	  partitionLikelihood += (globalScaler[pNumber] + globalScaler[qNumber]) * LOG(minlikelihood);
+
+	  /* check that there was no major numerical screw-up, the log likelihood should be < 0.0 always */
+
+	  assert(partitionLikelihood < 0.0);
 
 	  /* now we have the correct log likelihood for the current partition after undoing scaling multiplications */	  	 
 	  
 	  /* finally, we also store the per partition log likelihood which is important for optimizing the alpha parameter 
 	     of this partition for example */
 
-	  tr->perPartitionLH[model] = partitionLikelihood; 	  
+	  *perPartitionLH = partitionLikelihood;
 	}
       else
 	{
@@ -718,11 +832,43 @@ void evaluateIterative(tree *tr)
 	  */
 
 	  if(width == 0)	    
-	    tr->perPartitionLH[model] = 0.0;
+	    *perPartitionLH = 0.0;
 	  else
-	    assert(tr->td[0].executeModel[model] == FALSE && tr->perPartitionLH[model] < 0.0);
+	    {
+	      assert(tr->td[0].executeModel[model] == FALSE && *perPartitionLH < 0.0);
+	    }
+	}
+    }  /* for model */
+  }  /* OMP parallel */
+
+
+#ifdef _USE_OMP
+  /* perform reduction of per-partition LH scores */
+  int
+    model,
+    t;
+
+  for(model = 0; model < tr->NumberOfModels; model++)
+    {
+     if (!tr->td[0].executeModel[model])
+       continue;
+
+      tr->perPartitionLH[model] = 0.0;
+      for(t = 0; t < tr->maxThreadsPerModel; t++)
+	{
+	  Assign*
+	    pAss = tr->partThreadAssigns[model * tr->maxThreadsPerModel + t];
+
+	  if (pAss)
+	    {
+	      int
+		tid = pAss->procId;
+
+	      tr->perPartitionLH[model] += tr->partitionData[model].reductionBuffer[tid];
+	    }
 	}
     }
+#endif
 }
 
 
@@ -792,20 +938,13 @@ void evaluateGeneric (tree *tr, nodeptr p, boolean fullTraversal)
   
   tr->td[0].traversalHasChanged = TRUE;
 
-#ifdef _USE_OMP1
-    #pragma omp barrier
-#endif
 
   evaluateIterative(tr);  
-    		
+  
   {
     double 
       *recv = (double *)malloc(sizeof(double) * tr->NumberOfModels);
     
-#ifdef _PROFILE_MPI
-    double startTime = gettime();
-#endif
-
 #ifdef _USE_ALLREDUCE   
     MPI_Allreduce(tr->perPartitionLH, recv, tr->NumberOfModels, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 #else
@@ -813,15 +952,6 @@ void evaluateGeneric (tree *tr, nodeptr p, boolean fullTraversal)
     MPI_Bcast(recv, tr->NumberOfModels, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 #endif
     
-#ifdef _PROFILE_MPI
-    if (processID == 0)
-    {
-        const double jobTime = gettime() - startTime;
-        totalReduceTime_eval += jobTime;
-//        printf("evaluate MPI_Allreduce: %.3f mcs\n", jobTime * 1e6);
-    }
-#endif
-
     memcpy(tr->perPartitionLH, recv, tr->NumberOfModels * sizeof(double));
 
     for(model = 0; model < tr->NumberOfModels; model++)        
@@ -844,6 +974,10 @@ void evaluateGeneric (tree *tr, nodeptr p, boolean fullTraversal)
   /* do some bookkeeping to have traversalHasChanged in a consistent state */
 
   tr->td[0].traversalHasChanged = FALSE;  
+
+  
+  
+  /* printf("after eval: %f\n", tr->likelihood);  */
 }
 
 

@@ -129,9 +129,9 @@ void addword(char *s, stringHashtable *h, int nodeNumber)
   assert(p);
   
   p->nodeNumber = nodeNumber;
-  p->word = (char *)malloc((strlen(s) + 1) * sizeof(char));
 
-  strcpy(p->word, s);
+  p->word = (char*)calloc(strlen(s) + 1, sizeof(char)); 
+  strcpy(p->word, s); 
   
   p->next =  h->table[position];
   

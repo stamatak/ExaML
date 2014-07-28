@@ -4,31 +4,28 @@
 CC = mpicc
 
 MICFLAGS = -D__MIC_NATIVE -mmic -opt-streaming-cache-evict=0 -openmp -D_USE_OMP #-D_PROFILE_MPI
-COMMON_FLAGS = -std=c99 -D__SIM_SSE3 -D_OPTIMIZED_FUNCTIONS -D_GNU_SOURCE -fomit-frame-pointer -funroll-loops -D_USE_ALLREDUCE $(MICFLAGS) # -D_USE_ZLIB -Wall  -Wunused-parameter -Wredundant-decls  -Wreturn-type  -Wswitch-default -Wunused-value -Wimplicit  -Wimplicit-function-declaration  -Wimplicit-int -Wimport  -Wunused  -Wunused-function  -Wunused-label -Wno-int-to-pointer-cast -Wbad-function-cast  -Wmissing-declarations -Wmissing-prototypes  -Wnested-externs  -Wold-style-definition -Wstrict-prototypes -Wpointer-sign -Wextra -Wredundant-decls -Wunused -Wunused-function -Wunused-parameter -Wunused-value  -Wunused-variable -Wformat  -Wformat-nonliteral -Wparentheses -Wsequence-point -Wuninitialized -Wundef -Wbad-function-cast
-OPT1_FLAGS = -O1
-OPT2_FLAGS = -O2
+COMMON_FLAGS = -g -std=c99 -D__SIM_SSE3 -D_OPTIMIZED_FUNCTIONS -D_GNU_SOURCE -fomit-frame-pointer -funroll-loops -D_USE_ALLREDUCE  $(MICFLAGS) # -Wall   -Wredundant-decls  -Wreturn-type  -Wswitch-default -Wunused-value -Wimplicit  -Wimplicit-function-declaration  -Wimplicit-int -Wimport  -Wunused  -Wunused-function  -Wunused-label -Wno-int-to-pointer-cast -Wbad-function-cast  -Wmissing-declarations -Wmissing-prototypes  -Wnested-externs  -Wold-style-definition -Wstrict-prototypes -Wpointer-sign -Wextra -Wredundant-decls -Wunused -Wunused-function -Wunused-parameter -Wunused-value  -Wunused-variable -Wformat  -Wformat-nonliteral -Wparentheses -Wsequence-point -Wuninitialized -Wundef -Wbad-function-cast    -Wno-unused-parameter
 
-CFLAGS = $(COMMON_FLAGS) $(OPT2_FLAGS)
+OPT_FLAG_1 = -O1
+OPT_FLAG_2 = -O2
 
+CFLAGS = $(COMMON_FLAGS) $(OPT_FLAG_2)
 
-LIBRARIES = -lm -mmic -openmp #-lz
+LIBRARIES = -lm -mmic -openmp
 
 RM = rm -f
 
-objs    = axml.o optimizeModel.o trash.o searchAlgo.o topologies.o treeIO.o models.o evaluatePartialGenericSpecial.o evaluateGenericSpecial.o newviewGenericSpecial.o makenewzGenericSpecial.o bipartitionList.o restartHashTable.o mic_native.o
+objs    = axml.o optimizeModel.o trash.o searchAlgo.o topologies.o treeIO.o models.o evaluatePartialGenericSpecial.o evaluateGenericSpecial.o newviewGenericSpecial.o makenewzGenericSpecial.o bipartitionList.o restartHashTable.o byteFile.o partitionAssignment.o communication.o mic_native_dna.o mic_native_aa.o
 
 all : examl-MIC
 
 GLOBAL_DEPS = axml.h globalVariables.h
 
 examl-MIC : $(objs)
-	$(CC) -o examl-MIC $(objs) $(LIBRARIES) 
-
-#avxLikelihood.o : avxLikelihood.c $(GLOBAL_DEPS)
-#	$(CC) $(CFLAGS) -mavx -c -o avxLikelihood.o avxLikelihood.c
+	$(CC) -o examl-MIC $(objs) $(LIBRARIES)
 
 models.o : models.c $(GLOBAL_DEPS)
-	$(CC) $(COMMON_FLAGS) $(OPT1_FLAGS) -c -o models.o models.c
+	 $(CC) $(COMMON_FLAGS) $(OPT_FLAG_1) -c -o models.o models.c
 
 bipartitionList.o : bipartitionList.c $(GLOBAL_DEPS)
 evaluatePartialSpecialGeneric.o : evaluatePartialSpecialGeneric.c $(GLOBAL_DEPS)
@@ -38,13 +35,17 @@ axml.o : axml.c $(GLOBAL_DEPS)
 searchAlgo.o : searchAlgo.c $(GLOBAL_DEPS)
 topologies.o : topologies.c $(GLOBAL_DEPS)
 treeIO.o : treeIO.c $(GLOBAL_DEPS)
+
 evaluatePartialGenericSpecial.o : evaluatePartialGenericSpecial.c $(GLOBAL_DEPS)
 evaluateGenericSpecial.o : evaluateGenericSpecial.c $(GLOBAL_DEPS)
 newviewGenericSpecial.o : newviewGenericSpecial.c $(GLOBAL_DEPS)
 makenewzGenericSpecial.o : makenewzGenericSpecial.c $(GLOBAL_DEPS)
 restartHashTable.o : restartHashTable.c $(GLOBAL_DEPS)
-mic_native.o : mic_native.c $(GLOBAL_DEPS)
-
+byteFile.o : byteFile.c
+partitionAssignment.o : partitionAssignment.c  $(GLOBAL_DEPS) 
+communication.o : communication.c $(GLOBAL_DEPS) 
+mic_native_dna.o : mic_native_dna.c $(GLOBAL_DEPS)
+mic_native_aa.o : mic_native_aa.c $(GLOBAL_DEPS)
 
 clean : 
 	$(RM) *.o examl-MIC

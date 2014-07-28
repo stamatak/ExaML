@@ -63,23 +63,19 @@
 extern int processID;
 extern const unsigned int mask32[32];
 
-/* MPI profiling */
-#ifdef _PROFILE_MPI
-extern double totalReduceTime_eval;
-extern double totalReduceTime_core;
-#endif
-
 /*******************/
 
 
 /* generic function to get the required pointers to the data associated with the left and right node that define a branch */
 
 static void getVects(tree *tr, unsigned char **tipX1, unsigned char **tipX2, double **x1_start, double **x2_start, int *tipCase, int model,
-		     double **x1_gapColumn, double **x2_gapColumn, unsigned int **x1_gap, unsigned int **x2_gap)
+		     double **x1_gapColumn, double **x2_gapColumn, unsigned int **x1_gap, unsigned int **x2_gap, size_t offset)
 {
   int    
     rateHet = (int)discreteRateCategories(tr->rateHetModel),
     states = tr->partitionData[model].states,
+    span = rateHet * states,
+    x_offset = offset * span,
     pNumber, 
     qNumber; 
     
@@ -105,8 +101,8 @@ static void getVects(tree *tr, unsigned char **tipX1, unsigned char **tipX2, dou
 	  *tipCase = TIP_INNER;
 	  if(isTip(qNumber, tr->mxtips))
 	    {
-	      *tipX1 = tr->partitionData[model].yVector[qNumber];
-	      *x2_start = tr->partitionData[model].xVector[pNumber - tr->mxtips - 1];
+	      *tipX1 = tr->partitionData[model].yVector[qNumber] + offset;
+	      *x2_start = tr->partitionData[model].xVector[pNumber - tr->mxtips - 1] + x_offset;
 	      
 	      if(tr->saveMemory)
 		{
@@ -116,8 +112,8 @@ static void getVects(tree *tr, unsigned char **tipX1, unsigned char **tipX2, dou
 	    }
 	  else
 	    {
-	      *tipX1 = tr->partitionData[model].yVector[pNumber];
-	      *x2_start = tr->partitionData[model].xVector[qNumber - tr->mxtips - 1];
+	      *tipX1 = tr->partitionData[model].yVector[pNumber] + offset;
+	      *x2_start = tr->partitionData[model].xVector[qNumber - tr->mxtips - 1] + x_offset;
 	      
 	      if(tr->saveMemory)
 		{
@@ -133,16 +129,16 @@ static void getVects(tree *tr, unsigned char **tipX1, unsigned char **tipX2, dou
 	     that optimized pair-wise distances between all taxa in a tree */
 
 	  *tipCase = TIP_TIP;
-	  *tipX1 = tr->partitionData[model].yVector[pNumber];
-	  *tipX2 = tr->partitionData[model].yVector[qNumber];
+	  *tipX1 = tr->partitionData[model].yVector[pNumber] + offset;
+	  *tipX2 = tr->partitionData[model].yVector[qNumber] + offset;
 	}
     }
   else
     {
       *tipCase = INNER_INNER;
 
-      *x1_start = tr->partitionData[model].xVector[pNumber - tr->mxtips - 1];
-      *x2_start = tr->partitionData[model].xVector[qNumber - tr->mxtips - 1];
+      *x1_start = tr->partitionData[model].xVector[pNumber - tr->mxtips - 1] + x_offset;
+      *x2_start = tr->partitionData[model].xVector[qNumber - tr->mxtips - 1] + x_offset;
       
       if(tr->saveMemory)
 	{
@@ -553,9 +549,9 @@ static void coreGAMMA_FLEX(int upper, double *sumtable, volatile double *ext_dln
   for (i = 0; i < upper; i++)
     {
       double 
-//	r = rptr[cptr[i]],
-	wr1 = wgt[i],
-	wr2 = wgt[i];
+	r = rptr[cptr[i]],
+	wr1 = r * wgt[i],
+	wr2 = r * r * wgt[i];
 
       /* access the array with pre-computed values */
       sum = &sumtable[i * gammaStates];
@@ -617,14 +613,35 @@ static void coreGAMMA_FLEX(int upper, double *sumtable, volatile double *ext_dln
 
 void makenewzIterative(tree *tr)
 {
-  int 
-    model, 
-    tipCase;
+  /* call newvieIterative to get the likelihood arrays to the left and right of the branch */
+
+  newviewIterative(tr, 1);
+
+
+  /*
+     loop over all partoitions to do the precomputation of the sumTable buffer
+     This is analogous to the newviewIterative() and evaluateIterative()
+     implementations.
+   */
+#ifdef _USE_OMP
+#pragma omp parallel
+#endif
+  {
+    int
+      m,
+      model,
+      maxModel,
+      tipCase;
+
+#ifdef _USE_OMP
+    maxModel = tr->maxModelsPerThread;
+#else
+    maxModel = tr->NumberOfModels;
+#endif
 
   double
     *x1_start = (double*)NULL,
     *x2_start = (double*)NULL;
-
   
   unsigned char
     *tipX1,
@@ -638,47 +655,64 @@ void makenewzIterative(tree *tr)
     *x1_gap = (unsigned int*)NULL,
     *x2_gap = (unsigned int*)NULL;			      
   
-  /* call newvieIterative to get the likelihood arrays to the left and right of the branch */
 
-  newviewIterative(tr, 1);
+  for(m = 0; m < maxModel; m++)
+    { 
+      size_t
+	width = 0,
+	offset = 0;
 
-#ifdef _USE_OMP1
-    #pragma omp barrier
+#ifdef _USE_OMP
+      int
+	tid = omp_get_thread_num();
+
+      /* check if this thread should process this partition */
+      Assign* pAss = tr->threadPartAssigns[tid * tr->maxModelsPerThread + m];
+
+      if (pAss)
+      {
+	model  = pAss->partitionId;
+	width  = pAss->width;
+	offset = pAss->offset;
+      }
+      else
+	break;
+#else
+      model = m;
+
+      /* number of sites in this partition */
+      width  = (size_t)tr->partitionData[model].width;
+      offset = 0;
 #endif
 
-  /* 
-     loop over all partoitions to do the precomputation of the sumTable buffer 
-     This is analogous to the newviewIterative() and evaluateIterative() 
-     implementations.
-   */
-
-  for(model = 0; model < tr->NumberOfModels; model++)
-    { 
-      int 
-	width = tr->partitionData[model].width;            
       
       if(tr->td[0].executeModel[model] && width > 0)
 	{
 	  int 	   
-	    states = tr->partitionData[model].states;
+	    rateHet = (int)discreteRateCategories(tr->rateHetModel),
 
+	    /* get the number of states in the partition, e.g.: 4 = DNA, 20 = Protein */
+	    states = tr->partitionData[model].states,
+
+	    /* span for single alignment site (in doubles!) */
+	    span = rateHet * states,
+
+	    /* offset for current thread's data in global xVector (in doubles!) */
+	    x_offset = offset * span;
 	  
-	  getVects(tr, &tipX1, &tipX2, &x1_start, &x2_start, &tipCase, model, &x1_gapColumn, &x2_gapColumn, &x1_gap, &x2_gap);
+	  getVects(tr, &tipX1, &tipX2, &x1_start, &x2_start, &tipCase, model, &x1_gapColumn, &x2_gapColumn, &x1_gap, &x2_gap, offset);
+
+	  double
+	    *sumBuffer = tr->partitionData[model].sumBuffer + x_offset;
 	 
 #ifndef _OPTIMIZED_FUNCTIONS
 	  assert(!tr->saveMemory);
 	  if(tr->rateHetModel == CAT)
-	    sumCAT_FLEX(tipCase, tr->partitionData[model].sumBuffer, x1_start, x2_start, tr->partitionData[model].tipVector, tipX1, tipX2,
+	    sumCAT_FLEX(tipCase, sumBuffer, x1_start, x2_start, tr->partitionData[model].tipVector, tipX1, tipX2,
 			width, states);
 	  else
-	    sumGAMMA_FLEX(tipCase, tr->partitionData[model].sumBuffer, x1_start, x2_start, tr->partitionData[model].tipVector, tipX1, tipX2,
+	    sumGAMMA_FLEX(tipCase, sumBuffer, x1_start, x2_start, tr->partitionData[model].tipVector, tipX1, tipX2,
 			  width, states);
-
-#elif defined(__MIC_NATIVE)
-
-	  mic_sumGAMMA(tipCase, tr->partitionData[model].sumBuffer, x1_start, x2_start, tr->partitionData[model].tipVector, tipX1, tipX2,
-            width);
-
 #else
 	  switch(states)
 	    {
@@ -687,46 +721,84 @@ void makenewzIterative(tree *tr)
 	      if(tr->rateHetModel == CAT)
 		{
 		  if(tr->saveMemory)
-		    sumCAT_SAVE(tipCase, tr->partitionData[model].sumBuffer, x1_start, x2_start, tr->partitionData[model].tipVector, tipX1, tipX2,
+#ifdef __MIC_NATIVE
+		     assert(0 && "Neither CAT model of rate heterogeneity nor memory saving are implemented on Intel MIC");
+#else
+		    sumCAT_SAVE(tipCase, sumBuffer, x1_start, x2_start, tr->partitionData[model].tipVector, tipX1, tipX2,
 				width, x1_gapColumn, x2_gapColumn, x1_gap, x2_gap);
-		  else
-		    sumCAT(tipCase, tr->partitionData[model].sumBuffer, x1_start, x2_start, tr->partitionData[model].tipVector, tipX1, tipX2,
+#endif
+		   else
+#ifdef __MIC_NATIVE
+		     assert(0 && "CAT model of rate heterogeneity is not implemented on Intel MIC");
+#else
+			sumCAT(tipCase, sumBuffer, x1_start, x2_start, tr->partitionData[model].tipVector, tipX1, tipX2,
 			   width);
+#endif
 		}
 	      else
 		{
 		  if(tr->saveMemory)
-		    sumGAMMA_GAPPED_SAVE(tipCase, tr->partitionData[model].sumBuffer, x1_start, x2_start, tr->partitionData[model].tipVector, tipX1, tipX2,
+#ifdef __MIC_NATIVE
+ 		      assert(0 && "Memory saving is not implemented on Intel MIC");
+#else
+			  sumGAMMA_GAPPED_SAVE(tipCase, sumBuffer, x1_start, x2_start, tr->partitionData[model].tipVector, tipX1, tipX2,
 					 width, x1_gapColumn, x2_gapColumn, x1_gap, x2_gap);
+#endif
 		  else
-		    sumGAMMA(tipCase, tr->partitionData[model].sumBuffer, x1_start, x2_start, tr->partitionData[model].tipVector, tipX1, tipX2,
+#ifdef __MIC_NATIVE
+             sumGAMMA_MIC(tipCase, sumBuffer, x1_start, x2_start, tr->partitionData[model].mic_tipVector, tipX1, tipX2,
+	                width);
+#else
+			  sumGAMMA(tipCase, sumBuffer, x1_start, x2_start, tr->partitionData[model].tipVector, tipX1, tipX2,
 			     width);
+#endif
 		}
 	      break;		
 	    case 20: /* proteins */
 	      if(tr->rateHetModel == CAT)
 		{
 		  if(tr->saveMemory)
-		    sumGTRCATPROT_SAVE(tipCase, tr->partitionData[model].sumBuffer, x1_start, x2_start, tr->partitionData[model].tipVector,
+#ifdef __MIC_NATIVE
+		     assert(0 && "Neither CAT model of rate heterogeneity nor memory saving are implemented on Intel MIC");
+#else
+			  sumGTRCATPROT_SAVE(tipCase, sumBuffer, x1_start, x2_start, tr->partitionData[model].tipVector,
 				       tipX1, tipX2, width, x1_gapColumn, x2_gapColumn, x1_gap, x2_gap);
+#endif
 		  else	      	      
-		    sumGTRCATPROT(tipCase, tr->partitionData[model].sumBuffer, x1_start, x2_start, tr->partitionData[model].tipVector,
+#ifdef __MIC_NATIVE
+		     assert(0 && "CAT model of rate heterogeneity is not implemented on Intel MIC");
+#else
+			  sumGTRCATPROT(tipCase, sumBuffer, x1_start, x2_start, tr->partitionData[model].tipVector,
 				  tipX1, tipX2, width);
+#endif
 		}
 	      else
 		{
-		  
 		  if(tr->saveMemory)
-		    sumGAMMAPROT_GAPPED_SAVE(tipCase, tr->partitionData[model].sumBuffer, x1_start, x2_start, tr->partitionData[model].tipVector, tipX1, tipX2,
+#ifdef __MIC_NATIVE
+ 		    assert(0 && "Memory saving is not implemented on Intel MIC");
+#else
+		    sumGAMMAPROT_GAPPED_SAVE(tipCase, sumBuffer, x1_start, x2_start, tr->partitionData[model].tipVector, tipX1, tipX2,
 					     width, x1_gapColumn, x2_gapColumn, x1_gap, x2_gap);
+#endif
 		  else
 		    {
 		      if(tr->partitionData[model].protModels == LG4)		      			   		
-			sumGAMMAPROT_LG4(tipCase,  tr->partitionData[model].sumBuffer, x1_start, x2_start, tr->partitionData[model].tipVector_LG4,
+#ifdef __MIC_NATIVE
+              sumGAMMAPROT_LG4_MIC(tipCase, sumBuffer, x1_start, x2_start, tr->partitionData[model].mic_tipVector, tipX1, tipX2,
+			                  width);
+#else
+		    	  sumGAMMAPROT_LG4(tipCase,  sumBuffer, x1_start, x2_start, tr->partitionData[model].tipVector_LG4,
 					 tipX1, tipX2, width);
+#endif
 		      else
-			sumGAMMAPROT(tipCase, tr->partitionData[model].sumBuffer, x1_start, x2_start, tr->partitionData[model].tipVector,
+#ifdef __MIC_NATIVE
+            sumGAMMAPROT_MIC(tipCase, sumBuffer, x1_start, x2_start, tr->partitionData[model].mic_tipVector, tipX1, tipX2,
+		                  width);
+#else
+			sumGAMMAPROT(tipCase, sumBuffer, x1_start, x2_start, tr->partitionData[model].tipVector,
 				     tipX1, tipX2, width);
+#endif
 		    }
 		   
 		}
@@ -736,7 +808,8 @@ void makenewzIterative(tree *tr)
 	    }
 #endif
 	}
-    }
+    }  // for model
+  }  // omp parallel region
 }
 
 
@@ -747,147 +820,248 @@ void makenewzIterative(tree *tr)
 
 void execCore(tree *tr, volatile double *_dlnLdlz, volatile double *_d2lnLdlz2)
 {
-  int model, branchIndex, i = 0;
-  double lz;
-  /*  double 
-    buffer_dlnLdlz[NUM_BRANCHES],
-    buffer_d2lnLdlz2[NUM_BRANCHES];*/
+#ifdef _USE_OMP
+#pragma omp parallel
+#endif
+  {
+    int
+      m,
+      model,
+      maxModel,
+      branchIndex;
 
+#ifdef _USE_OMP
+    int
+      tid = omp_get_thread_num(),
+      nModels = (tr->numBranches > 1) ? tr->NumberOfModels : 1,
+      p;
 
-  /* loop over partitions */
+    /* Clear reduction buffers: since in OMP version each thread works only on a subset of partitions,
+     * and their order is arbitrary, it's easier to perform this initialization before the main loop,
+     * just to be on the safe side. */
+    for(p = 0; p < nModels; p++)
+      {
+	tr->partitionData[p].reductionBuffer[tid] = 0.;
+	tr->partitionData[p].reductionBuffer2[tid] = 0.;
+      }
 
-  for(model = 0; model < tr->NumberOfModels; model++)
-    {
-       int 
-	 width = tr->partitionData[model].width;
+    maxModel = tr->maxModelsPerThread;
+#else
+    maxModel = tr->NumberOfModels;
+#endif
 
-       /* check if we (the present thread for instance) needs to compute something at 
-	  all for the present partition */
+    double lz;
+    /*  double
+      buffer_dlnLdlz[NUM_BRANCHES],
+      buffer_d2lnLdlz2[NUM_BRANCHES];*/
+
+    /* loop over partitions */
+    for(m = 0; m < maxModel; m++)
+      {
+	size_t
+	  width = 0,
+	  offset = 0;
+
+#ifdef _USE_OMP
+	/* check if this thread should process this partition */
+	Assign* pAss = tr->threadPartAssigns[tid * tr->maxModelsPerThread + m];
+
+	if (pAss)
+	{
+	  model  = pAss->partitionId;
+	  width  = GET_PADDED_WIDTH(pAss->width);
+	  offset = pAss->offset;
+	}
+	else
+	  break;
+#else
+	model = m;
+
+	/* number of sites in this partition */
+	width  = (size_t)tr->partitionData[model].width;
+	offset = 0;
+#endif
+
+	volatile double
+	  *d1acc   = (double*) NULL,
+	  *d2acc    = (double*) NULL;
+
+	  /* figure out if we are optimizing branch lengths individually per partition or jointly across
+	     all partitions. If we do this on a per partition basis, we also need to compute and store
+	     the per-partition derivatives of the likelihood separately, otherwise not */
+
+	if(tr->numBranches > 1)
+	  {
+	    branchIndex = model;
+	    lz = tr->td[0].parameterValues[model];
+	  }
+	else
+	  {
+	    branchIndex = 0;
+	    lz = tr->td[0].parameterValues[0];
+	  }
+
+#ifdef _USE_OMP
+	d1acc = &tr->partitionData[branchIndex].reductionBuffer[tid];
+	d2acc = &tr->partitionData[branchIndex].reductionBuffer2[tid];
+#else
+	d1acc = &_dlnLdlz[branchIndex];
+	d2acc = &_d2lnLdlz2[branchIndex];
+
+	/* We need to reset accumulated derivative values in two cases: a) per-partition derivatives or
+	 * b) joint derivatives AND we're processing the first partition */
+	if (branchIndex == model)
+	{
+	  *d1acc = 0.0;
+	  *d2acc = 0.0;
+	}
+#endif
+
+	/* check if we (the present thread for instance) needs to compute something at
+	    all for the present partition */
 
        if(tr->td[0].executeModel[model] && width > 0)
 	{
-	  int 	    
-	    states = tr->partitionData[model].states;
-	  
-	  double 
-	    *sumBuffer       = (double*)NULL;
-	 
+	  int
+	    rateHet = (int)discreteRateCategories(tr->rateHetModel),
+
+	    /* get the number of states in the partition, e.g.: 4 = DNA, 20 = Protein */
+	    states = tr->partitionData[model].states,
+
+	    /* span for single alignment site (in doubles!) */
+	    span = rateHet * states,
+
+	    /* offset for current thread's data in global xVector (in doubles!) */
+	    x_offset = offset * span,
+
+	    /* integer weight vector with pattern compression weights */
+	    *wgt = tr->partitionData[model].wgt + offset;
+
+	  /* set a pointer to the part of the pre-computed sumBuffer we are going to access */
+	  double
+	    *sumBuffer = tr->partitionData[model].sumBuffer + x_offset;
+
 	  volatile double
 	    dlnLdlz   = 0.0,
 	    d2lnLdlz2 = 0.0;
-	  
-	  /* set a pointer to the part of the pre-computed sumBuffer we are going to access */
-	  
-	  sumBuffer = tr->partitionData[model].sumBuffer;
 
-	  /* figure out if we are optimizing branch lengths individually per partition or jointly across 
-	     all partitions. If we do this on a per partition basis, we also need to compute and store 
-	     the per-partition derivatives of the likelihood separately, otherwise not */
-	  
-	  if(tr->numBranches > 1)
-	    {
-	      branchIndex = model;	      
-	      lz = tr->td[0].parameterValues[model];
-	      _dlnLdlz[model]   = 0.0;
-	      _d2lnLdlz2[model] = 0.0;
-	    }
-	  else
-	    {
-	      if(i == 0)
-		{
-		  _dlnLdlz[0]   = 0.0; 
-		  _d2lnLdlz2[0] = 0.0;
-		}
-	      i++;
-	      branchIndex = 0;	      
-	      lz = tr->td[0].parameterValues[0];
-	    }
+  #ifndef _OPTIMIZED_FUNCTIONS
 
-#ifndef _OPTIMIZED_FUNCTIONS
+	    /* compute first and second derivatives with the slow generic functions */
 
-	  /* compute first and second derivatives with the slow generic functions */
-
-	  if(tr->rateHetModel == CAT)
-	    coreCAT_FLEX(width, tr->partitionData[model].numberOfCategories, sumBuffer,
-			 &dlnLdlz, &d2lnLdlz2, tr->partitionData[model].wgt,
-			 tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN,  tr->partitionData[model].rateCategory, lz, states);
-	  else
-	    coreGAMMA_FLEX(width, sumBuffer,
-			   &dlnLdlz, &d2lnLdlz2, tr->partitionData[model].EIGN, tr->partitionData[model].gammaRates, lz,
-			   tr->partitionData[model].wgt, states);
-#elif defined(__MIC_NATIVE)
-	  mic_coreGTRGAMMA(width, sumBuffer,
-             &dlnLdlz, &d2lnLdlz2, tr->partitionData[model].EIGN, tr->partitionData[model].gammaRates, lz,
-             tr->partitionData[model].wgt);
-
-#else
-	  switch(states)
-	    {	   
-	    case 4: /* DNA */
-	      if(tr->rateHetModel == CAT)
-		coreGTRCAT(width, tr->partitionData[model].numberOfCategories, sumBuffer,
-			   &dlnLdlz, &d2lnLdlz2, tr->partitionData[model].wgt,
-			   tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN,  tr->partitionData[model].rateCategory, lz);
-	      else 
-		coreGTRGAMMA(width, sumBuffer,
+	    if(tr->rateHetModel == CAT)
+	      coreCAT_FLEX(width, tr->partitionData[model].numberOfCategories, sumBuffer,
+			   &dlnLdlz, &d2lnLdlz2, wgt,
+			   tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN,  tr->partitionData[model].rateCategory, lz, states);
+	    else
+	      coreGAMMA_FLEX(width, sumBuffer,
 			     &dlnLdlz, &d2lnLdlz2, tr->partitionData[model].EIGN, tr->partitionData[model].gammaRates, lz,
-			     tr->partitionData[model].wgt);
-		
-	      break;		    
-	    case 20: /* proteins */
-	      if(tr->rateHetModel == CAT)
-		coreGTRCATPROT(tr->partitionData[model].EIGN, lz, tr->partitionData[model].numberOfCategories,  tr->partitionData[model].perSiteRates,
-			       tr->partitionData[model].rateCategory, width,
-			       tr->partitionData[model].wgt,
-			       &dlnLdlz, &d2lnLdlz2,
-			       sumBuffer);
-	      else
-		{ 
-		  if(tr->partitionData[model].protModels == LG4)		       
-		    coreGTRGAMMAPROT_LG4(tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN_LG4,
-					 sumBuffer, width, tr->partitionData[model].wgt,
-					 &dlnLdlz, &d2lnLdlz2, lz);
-		  else
+			     wgt, states);
+  #else
+	    switch(states)
+	      {
+	      case 4: /* DNA */
+		if(tr->rateHetModel == CAT)
+  #ifdef __MIC_NATIVE
+			       assert(0 && "CAT model of rate heterogeneity is not implemented on Intel MIC");
+  #else
+			    coreGTRCAT(width, tr->partitionData[model].numberOfCategories, sumBuffer,
+					    &dlnLdlz, &d2lnLdlz2, wgt,
+					    tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN,  tr->partitionData[model].rateCategory, lz);
+  #endif
+		else
+  #ifdef __MIC_NATIVE
+			    coreGTRGAMMA_MIC(width, sumBuffer,
+			     &dlnLdlz, &d2lnLdlz2, tr->partitionData[model].EIGN, tr->partitionData[model].gammaRates, lz, wgt);
+  #else
+			    coreGTRGAMMA(width, sumBuffer,
+					    &dlnLdlz, &d2lnLdlz2, tr->partitionData[model].EIGN, tr->partitionData[model].gammaRates, lz, wgt);
+  #endif
+
+		break;
+	      case 20: /* proteins */
+		if(tr->rateHetModel == CAT)
+  #ifdef __MIC_NATIVE
+			       assert(0 && "CAT model of rate heterogeneity is not implemented on Intel MIC");
+  #else
+			    coreGTRCATPROT(tr->partitionData[model].EIGN, lz, tr->partitionData[model].numberOfCategories,  tr->partitionData[model].perSiteRates,
+					    tr->partitionData[model].rateCategory, width,
+					    wgt,
+					    &dlnLdlz, &d2lnLdlz2,
+					    sumBuffer);
+  #endif
+		else
+		{
+		    if(tr->partitionData[model].protModels == LG4)
+  #ifdef __MIC_NATIVE
+		coreGTRGAMMAPROT_LG4_MIC(width, sumBuffer,
+			       &dlnLdlz, &d2lnLdlz2, tr->partitionData[model].EIGN_LG4, tr->partitionData[model].gammaRates, lz, wgt);
+  #else
+			    coreGTRGAMMAPROT_LG4(tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN_LG4,
+					    sumBuffer, width, wgt,
+					    &dlnLdlz, &d2lnLdlz2, lz);
+  #endif
+		    else
+  #ifdef __MIC_NATIVE
+		coreGTRGAMMAPROT_MIC(width, sumBuffer,
+			       &dlnLdlz, &d2lnLdlz2, tr->partitionData[model].EIGN, tr->partitionData[model].gammaRates, lz, wgt);
+  #else
 		    coreGTRGAMMAPROT(tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN,
-				     sumBuffer, width, tr->partitionData[model].wgt,
-				     &dlnLdlz, &d2lnLdlz2, lz);
+					    sumBuffer, width, wgt,
+					    &dlnLdlz, &d2lnLdlz2, lz);
+  #endif
 		}
-	      break;		   
-	    default:
-	      assert(0);
-	    }
+		break;
+	      default:
+		assert(0);
+	      }
+  #endif
+
+	    /* store first and second derivative */
+
+	    *d1acc += dlnLdlz;
+	    *d2acc += d2lnLdlz2;
+	  }
+	 else
+	  {
+	    /* set to 0 to make the reduction operation consistent */
+
+	    if(width == 0 && (tr->numBranches > 1))
+	      {
+		*d1acc   = 0.0;
+		*d2acc   = 0.0;
+	      }
+
+	    if(width > 0 && (tr->numBranches > 1))
+	      {
+		assert(tr->td[0].executeModel[model] == FALSE);
+		/* _dlnLdlz[model]   = 0.0;
+		   _d2lnLdlz2[model] = 0.0;*/
+	      }
+
+	  }
+      }  // for model
+  }  // omp parallel section
+
+#ifdef _USE_OMP
+  /* perform reduction of 1st and 2nd derivative values */
+  int
+    model,
+    tid;
+
+  int nModels = (tr->numBranches > 1) ? tr->NumberOfModels : 1;
+  for(model = 0; model < nModels; model++)
+  {
+    _dlnLdlz[model] = 0.0;
+    _d2lnLdlz2[model] = 0.0;
+
+    for(tid = 0; tid < tr->nThreads; tid++)
+      {
+      _dlnLdlz[model] += tr->partitionData[model].reductionBuffer[tid];
+      _d2lnLdlz2[model] += tr->partitionData[model].reductionBuffer2[tid];
+      }
+  }
 #endif
-
-	  /* store first and second derivative */
-
-	  _dlnLdlz[branchIndex]   = _dlnLdlz[branchIndex]   + dlnLdlz;
-	  _d2lnLdlz2[branchIndex] = _d2lnLdlz2[branchIndex] + d2lnLdlz2;
-	}
-       else       
-	{
-	  /* set to 0 to make the reduction operation consistent */
-	  
-	  
-	  if(width == 0 && (tr->numBranches > 1))
-	    {	     
-	      _dlnLdlz[model]   = 0.0;
-	      _d2lnLdlz2[model] = 0.0;
-	    }		 	    
-
-	  if(width > 0 && (tr->numBranches > 1))
-	    {
-	      assert(tr->td[0].executeModel[model] == FALSE);
-	      /*printf("%f %f\n", _dlnLdlz[model], _d2lnLdlz2[model]);*/
-	      /* _dlnLdlz[model]   = 0.0;
-		 _d2lnLdlz2[model] = 0.0;*/
-	    }
-
-	}
-    }
-
-
-
-
 }
 
 
@@ -997,7 +1171,7 @@ static void topLevelMakenewz(tree *tr, double *z0, int _maxiter, double *result)
 
       if(firstIteration)
 	{
-      makenewzIterative(tr);
+	  makenewzIterative(tr);
 	  firstIteration = FALSE;
 	}
       
@@ -1011,10 +1185,6 @@ static void topLevelMakenewz(tree *tr, double *z0, int _maxiter, double *result)
 	memcpy(&send[0],                dlnLdlz,   sizeof(double) * tr->numBranches);
 	memcpy(&send[tr->numBranches],  d2lnLdlz2, sizeof(double) * tr->numBranches);
 	
-#ifdef _PROFILE_MPI
-    double startTime = gettime();
-#endif
-
 #ifdef _USE_ALLREDUCE	  
 	/* the MPI_Allreduce implementation is apparently sometimes not deterministic */
 
@@ -1023,15 +1193,6 @@ static void topLevelMakenewz(tree *tr, double *z0, int _maxiter, double *result)
 	MPI_Reduce(send, recv, tr->numBranches * 2, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 	MPI_Bcast(recv,        tr->numBranches * 2, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 #endif   
-
-#ifdef _PROFILE_MPI
-    if (processID == 0)
-    {
-        const double jobTime = gettime() - startTime;
-        totalReduceTime_core += jobTime;
-//        printf("evaluate MPI_Allreduce: %.3f mcs\n", jobTime * 1e6);
-    }
-#endif
 
 	memcpy(dlnLdlz,   &recv[0],               sizeof(double) * tr->numBranches);
 	memcpy(d2lnLdlz2, &recv[tr->numBranches], sizeof(double) * tr->numBranches);
