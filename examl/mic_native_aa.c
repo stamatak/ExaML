@@ -286,7 +286,7 @@ void newviewGTRGAMMAPROT_MIC(int tipCase,
             for (int l = 8; l < span; l += 8)
             {
                 __m512d t = _mm512_load_pd(&v3[l]);
-                t = _mm512_castsi512_pd(_mm512_and_epi64(_mm512_castpd_si512(t1), absMask_MIC));
+                t = _mm512_castsi512_pd(_mm512_and_epi64(_mm512_castpd_si512(t), absMask_MIC));
                 double vmax2 = _mm512_reduce_gmax_pd(t);
                 vmax = MAX(vmax, vmax2);
             }
@@ -375,7 +375,7 @@ void newviewGTRGAMMAPROT_MIC(int tipCase,
             for (int l = 8; l < span; l += 8)
             {
                 __m512d t = _mm512_load_pd(&v3[l]);
-                t = _mm512_castsi512_pd(_mm512_and_epi64(_mm512_castpd_si512(t1), absMask_MIC));
+                t = _mm512_castsi512_pd(_mm512_and_epi64(_mm512_castpd_si512(t), absMask_MIC));
                 double vmax2 = _mm512_reduce_gmax_pd(t);
                 vmax = MAX(vmax, vmax2);
             }
@@ -917,7 +917,7 @@ void newviewGTRGAMMAPROT_LG4_MIC(int tipCase,
             for (int l = 8; l < span; l += 8)
             {
                 __m512d t = _mm512_load_pd(&v3[l]);
-                t = _mm512_castsi512_pd(_mm512_and_epi64(_mm512_castpd_si512(t1), absMask_MIC));
+                t = _mm512_castsi512_pd(_mm512_and_epi64(_mm512_castpd_si512(t), absMask_MIC));
                 double vmax2 = _mm512_reduce_gmax_pd(t);
                 vmax = MAX(vmax, vmax2);
             }
@@ -1000,11 +1000,11 @@ void newviewGTRGAMMAPROT_LG4_MIC(int tipCase,
 
             __m512d t1 = _mm512_load_pd(&v3[0]);
             t1 = _mm512_castsi512_pd(_mm512_and_epi64(_mm512_castpd_si512(t1), absMask_MIC));
-            double vmax = fabs(_mm512_reduce_gmax_pd(t1));
+            double vmax = _mm512_reduce_gmax_pd(t1);
             for (int l = 8; l < span; l += 8)
             {
                 __m512d t = _mm512_load_pd(&v3[l]);
-                t = _mm512_castsi512_pd(_mm512_and_epi64(_mm512_castpd_si512(t1), absMask_MIC));
+                t = _mm512_castsi512_pd(_mm512_and_epi64(_mm512_castpd_si512(t), absMask_MIC));
                 double vmax2 = _mm512_reduce_gmax_pd(t);
                 vmax = MAX(vmax, vmax2);
             }
