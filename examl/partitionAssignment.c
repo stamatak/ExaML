@@ -58,46 +58,38 @@ static int partSort(const void *a, const void *b )
 
 
 /** 
-    helper function that executes the assignment of a full partition 
- */ 
-static void assignPartitionFull(PartitionAssignment* pa, Partition* p, int procId, int *numAssigned, size_t *sizeAssigned)
-{
-  Assignment 
-    *a;
-
-  ++numAssigned[procId] ; 
-  ++pa->numAssignPerProc[procId];
-
-  pa->assignPerProc[procId] = (Assignment*)realloc(pa->assignPerProc[procId] , (size_t)numAssigned[procId] * sizeof(Assignment));
-
-  a = pa->assignPerProc[procId] + (numAssigned[procId] - 1) ; 
-
-  a->offset = 0; 
-  a->partId = p->id; 
-  a->width = p->width; 
-  sizeAssigned[procId] += p->width; 
-}
-
-
-/** 
     helper function that executes the assignment of a partial assignment (only numElem character are assigned)
  */ 
 static void assignPartitionPartial(PartitionAssignment *pa, Partition* p, int procId, int *numAssigned, size_t *sizeAssigned, size_t offset, size_t numElem)
 {
   Assignment 
     *a;
+  
+  int 
+    newArrayLen; 
  
   ++numAssigned[procId]; 
   ++pa->numAssignPerProc[procId]; 
 
-  pa->assignPerProc[procId] = (Assignment*)realloc(pa->assignPerProc[procId], (size_t)numAssigned[procId] * sizeof(Assignment)); 
+  newArrayLen = pa->numAssignPerProc[procId]; 
+
+  pa->assignPerProc[procId] = (Assignment*)realloc(pa->assignPerProc[procId], newArrayLen * sizeof(Assignment)); 
   
-  a = pa->assignPerProc[procId] + (numAssigned[procId]-1); 
+  a = pa->assignPerProc[procId] + (newArrayLen-1); 
 
   a->offset = offset; 
   a->partId = p->id; 
   a->width = numElem; 
   sizeAssigned[procId] += numElem; 
+}
+
+
+/** 
+    helper function that executes the assignment of a full partition 
+ */ 
+static void assignPartitionFull(PartitionAssignment* pa, Partition* p, int procId, int *numAssigned, size_t *sizeAssigned)
+{
+  assignPartitionPartial(pa, p, procId, numAssigned, sizeAssigned, 0, p->width);
 } 
 
 
