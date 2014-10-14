@@ -69,4 +69,12 @@ Limitations & caveats
   might need to use multiple cards if the number of taxa is large.
 
   For details, please refer to: http://www.hicomb.org/papers/HICOMB2014-04.pdf
-  
+
+
+Contact & Support
+--------------------
+
+Please use RAxML google group to ask questions:
+
+https://groups.google.com/forum/?hl=en#!forum/raxml
+
