@@ -261,6 +261,8 @@ void readTaxa(ByteFile *bf)
 }
 
 
+ // #define OLD_LAYOUT 
+
 /** 
     uses the information in the PartitionAssignment to only extract
     data relevant to this process (weights and alignment characters).
@@ -296,6 +298,7 @@ void readMyData(ByteFile *bf, PartitionAssignment *pa, int procId)
       for(j = 1; j <= bf->numTax; ++j)
 	partition->yVector[j] = partition->yResource + (j-1) * a.width; 
 
+#ifdef OLD_LAYOUT
       for(j = 1; j <= bf->numTax; ++j )
 	{
 	  exa_off_t pos = alnPos + (  bf->numPattern * (j-1)    +  partition->lower + a.offset ) * sizeof(unsigned char); 
@@ -303,6 +306,35 @@ void readMyData(ByteFile *bf, PartitionAssignment *pa, int procId)
 	  exa_fseek(bf->fh, pos, SEEK_SET); 
 	  READ_ARRAY(bf->fh, partition->yVector[j], a.width, sizeof(unsigned char));
 	}
+#else 
+      /*  if the entire partition is assigned to this process, read it
+          in one go. Otherwise, several seeks are necessary.  */
+      if( a.width == (partition->upper - partition->lower ) )
+        {
+	  exa_off_t
+            pos = alnPos + (partition->lower * bf->numTax) * sizeof(unsigned char); 
+
+	  assert(alnPos <= pos); 
+	  exa_fseek(bf->fh, pos, SEEK_SET); 
+	  READ_ARRAY(bf->fh, partition->yResource, a.width * bf->numTax, sizeof(unsigned char));
+        }
+      else 
+        {
+          for(j = 1; j <= bf->numTax; ++j )
+            {
+              exa_off_t 
+                pos = alnPos + sizeof(unsigned char) 
+                * ( 
+                   (partition->lower * bf->numTax ) /* until start of partition  */
+                   + ((j-1) * (partition->upper - partition->lower) ) /* until start of sequence of taxon within partition */
+                   + a.offset )  ; 
+
+              assert(alnPos <= pos); 
+              exa_fseek(bf->fh, pos, SEEK_SET); 
+              READ_ARRAY(bf->fh, partition->yVector[j], a.width, sizeof(unsigned char));
+            }
+        }
+#endif
     }
 
   

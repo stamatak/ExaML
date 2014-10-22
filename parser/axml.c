@@ -2564,7 +2564,7 @@ static void baseFrequenciesGTR(rawdata *rdta, cruncheddata *cdta, tree *tr)
   return;
 }
 
-
+ // #define OLD_LAYOUT 
 
 int main (int argc, char *argv[])
 {
@@ -2696,7 +2696,30 @@ int main (int argc, char *argv[])
 	myBinFwrite(tr->partitionData[model].frequencies, sizeof(double), tr->partitionData[model].states);
       }	            
 
+#ifdef OLD_LAYOUT
     myBinFwrite(rdta->y0, sizeof(unsigned char), (tr->originalCrunchedLength) * ((size_t)tr->mxtips)); 
+#else 
+    /* 
+       Write each partition, taxon by taxon. Thus, if unpartitioned,
+       nothing changes.
+    */ 
+    size_t
+      offset = 0; 
+    for(model = 0; model < (size_t) tr->NumberOfModels; ++model )
+      {
+        pInfo
+          *p  = &(tr->partitionData[model]); 
+        size_t 
+          width = p->upper - p->lower; 
+
+        for(i = 0; i < tr->mxtips; ++i)
+          {
+            myBinFwrite(rdta->y0
+                        + sizeof(unsigned char) * (  (i *  tr->originalCrunchedLength)  + p->lower   ) 
+                        , sizeof(unsigned char), width); 
+          }
+      }
+#endif
   }
 
   fclose(byteFile);  
@@ -2706,5 +2729,3 @@ int main (int argc, char *argv[])
 
   return 0;
 }
-
-
