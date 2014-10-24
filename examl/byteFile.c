@@ -1,5 +1,10 @@
 #include <string.h> 
+
+#if defined(__APPLE__)
+#include <malloc/malloc.h>
+#elseif
 #include <malloc.h>
+#endif
 
 #include "byteFile.h"
 #include <stdlib.h>
