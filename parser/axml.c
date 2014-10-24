@@ -2704,12 +2704,24 @@ int main (int argc, char *argv[])
        nothing changes.
     */   
 
+    size_t
+      mem_reqs_cat = 0,
+      mem_reqs_gamma = 0,
+      unique_patterns = 0;
+
     for(model = 0; model < (size_t) tr->NumberOfModels; ++model )
       {
         pInfo
           *p  = &(tr->partitionData[model]); 
+	
         size_t 
           width = p->upper - p->lower; 
+
+	unique_patterns += width;
+
+	//multiply partition width with number of states we need to store in each CLV entry
+
+	mem_reqs_cat += (size_t)tr->partitionData[model].states * width;
 
         for(i = 0; i < (size_t)tr->mxtips; ++i)
           {
@@ -2718,6 +2730,35 @@ int main (int argc, char *argv[])
                         , sizeof(unsigned char), width); 
           }
       }
+
+    printBothOpen("\n\nYour alignment has %zu %s\n", unique_patterns, (adef->compressPatterns == TRUE)?"unique patterns":"sites");
+
+    //multiply CLV vector length with number of tips and 8, since b bytes are needed to store an inner conditional probability vector
+    mem_reqs_cat *= (size_t)tr->mxtips * sizeof(double);
+
+    //mem reqs for gamma are 4 times higher than for CAT
+    mem_reqs_gamma = mem_reqs_cat * 4;
+
+    //now add the space for storing the tips:
+
+    mem_reqs_cat   += (size_t)tr->mxtips * unique_patterns * sizeof(unsigned char);
+    mem_reqs_gamma += (size_t)tr->mxtips * unique_patterns * sizeof(unsigned char);
+     
+    printBothOpen("\n\nUnder CAT the memory required by ExaML for storing CLVs and tip vectors will be\n%zu bytes\n%zu kiloBytes\n%zu MegaBytes\n%zu GigaBytes\n", 
+		  mem_reqs_cat, 
+		  mem_reqs_cat / 1024 , 
+		  mem_reqs_cat / (1024 * 1024),
+		  mem_reqs_cat / (1024 * 1024 * 1024));
+    
+    printBothOpen("\n\nUnder GAMMA the memory required by ExaML for storing CLVs and tip vectors will be\n%zu bytes\n%zu kiloBytes\n%zu MegaBytes\n%zu GigaBytes\n", 
+		  mem_reqs_gamma, 
+		  mem_reqs_gamma / 1024 , 
+		  mem_reqs_gamma / (1024 * 1024),
+		  mem_reqs_gamma / (1024 * 1024 * 1024));
+
+    printBothOpen("\nPlease note that, these are just the memory requirements for doing likelihood calculations!\n");
+    printBothOpen("To be on the safe side, we recommend that you execute ExaML on a sysytem with twice that memory.\n");
+
 #endif
   }
 
