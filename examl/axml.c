@@ -787,7 +787,7 @@ static int mygetopt(int argc, char **argv, char *opts, int *optind, char **optar
 static void printVersionInfo(void)
 {
   if(processID == 0)
-    printf("\n\nThis is %s version %s released by Alexandros Stamatakis on %s.\n\n",  programName, programVersion, programDate); 
+    printf("\n\nThis is %s version %s released by Alexandros Stamatakis, Andre J. Aberer, and Alexey Kozlov on %s.\n\n",  programName, programVersion, programDate); 
 }
 
 static void printMinusFUsage(void)
@@ -1294,7 +1294,7 @@ static void printModelAndProgramInfo(tree *tr, analdef *adef, int argc, char *ar
       else
 	strcpy(modelType, "GAMMA");   
      
-      printBoth(infoFile, "\n\nThis is %s version %s released by Alexandros Stamatakis in %s.\n\n",  programName, programVersion, programDate);
+      printBoth(infoFile, "\n\nThis is %s version %s released by Alexandros Stamatakis, Andre Aberer, and Alexey Kozlov in %s.\n\n",  programName, programVersion, programDate);
      
       
       

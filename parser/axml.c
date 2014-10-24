@@ -1878,7 +1878,7 @@ static int dataExists(char *model, analdef *adef)
 
 static void printVersionInfo(void)
 {
-  printf("\n\nThis is the parse-examl version %s released by Alexandros Stamatakis in %s.\n\n",  programVersion, programDate); 
+  printf("\n\nThis is the parse-examl version %s released by Alexandros Stamatakis, Andre J. Aberer, and Alexey Kozlov in %s.\n\n",  programVersion, programDate); 
 }
 
 static void printREADME(void)
