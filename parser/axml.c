@@ -2702,9 +2702,8 @@ int main (int argc, char *argv[])
     /* 
        Write each partition, taxon by taxon. Thus, if unpartitioned,
        nothing changes.
-    */ 
-    size_t
-      offset = 0; 
+    */   
+
     for(model = 0; model < (size_t) tr->NumberOfModels; ++model )
       {
         pInfo
@@ -2712,7 +2711,7 @@ int main (int argc, char *argv[])
         size_t 
           width = p->upper - p->lower; 
 
-        for(i = 0; i < tr->mxtips; ++i)
+        for(i = 0; i < (size_t)tr->mxtips; ++i)
           {
             myBinFwrite(rdta->y0
                         + sizeof(unsigned char) * (  (i *  tr->originalCrunchedLength)  + p->lower   ) 
