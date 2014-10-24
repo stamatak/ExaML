@@ -59,6 +59,11 @@ const union __attribute__ ((aligned (BYTE_ALIGNMENT)))
 
 #endif
 
+/* includes MIC-optimized functions */
+
+#ifdef __MIC_NATIVE
+#include "mic_native.h"
+#endif
 
 extern int processID;
 
@@ -898,42 +903,198 @@ void newviewIterative (tree *tr, int startIndex)
 {
   traversalInfo 
     *ti   = tr->td[0].ti;
-  
-  int 
-    i, 
-    model;
 
-  /* loop over traversal descriptor length. Note that on average we only re-compute the conditionals on 3 -4 
-     nodes in RAxML */
+  int i;
+
+    /* loop over traversal descriptor length. Note that on average we only re-compute the conditionals on 3 -4
+       nodes in RAxML */
 
   for(i = startIndex; i < tr->td[0].count; i++)
-    {
-      traversalInfo *tInfo = &ti[i];
+  {
+    traversalInfo *tInfo = &ti[i];
 
-      
-      /* printf("%d = %d,%d\n", tInfo->pNumber , tInfo->qNumber, tInfo->rNumber);  */
+    int model;
+
+#ifdef _USE_OMP
+    #pragma omp parallel for
+#endif
+    for(model = 0; model < tr->NumberOfModels; model++)
+      {
+        /* check if this partition has to be processed now - otherwise no need to compute P matrix */
+	if(!tr->td[0].executeModel[model] || tr->partitionData[model].width == 0)
+	  continue;
+
+	int
+	  categories,
+	  states = tr->partitionData[model].states,
+	  maxStateValue = getUndetermined(tr->partitionData[model].dataType) + 1;
+
+	double
+	  qz,
+	  rz,
+	  *rateCategories,
+	  *left = tr->partitionData[model].left,
+	  *right = tr->partitionData[model].right;
+
+	if(tr->rateHetModel == CAT)
+	  {
+	    rateCategories = tr->partitionData[model].perSiteRates;
+	    categories = tr->partitionData[model].numberOfCategories;
+	  }
+	else
+	  {
+	    rateCategories = tr->partitionData[model].gammaRates;
+	    categories = 4;
+	  }
+
+	/* if we use per-partition branch length optimization
+	   get the branch length of partition model and take the log otherwise
+	   use the joint branch length among all partitions that is always stored
+	   at index [0] */
+	if(tr->numBranches > 1)
+	  {
+	    qz = tInfo->qz[model];
+	    rz = tInfo->rz[model];
+	  }
+	else
+	  {
+	    qz = tInfo->qz[0];
+	    rz = tInfo->rz[0];
+	  }
+
+	qz = (qz > zmin) ? log(qz) : log(zmin);
+	rz = (rz > zmin) ? log(rz) : log(zmin);
+
+	/* compute the left and right P matrices */
+#ifdef __MIC_NATIVE
+	switch (tr->partitionData[model].states)
+	{
+	  case 4: /* DNA data */
+	    {
+		makeP_DNA_MIC(qz, rz, rateCategories,   tr->partitionData[model].EI,
+			tr->partitionData[model].EIGN, categories,
+			left, right, tr->saveMemory, tr->maxCategories);
+
+		precomputeTips_DNA_MIC(tInfo->tipCase, tr->partitionData[model].tipVector,
+		                  left, right,
+		                  tr->partitionData[model].mic_umpLeft, tr->partitionData[model].mic_umpRight,
+		                  categories);
+	    } break;
+	  case 20: /* AA data */
+	    {
+		if(tr->partitionData[model].protModels == LG4)
+		  {
+		    makeP_PROT_LG4_MIC(qz, rz, tr->partitionData[model].gammaRates,
+				   tr->partitionData[model].EI_LG4, tr->partitionData[model].EIGN_LG4,
+				   4, left, right);
+
+		    precomputeTips_PROT_LG4_MIC(tInfo->tipCase, tr->partitionData[model].tipVector_LG4,
+				      left, right,
+				      tr->partitionData[model].mic_umpLeft, tr->partitionData[model].mic_umpRight,
+				      categories);
+		  }
+		else
+		  {
+		    makeP_PROT_MIC(qz, rz, rateCategories, tr->partitionData[model].EI,
+				    tr->partitionData[model].EIGN, categories,
+				    left, right, tr->saveMemory, tr->maxCategories);
+
+		    precomputeTips_PROT_MIC(tInfo->tipCase, tr->partitionData[model].tipVector,
+				      left, right,
+				      tr->partitionData[model].mic_umpLeft, tr->partitionData[model].mic_umpRight,
+				      categories);
+		  }
+	    } break;
+	  default:
+	    assert(0);
+	}
+#else
+	if(tr->partitionData[model].protModels == LG4)
+	  makeP_FlexLG4(qz, rz, tr->partitionData[model].gammaRates,
+			tr->partitionData[model].EI_LG4,
+			tr->partitionData[model].EIGN_LG4,
+			4, left, right, 20);
+	else
+	  makeP(qz, rz, rateCategories,   tr->partitionData[model].EI,
+		tr->partitionData[model].EIGN, categories,
+		left, right, tr->saveMemory, tr->maxCategories, states);
+#endif
+      } // for model
+
 
       /* now loop over all partitions for nodes p, q, and r of the current traversal vector entry */
+#ifdef _USE_OMP
+#pragma omp parallel
+#endif
+  {
+    int
+      m,
+      model,
+      maxModel;
 
-      for(model = 0; model < tr->NumberOfModels; model++)
-	{
-	  /* number of sites in this partition */
-	  size_t		
-	    width  = (size_t)tr->partitionData[model].width;
+#ifdef _USE_OMP
+    maxModel = tr->maxModelsPerThread;
+#else
+    maxModel = tr->NumberOfModels;
+#endif
+
+    for(m = 0; m < maxModel; m++)
+      {
+  	  size_t
+  	    width  = 0,
+  	    offset = 0;
+
+	  double
+	    *left     = (double*)NULL,
+	    *right    = (double*)NULL;
+
+	  unsigned int
+	    *globalScaler = (unsigned int*)NULL;
+
+#ifdef _USE_OMP
+
+    	  int
+    	    tid = omp_get_thread_num();
+
+    	  /* check if this thread should process this partition */
+    	  Assign* pAss = tr->threadPartAssigns[tid * tr->maxModelsPerThread + m];
+
+    	  if (pAss)
+    	  {
+    	    assert(tid == pAss->procId);
+
+    	    model  = pAss->partitionId;
+    	    width  = pAss->width;
+      	    offset = pAss->offset;
+
+	    left  = tr->partitionData[model].left;
+	    right = tr->partitionData[model].right;
+	    globalScaler = tr->partitionData[model].threadGlobalScaler[tid];
+    	  }
+    	  else
+    	    break;
+#else
+    	  model = m;
+
+    	  /* number of sites in this partition */
+	  width  = (size_t)tr->partitionData[model].width,
+	  offset = 0;
+
+	  /* set the pointers to the left and right P matrices to the pre-allocated memory space for storing them */
+
+	  left  = tr->partitionData[model].left;
+	  right = tr->partitionData[model].right;
+	  globalScaler = tr->partitionData[model].globalScaler;
+#endif
 
 	  /* this conditional statement is exactly identical to what we do in evaluateIterative */
-
-
-	  /* printf("new view on model %d with width %d\n", model, width);  */
-
 	  if(tr->td[0].executeModel[model] && width > 0)
-	    {	      
+	    {
+
 	      double
 		*x1_start = (double*)NULL,
 		*x2_start = (double*)NULL,
-		*x3_start = tr->partitionData[model].xVector[tInfo->pNumber - tr->mxtips - 1],
-		*left     = (double*)NULL,
-		*right    = (double*)NULL,		
+		*x3_start = (double*)NULL, //tr->partitionData[model].xVector[tInfo->pNumber - tr->mxtips - 1],
 		*x1_gapColumn = (double*)NULL,
 		*x2_gapColumn = (double*)NULL,
 		*x3_gapColumn = (double*)NULL,
@@ -945,7 +1106,7 @@ void newviewIterative (tree *tr, int startIndex)
 		
 		/* integer wieght vector with pattern compression weights */
 
-		*wgt = tr->partitionData[model].wgt;
+		*wgt = tr->partitionData[model].wgt + offset;
 
 	      unsigned int
 		*x1_gap = (unsigned int*)NULL,
@@ -968,6 +1129,11 @@ void newviewIterative (tree *tr, int startIndex)
 
 		states = (size_t)tr->partitionData[model].states,	
 
+		/* span for single alignment site (in doubles!) */
+		span = rateHet * states,
+		x_offset = offset * span,
+
+
 		/* get the length of the current likelihood array stored at node p. This is 
 		   important mainly for the SEV-based memory saving option described in here:
 
@@ -979,6 +1145,8 @@ void newviewIterative (tree *tr, int startIndex)
 		
 		availableLength = tr->partitionData[model].xSpaceVector[(tInfo->pNumber - tr->mxtips - 1)],
 		requiredLength = 0;	     
+
+	      x3_start = tr->partitionData[model].xVector[tInfo->pNumber - tr->mxtips - 1] + x_offset;
 
 	      /* figure out what kind of rate heterogeneity approach we are using */
 
@@ -1025,23 +1193,24 @@ void newviewIterative (tree *tr, int startIndex)
 	      /* Initially, even when not using memory saving no space is allocated for inner likelihood arrats hence 
 		 availableLength will be zero at the very first time we traverse the tree.
 		 Hence we need to allocate something here */
-
+#ifndef _USE_OMP
 	      if(requiredLength != availableLength)
-		{		  
-		  /* if there is a vector of incorrect length assigned here i.e., x3 != NULL we must free 
+		{
+		  /* if there is a vector of incorrect length assigned here i.e., x3 != NULL we must free
 		     it first */
 		  if(x3_start)
 		    free(x3_start);
-		 
+
 		  /* allocate memory: note that here we use a byte-boundary aligned malloc, because we need the vectors
 		     to be aligned at 16 BYTE (SSE3) or 32 BYTE (AVX) boundaries! */
 
-		  x3_start = (double*)malloc_aligned(requiredLength);		 
-		  
+		  x3_start = (double*)malloc_aligned(requiredLength);
+
 		  /* update the data structures for consistent bookkeeping */
-		  tr->partitionData[model].xVector[tInfo->pNumber - tr->mxtips - 1] = x3_start;		  
-		  tr->partitionData[model].xSpaceVector[(tInfo->pNumber - tr->mxtips - 1)] = requiredLength;		 
+		  tr->partitionData[model].xVector[tInfo->pNumber - tr->mxtips - 1] = x3_start;
+		  tr->partitionData[model].xSpaceVector[(tInfo->pNumber - tr->mxtips - 1)] = requiredLength;
 		}
+#endif
 
 	      /* now just set the pointers for data accesses in the newview() implementations above to the corresponding values 
 		 according to the tip case */
@@ -1049,8 +1218,8 @@ void newviewIterative (tree *tr, int startIndex)
 	      switch(tInfo->tipCase)
 		{
 		case TIP_TIP:		  
-		  tipX1    = tr->partitionData[model].yVector[tInfo->qNumber];
-		  tipX2    = tr->partitionData[model].yVector[tInfo->rNumber];		  		  
+		  tipX1    = tr->partitionData[model].yVector[tInfo->qNumber] + offset;
+		  tipX2    = tr->partitionData[model].yVector[tInfo->rNumber] + offset;
 
 		  if(tr->saveMemory)
 		    {
@@ -1061,8 +1230,8 @@ void newviewIterative (tree *tr, int startIndex)
 	      
 		  break;
 		case TIP_INNER:		 
-		  tipX1    =  tr->partitionData[model].yVector[tInfo->qNumber];
-		  x2_start = tr->partitionData[model].xVector[tInfo->rNumber - tr->mxtips - 1];		 
+		  tipX1    =  tr->partitionData[model].yVector[tInfo->qNumber] + offset;
+		  x2_start = tr->partitionData[model].xVector[tInfo->rNumber - tr->mxtips - 1] + x_offset;
 
 		  if(tr->saveMemory)
 		    {	
@@ -1073,8 +1242,8 @@ void newviewIterative (tree *tr, int startIndex)
 	      		     
 		  break;
 		case INNER_INNER:		 		 
-		  x1_start       = tr->partitionData[model].xVector[tInfo->qNumber - tr->mxtips - 1];
-		  x2_start       = tr->partitionData[model].xVector[tInfo->rNumber - tr->mxtips - 1];		 
+		  x1_start       = tr->partitionData[model].xVector[tInfo->qNumber - tr->mxtips - 1] + x_offset;
+		  x2_start       = tr->partitionData[model].xVector[tInfo->rNumber - tr->mxtips - 1] + x_offset;
 
 		  if(tr->saveMemory)
 		    {
@@ -1087,42 +1256,6 @@ void newviewIterative (tree *tr, int startIndex)
 		default:
 		  assert(0);
 		}
-
-	      /* set the pointers to the left and right P matrices to the pre-allocated memory space for storing them */
-	      
-	      left  = tr->partitionData[model].left;
-	      right = tr->partitionData[model].right;
-	      
-	      /* if we use per-partition branch length optimization 
-		 get the branch length of partition model and take the log otherwise 
-		 use the joint branch length among all partitions that is always stored 
-		 at index [0] */
-
-	      if(tr->numBranches > 1)
-		{
-		  qz = tInfo->qz[model];		  		    
-		  rz = tInfo->rz[model];		  
-		}
-	      else
-		{
-		  qz = tInfo->qz[0];
-		  rz = tInfo->rz[0];
-		}
-		 
-	      qz = (qz > zmin) ? log(qz) : log(zmin);		  	       
-	      rz = (rz > zmin) ? log(rz) : log(zmin);	          	      
-
-	      /* compute the left and right P matrices */
-	      if(tr->partitionData[model].protModels == LG4)		     
-		makeP_FlexLG4(qz, rz, tr->partitionData[model].gammaRates,
-			      tr->partitionData[model].EI_LG4,
-			      tr->partitionData[model].EIGN_LG4,
-			      4, left, right, 20);
-	      else
-		makeP(qz, rz, rateCategories,   tr->partitionData[model].EI,
-		      tr->partitionData[model].EIGN, categories,
-		      left, right, tr->saveMemory, tr->maxCategories, states);
-
 
 #ifndef _OPTIMIZED_FUNCTIONS
 
@@ -1152,9 +1285,10 @@ void newviewIterative (tree *tr, int startIndex)
 		case 4:	/* DNA */
 		  if(tr->rateHetModel == CAT)
 		    {		    		     
-		  
 		      if(tr->saveMemory)
-#ifdef __AVX
+#ifdef __MIC_NATIVE
+		     assert(0 && "Neither CAT model of rate heterogeneity nor memory saving are implemented on Intel MIC");
+#elif __AVX
 			newviewGTRCAT_AVX_GAPPED_SAVE(tInfo->tipCase,  tr->partitionData[model].EV, tr->partitionData[model].rateCategory,
 						      x1_start, x2_start, x3_start, tr->partitionData[model].tipVector,
 						      (int*)NULL, tipX1, tipX2,
@@ -1168,7 +1302,9 @@ void newviewIterative (tree *tr, int startIndex)
 					   x1_gapColumn, x2_gapColumn, x3_gapColumn, tr->maxCategories);
 #endif
 		      else
-#ifdef __AVX
+#ifdef __MIC_NATIVE
+		     assert(0 && "CAT model of rate heterogeneity is not implemented on Intel MIC");
+#elif __AVX
 			newviewGTRCAT_AVX(tInfo->tipCase,  tr->partitionData[model].EV, tr->partitionData[model].rateCategory,
 					  x1_start, x2_start, x3_start, tr->partitionData[model].tipVector,
 					  tipX1, tipX2,
@@ -1185,7 +1321,9 @@ void newviewIterative (tree *tr, int startIndex)
 		      
 		       
 		       if(tr->saveMemory)
-#ifdef __AVX
+#ifdef __MIC_NATIVE
+		     assert(0 && "Memory saving is not implemented on Intel MIC");
+#elif __AVX
 			 newviewGTRGAMMA_AVX_GAPPED_SAVE(tInfo->tipCase,
 							 x1_start, x2_start, x3_start, tr->partitionData[model].EV, tr->partitionData[model].tipVector, (int*)NULL,
 							 tipX1, tipX2,
@@ -1201,31 +1339,18 @@ void newviewIterative (tree *tr, int startIndex)
 						   x1_gapColumn, x2_gapColumn, x3_gapColumn);
 #endif
 		       else
-#ifdef __AVX
+#ifdef __MIC_NATIVE
+			 newviewGTRGAMMA_MIC(tInfo->tipCase,
+				  x1_start, x2_start, x3_start, tr->partitionData[model].mic_EV, tr->partitionData[model].tipVector,
+				  tipX1, tipX2,
+				  width, left, right, wgt, &scalerIncrement,
+				  tr->partitionData[model].mic_umpLeft, tr->partitionData[model].mic_umpRight);
+#elif __AVX
 			 newviewGTRGAMMA_AVX(tInfo->tipCase,
 					     x1_start, x2_start, x3_start, tr->partitionData[model].EV, tr->partitionData[model].tipVector,
 					     tipX1, tipX2,
 					     width, left, right, wgt, &scalerIncrement);
 #else
-
-		       /* if(tipX1 != NULL) */
-		       /* 	 { */
-		       /* 	   int j ;  */
-		       /* 	   printf("tipX1=");  */
-		       /* 	   for(j = 0;  j < tr->partitionData[model].width; ++j) */
-		       /* 	     printf("%c", inverseMeaningDNA[tipX1[j]]); */
-		       /* 	   printf("\n");  */
-		       /* 	 } */
-		       
-		       /* if(tipX2 != NULL) */
-		       /* 	 { */
-		       /* 	   int j ;  */
-		       /* 	   printf("tipX2=");  */
-		       /* 	   for(j = 0; j < tr->partitionData[model].width ; ++j) */
-		       /* 	     printf("%c", inverseMeaningDNA[tipX2[j]]);  */
-		       /* 	   printf("\n");  */
-		       /* 	 } */
-		       
 		       newviewGTRGAMMA(tInfo->tipCase,
 					 x1_start, x2_start, x3_start, tr->partitionData[model].EV, tr->partitionData[model].tipVector,
 					 tipX1, tipX2,
@@ -1240,7 +1365,9 @@ void newviewIterative (tree *tr, int startIndex)
 		    {		     
 		      if(tr->saveMemory)
 			{
-#ifdef __AVX
+#ifdef __MIC_NATIVE
+		     assert(0 && "Neither CAT model of rate heterogeneity nor memory saving are implemented on Intel MIC");
+#elif __AVX
 			  newviewGTRCATPROT_AVX_GAPPED_SAVE(tInfo->tipCase,  tr->partitionData[model].EV, tr->partitionData[model].rateCategory,
 							    x1_start, x2_start, x3_start, tr->partitionData[model].tipVector, (int*)NULL,
 							    tipX1, tipX2, width, left, right, wgt, &scalerIncrement, TRUE, x1_gap, x2_gap, x3_gap,
@@ -1254,7 +1381,9 @@ void newviewIterative (tree *tr, int startIndex)
 			}
 		      else
 			{			 			
-#ifdef __AVX 			
+#ifdef __MIC_NATIVE
+		     assert(0 && "CAT model of rate heterogeneity is not implemented on Intel MIC");
+#elif __AVX
 			  newviewGTRCATPROT_AVX(tInfo->tipCase,  tr->partitionData[model].EV, tr->partitionData[model].rateCategory,
 						x1_start, x2_start, x3_start, tr->partitionData[model].tipVector,
 						tipX1, tipX2, width, left, right, wgt, &scalerIncrement);
@@ -1269,7 +1398,9 @@ void newviewIterative (tree *tr, int startIndex)
 		    {		    			 			  
 		      if(tr->saveMemory)
 			{
-#ifdef __AVX
+#ifdef __MIC_NATIVE
+		     assert(0 && "Memory saving is not implemented on Intel MIC");
+#elif __AVX
 			  newviewGTRGAMMAPROT_AVX_GAPPED_SAVE(tInfo->tipCase,
 							      x1_start, x2_start, x3_start,
 							      tr->partitionData[model].EV,
@@ -1293,7 +1424,13 @@ void newviewIterative (tree *tr, int startIndex)
 			{
 			  if(tr->partitionData[model].protModels == LG4)
 			    {
-#ifdef __AVX 
+#ifdef __MIC_NATIVE
+			      newviewGTRGAMMAPROT_LG4_MIC(tInfo->tipCase,
+							x1_start, x2_start, x3_start, tr->partitionData[model].mic_EV, tr->partitionData[model].mic_tipVector,
+							tipX1, tipX2,
+							width, left, right, wgt, &scalerIncrement,
+							tr->partitionData[model].mic_umpLeft, tr->partitionData[model].mic_umpRight);
+#elif __AVX
 			      newviewGTRGAMMAPROT_AVX_LG4(tInfo->tipCase,
 							  x1_start, x2_start, x3_start,
 							  tr->partitionData[model].EV_LG4,
@@ -1312,7 +1449,13 @@ void newviewIterative (tree *tr, int startIndex)
 			    }
 			  else
 			    {
-#ifdef __AVX
+#ifdef __MIC_NATIVE
+			      newviewGTRGAMMAPROT_MIC(tInfo->tipCase,
+							x1_start, x2_start, x3_start, tr->partitionData[model].mic_EV, tr->partitionData[model].mic_tipVector,
+							tipX1, tipX2,
+							width, left, right, wgt, &scalerIncrement,
+							tr->partitionData[model].mic_umpLeft, tr->partitionData[model].mic_umpRight);
+#elif __AVX
 			      newviewGTRGAMMAPROT_AVX(tInfo->tipCase,
 						      x1_start, x2_start, x3_start, tr->partitionData[model].EV, tr->partitionData[model].tipVector,
 						      tipX1, tipX2,
@@ -1331,23 +1474,23 @@ void newviewIterative (tree *tr, int startIndex)
 		  assert(0);
 		}
 #endif
-	      
-	
+
 	      /* important step, here we essentiallt recursively compute the number of scaling multiplications 
 		 at node p: it's the sum of the number of scaling multiplications already conducted 
 		 for computing nodes q and r plus the scaling multiplications done at node p */
 
-	      tr->partitionData[model].globalScaler[tInfo->pNumber] = 
-		tr->partitionData[model].globalScaler[tInfo->qNumber] + 
-		tr->partitionData[model].globalScaler[tInfo->rNumber] +
+	      globalScaler[tInfo->pNumber] =
+		globalScaler[tInfo->qNumber] +
+		globalScaler[tInfo->rNumber] +
 		(unsigned int)scalerIncrement;
 
 	      /* check that we are not getting an integer overflow ! */
 
-	      assert(tr->partitionData[model].globalScaler[tInfo->pNumber] < INT_MAX);
+	      assert(globalScaler[tInfo->pNumber] < INT_MAX);
 	    }	
-	}
-    }
+	} // for model
+    }  // omp parallel block
+  }  // for traversal
 }
 
 

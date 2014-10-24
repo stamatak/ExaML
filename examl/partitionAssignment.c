@@ -29,8 +29,8 @@ void initializePartitionAssignment( PartitionAssignment **pAssPtr, pInfo **parti
       Partition 
 	*p = pAss->partitions + i; 
       p->id = i; 
-      p->width = partitions[i]->upper - partitions[i]->lower; 
-      p->type = partitions[i]->states; 
+      p->width = partitions[i]->upper - partitions[i]->lower;
+      p->type = partitions[i]->states;
     }
   
   pAss->assignPerProc = (Assignment **)calloc((size_t)pAss->numProc , sizeof(Assignment*)); 
@@ -58,46 +58,38 @@ static int partSort(const void *a, const void *b )
 
 
 /** 
-    helper function that executes the assignment of a full partition 
- */ 
-static void assignPartitionFull(PartitionAssignment* pa, Partition* p, int procId, int *numAssigned, size_t *sizeAssigned)
-{
-  Assignment 
-    *a;
-
-  ++numAssigned[procId] ; 
-  ++pa->numAssignPerProc[procId];
-
-  pa->assignPerProc[procId] = (Assignment*)realloc(pa->assignPerProc[procId] , (size_t)numAssigned[procId] * sizeof(Assignment));
-
-  a = pa->assignPerProc[procId] + (numAssigned[procId] - 1) ; 
-
-  a->offset = 0; 
-  a->partId = p->id; 
-  a->width = p->width; 
-  sizeAssigned[procId] += p->width; 
-}
-
-
-/** 
     helper function that executes the assignment of a partial assignment (only numElem character are assigned)
  */ 
 static void assignPartitionPartial(PartitionAssignment *pa, Partition* p, int procId, int *numAssigned, size_t *sizeAssigned, size_t offset, size_t numElem)
 {
   Assignment 
     *a;
+  
+  int 
+    newArrayLen; 
  
   ++numAssigned[procId]; 
   ++pa->numAssignPerProc[procId]; 
 
-  pa->assignPerProc[procId] = (Assignment*)realloc(pa->assignPerProc[procId], (size_t)numAssigned[procId] * sizeof(Assignment)); 
+  newArrayLen = pa->numAssignPerProc[procId]; 
+
+  pa->assignPerProc[procId] = (Assignment*)realloc(pa->assignPerProc[procId], newArrayLen * sizeof(Assignment)); 
   
-  a = pa->assignPerProc[procId] + (numAssigned[procId]-1); 
+  a = pa->assignPerProc[procId] + (newArrayLen-1); 
 
   a->offset = offset; 
   a->partId = p->id; 
   a->width = numElem; 
   sizeAssigned[procId] += numElem; 
+}
+
+
+/** 
+    helper function that executes the assignment of a full partition 
+ */ 
+static void assignPartitionFull(PartitionAssignment* pa, Partition* p, int procId, int *numAssigned, size_t *sizeAssigned)
+{
+  assignPartitionPartial(pa, p, procId, numAssigned, sizeAssigned, 0, p->width);
 } 
 
 
@@ -231,7 +223,7 @@ static void assignThesePartitions(PartitionAssignment* pa, Partition *partitions
 	      
 	      if(sizeAssigned[proc] == cap)
 		{
-		  ++numFull; 
+		  ++numFull;
 		  if(numFull == pa->numProc - remainder)
 		    --cap; 
 		}
@@ -386,7 +378,7 @@ static void assignThesePartitions(PartitionAssignment* pa, Partition *partitions
 	  {
 	    /* should not occurr, but I am not entirely happly with
 	       this assert. */
-	    assert(0); 		
+	    assert(0);
 	  }
     }
 
@@ -396,8 +388,6 @@ static void assignThesePartitions(PartitionAssignment* pa, Partition *partitions
   free(numAssigned); 
   free(sizeAssigned); 
 }
-
-
 
 /** 
     Assigns all partitions. Notice that for each data type (currently
@@ -447,7 +437,7 @@ void assign(PartitionAssignment *pa)
 	    curPartitions[cnt++] = pa->partitions[i]; 
 	}
 
-      assignThesePartitions(pa, curPartitions, cnt); 
+      assignThesePartitions(pa, curPartitions, cnt);
       free(curPartitions); 
       
       partitionsHandled += cnt; 
@@ -597,3 +587,99 @@ void copyAssignmentInfoToTree(PartitionAssignment *pa, tree *tr)
   if(tr->rateHetModel == CAT)
     setupBasePointersInTree( tr);
 }
+
+#ifdef _USE_OMP
+void copyThreadAssignmentInfoToTree(PartitionAssignment *pa, tree *tr)
+{
+  int
+    i, j;
+
+  /* we want to know max number of partitions assigned to a single thread -> mainly for memory allocation */
+
+  int
+    *numsPerProc = (int *)calloc((size_t)pa->numProc, sizeof(int)),
+    *numsPerPart = (int *)calloc((size_t)pa->numPartitions, sizeof(int));
+
+  for(i = 0; i< pa->numProc; ++i)
+    {
+      for(j = 0; j < pa->numAssignPerProc[i]; ++j)
+	{
+	  Assignment *a = &pa->assignPerProc[i][j];
+	  ++numsPerProc[i];
+	  ++numsPerPart[a->partId];
+	}
+    }
+
+  int
+    pmax = 0;
+
+  for(i = 1; i< pa->numProc; ++i)
+    {
+      if (numsPerProc[i] > numsPerProc[pmax])
+	pmax = i;
+    }
+
+  /* save max partition count to the tree structure */
+  tr->maxModelsPerThread = numsPerProc[pmax];
+
+  assert(tr->maxModelsPerThread > 0 && tr->maxModelsPerThread <= pa->numPartitions);
+
+  pmax = 0;
+  for(i = 1; i< pa->numPartitions; ++i)
+    {
+      if (numsPerPart[i] > numsPerPart[pmax])
+	pmax = i;
+    }
+
+  /* save max threads count to the tree structure */
+  tr->maxThreadsPerModel = numsPerPart[pmax];
+
+  assert(tr->maxThreadsPerModel > 0 && tr->maxThreadsPerModel <= pa->numProc);
+
+  free(numsPerProc);
+  free(numsPerPart);
+
+  printf("\n maxModelsPerThread: %d,   maxThreadsPerModel: %d\n", tr->maxModelsPerThread, tr->maxThreadsPerModel);
+
+  /* copy the partition assignment to the tree structure */
+
+  int
+    threadPartSize = pa->numProc * tr->maxModelsPerThread,
+    partThreadSize = pa->numPartitions * tr->maxThreadsPerModel;
+
+  tr->threadPartAssigns = (Assign **)calloc((size_t)threadPartSize, sizeof(Assign*));
+  tr->partThreadAssigns = (Assign **)calloc((size_t)partThreadSize, sizeof(Assign*));
+
+  for(i = 0; i < pa->numProc; ++i)
+    {
+      int
+	partCount = 0;
+
+      for( j = 0 ; j < pa->numAssignPerProc[i]; ++j)
+        {
+	  Assignment *ass = pa->assignPerProc[i] + j;
+	  Assign* pTreeAss = (Assign *)calloc(1, sizeof(Assign));
+	  pTreeAss->procId = i;
+	  pTreeAss->offset = ass->offset;
+	  pTreeAss->width = ass->width;
+	  pTreeAss->partitionId = ass->partId;
+
+	  size_t
+	    ind = i * tr->maxModelsPerThread + partCount;
+
+	  assert(ind < (i+1) * tr->maxModelsPerThread);
+
+	  tr->threadPartAssigns[ind] = pTreeAss;
+	  ++partCount;
+
+	  ind = ass->partId * tr->maxThreadsPerModel;
+	  while (tr->partThreadAssigns[ind])
+	    ++ind;
+
+	  assert( ind < (ass->partId+1) * tr->maxThreadsPerModel);
+
+	  tr->partThreadAssigns[ind] = pTreeAss;
+        }
+    }
+}
+#endif

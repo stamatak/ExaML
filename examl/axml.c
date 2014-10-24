@@ -71,8 +71,9 @@
 #include "byteFile.h"
 #include "partitionAssignment.h"
 
-
-
+#ifdef __MIC_NATIVE
+#include "mic_native.h"
+#endif
 
 /***************** UTILITY FUNCTIONS **************************/
 
@@ -1880,7 +1881,29 @@ static void initializePartitions(tree *tr)
        */
       
       len = 2 * tr->mxtips; 
-      tr->partitionData[model].globalScaler    = (unsigned int *)calloc(len, sizeof(unsigned int));  	         
+      tr->partitionData[model].globalScaler       = (unsigned int *)calloc(len, sizeof(unsigned int));
+
+#ifdef _USE_OMP
+      tr->partitionData[model].threadGlobalScaler = (unsigned int**) calloc(tr->nThreads, sizeof(unsigned int*));
+
+      tr->partitionData[model].reductionBuffer 	  = (double*) calloc(tr->nThreads, sizeof(double));
+      tr->partitionData[model].reductionBuffer2   = (double*) calloc(tr->nThreads, sizeof(double));
+
+      int t;
+      for (t = 0; t < tr->maxThreadsPerModel; ++t)
+	{
+	  Assign*
+	    pAss = tr->partThreadAssigns[model * tr->maxThreadsPerModel + t];
+
+	  if (pAss)
+	    {
+	      int
+		tid = pAss->procId;
+
+	      tr->partitionData[model].threadGlobalScaler[tid]    = (unsigned int *)calloc(len, sizeof(unsigned int));
+	    }
+	}
+#endif
 
       tr->partitionData[model].left              = (double *)malloc_aligned(pl->leftLength * (maxCategories + 1) * sizeof(double));
       tr->partitionData[model].right             = (double *)malloc_aligned(pl->rightLength * (maxCategories + 1) * sizeof(double));
@@ -1930,11 +1953,33 @@ static void initializePartitions(tree *tr)
 
       tr->partitionData[model].xSpaceVector = (size_t *)calloc(tr->mxtips, sizeof(size_t));  
 
+#ifdef __MIC_NATIVE
+      tr->partitionData[model].mic_EV                = (double*)malloc_aligned(4 * pl->evLength * sizeof(double));
+      tr->partitionData[model].mic_tipVector         = (double*)malloc_aligned(4 * pl->tipVectorLength * sizeof(double));
+      tr->partitionData[model].mic_umpLeft           = (double*)malloc_aligned(4 * pl->tipVectorLength * sizeof(double));
+      tr->partitionData[model].mic_umpRight           = (double*)malloc_aligned(4 * pl->tipVectorLength * sizeof(double));
+
+      /* for Xeon Phi, sumBuffer must be padded to the multiple of 8 (because of site blocking in kernels) */
+      const int padded_width = GET_PADDED_WIDTH(width);
+      const int span = (size_t)(tr->partitionData[model].states) *
+              discreteRateCategories(tr->rateHetModel);
+
+      tr->partitionData[model].sumBuffer = (double *)malloc_aligned(padded_width *
+									   span * sizeof(double));
+
+      /* fill padding entries with 1. (will be corrected for with zero site weights in wgt) */
+      {
+          int k;
+          for (k = width*span; k < padded_width*span; ++k)
+              tr->partitionData[model].sumBuffer[k] = 1.;
+      }
+#else
       tr->partitionData[model].sumBuffer = (double *)malloc_aligned(width *
 									   (size_t)(tr->partitionData[model].states) *
 									   discreteRateCategories(tr->rateHetModel) *
 									   sizeof(double));
-	    
+#endif
+
       /* tr->partitionData[model].wgt = (int *)malloc_aligned(width * sizeof(int));	   */
 
       /* rateCategory must be assigned using calloc() at start up there is only one rate category 0 for all sites */
@@ -1998,7 +2043,6 @@ static void initializePartitions(tree *tr)
        
        free(modelWeights);
     }
-
 
   /* initialize gap bit vectors at tips when memory saving option is enabled */
   
@@ -2275,6 +2319,169 @@ static void readByteFile (tree *tr, int commRank, int commSize )
   deleteByteFile(bFile);
 }
 
+#ifdef _USE_OMP
+void allocateXVectors(tree* tr)
+{
+  nodeptr
+    p = tr->start,
+    q = p->back;
+
+  tr->td[0].ti[0].pNumber = p->number;
+  tr->td[0].ti[0].qNumber = q->number;
+
+  tr->td[0].count = 1;
+
+  computeTraversalInfo(q, &(tr->td[0].ti[0]), &(tr->td[0].count), tr->mxtips, tr->numBranches, FALSE);
+
+  traversalInfo
+    *ti = tr->td[0].ti;
+
+  int
+    i,
+    model;
+
+  for(i = 1; i < tr->td[0].count; i++)
+    {
+      traversalInfo *tInfo = &ti[i];
+
+      /* now loop over all partitions for nodes p, q, and r of the current traversal vector entry */
+
+      for(model = 0; model < tr->NumberOfModels; model++)
+	{
+	  /* printf("new view on model %d with width %d\n", model, width);  */
+
+	  size_t
+	    width  = (size_t)tr->partitionData[model].width;
+
+	  double
+	    *x3_start = tr->partitionData[model].xVector[tInfo->pNumber - tr->mxtips - 1];
+
+	  size_t
+	    rateHet = discreteRateCategories(tr->rateHetModel),
+
+	    /* get the number of states in the data stored in partition model */
+
+	    states = (size_t)tr->partitionData[model].states,
+
+	    /* get the length of the current likelihood array stored at node p. This is
+	       important mainly for the SEV-based memory saving option described in here:
+
+	       F. Izquierdo-Carrasco, S.A. Smith, A. Stamatakis: "Algorithms, Data Structures, and Numerics for Likelihood-based Phylogenetic Inference of Huge Trees".
+
+	       So tr->partitionData[model].xSpaceVector[i] provides the length of the allocated conditional array of partition model
+	       and node i
+	    */
+
+	    availableLength = tr->partitionData[model].xSpaceVector[(tInfo->pNumber - tr->mxtips - 1)],
+	    requiredLength = 0;
+
+	  /* memory saving stuff, not important right now, but if you are interested ask Fernando */
+
+	  if(tr->saveMemory)
+	    {
+	      size_t
+		j,
+		setBits = 0;
+
+	      unsigned int
+		*x1_gap = &(tr->partitionData[model].gapVector[tInfo->qNumber * tr->partitionData[model].gapVectorLength]),
+		*x2_gap = &(tr->partitionData[model].gapVector[tInfo->rNumber * tr->partitionData[model].gapVectorLength]),
+		*x3_gap = &(tr->partitionData[model].gapVector[tInfo->pNumber * tr->partitionData[model].gapVectorLength]);
+
+	      for(j = 0; j < (size_t)tr->partitionData[model].gapVectorLength; j++)
+		{
+		  x3_gap[j] = x1_gap[j] & x2_gap[j];
+		  setBits += (size_t)(precomputed16_bitcount(x3_gap[j], tr->bits_in_16bits));
+		}
+
+	      requiredLength = (width - setBits)  * rateHet * states * sizeof(double);
+	    }
+	  else
+	    /* if we are not trying to save memory the space required to store an inner likelihood array
+	       is the number of sites in the partition times the number of states of the data type in the partition
+	       times the number of discrete GAMMA rates (1 for CAT essentially) times 8 bytes */
+	    requiredLength  =  width * rateHet * states * sizeof(double);
+
+	  /* Initially, even when not using memory saving no space is allocated for inner likelihood arrats hence
+	     availableLength will be zero at the very first time we traverse the tree.
+	     Hence we need to allocate something here */
+
+	  if(requiredLength != availableLength)
+	    {
+	      /* if there is a vector of incorrect length assigned here i.e., x3 != NULL we must free
+		 it first */
+	      if(x3_start)
+		free(x3_start);
+
+	      /* allocate memory: note that here we use a byte-boundary aligned malloc, because we need the vectors
+		 to be aligned at 16 BYTE (SSE3) or 32 BYTE (AVX) boundaries! */
+
+	      x3_start = (double*)malloc_aligned(requiredLength);
+
+	      /* update the data structures for consistent bookkeeping */
+	      tr->partitionData[model].xVector[tInfo->pNumber - tr->mxtips - 1] = x3_start;
+	      tr->partitionData[model].xSpaceVector[(tInfo->pNumber - tr->mxtips - 1)] = requiredLength;
+	    }
+	} // for model
+    } // for traversal
+}
+
+void assignPartitionsToThreads(tree *tr, int commRank)
+{
+  pInfo** rankPartitions = (pInfo **)calloc(tr->NumberOfModels, sizeof(pInfo*) );
+  int i;
+  for (i = 0; i < tr->NumberOfModels; ++i)
+  {
+    rankPartitions[i] = (pInfo *)calloc(1, sizeof(pInfo));
+    rankPartitions[i]->lower = 0;
+    rankPartitions[i]->upper = tr->partitionData[i].width;
+    rankPartitions[i]->width = rankPartitions[i]->upper;
+    rankPartitions[i]->states = tr->partitionData[i].states;
+  }
+
+  PartitionAssignment *pAss = NULL;
+  initializePartitionAssignment(&pAss, rankPartitions, tr->NumberOfModels, tr->nThreads);
+
+  /* */
+  for(i = 0; i < pAss->numPartitions; ++i)
+    {
+      Partition
+	*p = pAss->partitions + i;
+      p->width = (int) ceil((float) p->width / (float) VECTOR_PADDING);
+    }
+  assign(pAss);
+
+  /* Align partition sizes to the boundary (needed for site-blocking on the MIC) */
+  int j;
+  for(i = 0; i < pAss->numProc; ++i)
+    {
+      for(j = 0; j < pAss->numAssignPerProc[i] ; ++j)
+	{
+	  Assignment *a = &pAss->assignPerProc[i][j];
+	  a->offset *= VECTOR_PADDING;
+	  a->width *= VECTOR_PADDING;
+
+	  /* adjust width of last chunk -> must NOT include padding */
+	  size_t realWidth = rankPartitions[a->partId]->width;
+	  if (a->offset + a->width > realWidth)
+	    a->width = realWidth - a->offset;
+	}
+    }
+
+  printf("Partition assignments to threads: \n");
+  printAssignments(pAss);
+  printf("\n");
+  printLoad(pAss);
+  printf("\n");
+
+  copyThreadAssignmentInfoToTree(pAss, tr);
+
+  deletePartitionAssignment(pAss);
+  for (i = 0; i < tr->NumberOfModels; ++i)
+    free(rankPartitions[i]);
+  free(rankPartitions);
+}
+#endif
 
 
 int main (int argc, char *argv[])
@@ -2319,6 +2526,11 @@ int main (int argc, char *argv[])
     makeFileNames();
 
     readByteFile(tr, processID, processes );
+
+#ifdef _USE_OMP
+    tr->nThreads = omp_get_max_threads();
+    assignPartitionsToThreads(tr, processID);
+#endif
 
     initializeTree(tr, adef);
 
@@ -2391,6 +2603,10 @@ int main (int argc, char *argv[])
 	    
 	    getStartingTree(tr); 
 	    
+#ifdef _USE_OMP
+	    allocateXVectors(tr);
+#endif
+
 	    /* 
 	       here we do an initial full tree traversal on the starting tree using the Felsenstein pruning algorithm 
 	       This should basically be the first call to the library that actually computes something :-)
@@ -2401,9 +2617,8 @@ int main (int argc, char *argv[])
 	    /* the treeEvaluate() function repeatedly iterates over the entire tree to optimize branch lengths until convergence */
 	    
 	    treeEvaluate(tr, 1); 
-	   
+
 	    /* now start the ML search algorithm */
-      
 	    
 	    computeBIGRAPID(tr, adef, TRUE); 			     
 	  }         

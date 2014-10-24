@@ -39,7 +39,9 @@
 #include <sys/types.h>
 #include "../versionHeader/version.h"
 
-#ifdef __AVX
+#ifdef __MIC_NATIVE
+#define BYTE_ALIGNMENT 64
+#elif defined __AVX
 #define BYTE_ALIGNMENT 32
 #else
 #define BYTE_ALIGNMENT 16
@@ -47,6 +49,9 @@
 
 #include <mpi.h>
 
+#ifdef _USE_OMP
+#include "omp.h"
+#endif
 
 /* BEGIN: file streams */
 #ifdef _GNU_SOURCE
@@ -580,6 +585,22 @@ typedef struct {
   double *lhs;
   double *patrat;
 
+#ifdef _USE_OMP
+  /* thread-private data for OMP version */
+  unsigned int **threadGlobalScaler;
+  double *reductionBuffer;
+  double *reductionBuffer2;
+#endif
+
+#ifdef __MIC_NATIVE
+  double *mic_EV;
+  double *mic_tipVector;
+
+  /* these arrays will store the precomputed product of tipVector and left/right P-matrix */
+  double *mic_umpLeft;
+  double *mic_umpRight;
+#endif  
+
 } pInfo;
 
 
@@ -822,8 +843,6 @@ typedef  struct  {
   int numAssignments; 
   Assign *partAssigns;
 
-
-
   /** 
       IMPORTANT: 
       
@@ -848,7 +867,25 @@ typedef  struct  {
 
   double *patrat_basePtr; 
   int *rateCategory_basePtr; 
-  double *lhs_basePtr; 
+  double *lhs_basePtr;
+
+#ifdef _USE_OMP
+  /* number of OMP threads*/
+  int nThreads;
+
+  /* maximum number of partitions assigned to a single thread */
+  int maxModelsPerThread;
+
+  /* maximum number of threads assigned to a single partition */
+  int maxThreadsPerModel;
+
+  /* partition-to-threads assignments: indexed by thread */
+  Assign **threadPartAssigns;
+
+  /* partition-to-threads assignments: indexed by partition id */
+  Assign **partThreadAssigns;
+
+#endif
 
 } tree;
 

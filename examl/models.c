@@ -45,6 +45,10 @@
 
 #include "axml.h"
 
+#ifdef __MIC_NATIVE
+#include "mic_native.h"
+#endif
+
 extern int optimizeRatesInvocations;
 extern int optimizeRateCategoryInvocations;
 extern int optimizeAlphaInvocations;
@@ -3279,7 +3283,8 @@ void initReversibleGTR(tree *tr, int model)
    case SECONDARY_DATA_7: 
    case SECONDARY_DATA:
    case DNA_DATA:
-   case BINARY_DATA:    
+   case BINARY_DATA:
+   {    
      initGeneric(states, 
 		 getBitVector(tr->partitionData[model].dataType), 
 		 getUndetermined(tr->partitionData[model].dataType) + 1, 
@@ -3290,7 +3295,8 @@ void initReversibleGTR(tree *tr, int model)
 		 frequencies, 
 		 ext_initialRates,
 		 tipVector, 
-		 model);    
+		 model);
+    }    
      break;   
    case AA_DATA:
      if(tr->partitionData[model].protModels != GTR)           
@@ -3370,7 +3376,14 @@ void initReversibleGTR(tree *tr, int model)
      assert(0);
    } 
 
- updateFracChange(tr);    
+  updateFracChange(tr);
+
+#ifdef __MIC_NATIVE
+  if(tr->partitionData[model].protModels == LG4)
+    updateModel_LG4_MIC(&tr->partitionData[model]);
+  else
+    updateModel_MIC(&tr->partitionData[model]);
+#endif
 }
 
 

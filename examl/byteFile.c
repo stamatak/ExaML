@@ -4,6 +4,10 @@
 #include "byteFile.h"
 #include <stdlib.h>
 
+#ifdef __MIC_NATIVE
+#include "mic_native.h"
+#endif
+
 #define READ_VAR(file,var) assert( fread(&var, sizeof(var),1, file ) == 1  )
 #define READ_ARRAY(file, arrPtr, numElem, size)  assert( fread(arrPtr, size, numElem, file) ==  (unsigned int) numElem)
 
@@ -197,11 +201,11 @@ void readPartitions(ByteFile *bf)
   seekPos(bf, ALN_PARTITIONS); 
   
   assert(bf->partitions == (pInfo **)NULL); 
-  bf->partitions = (pInfo **)calloc(bf->numPartitions, sizeof(pInfo*) ); 
+  bf->partitions = (pInfo **)calloc(bf->numPartitions, sizeof(pInfo*) );
   for(i = 0; i < bf->numPartitions; ++i)
     {
-      bf->partitions[i] = (pInfo*)calloc(1,sizeof(pInfo)); 
-      pInfo* p = bf->partitions[i]; 
+      bf->partitions[i] = (pInfo*)calloc(1,sizeof(pInfo));
+      pInfo* p = bf->partitions[i];
 
       READ_VAR(bf->fh, p->states);
       READ_VAR(bf->fh, p->maxTipStates);
@@ -257,6 +261,8 @@ void readTaxa(ByteFile *bf)
 }
 
 
+ // #define OLD_LAYOUT 
+
 /** 
     uses the information in the PartitionAssignment to only extract
     data relevant to this process (weights and alignment characters).
@@ -292,6 +298,7 @@ void readMyData(ByteFile *bf, PartitionAssignment *pa, int procId)
       for(j = 1; j <= bf->numTax; ++j)
 	partition->yVector[j] = partition->yResource + (j-1) * a.width; 
 
+#ifdef OLD_LAYOUT
       for(j = 1; j <= bf->numTax; ++j )
 	{
 	  exa_off_t pos = alnPos + (  bf->numPattern * (j-1)    +  partition->lower + a.offset ) * sizeof(unsigned char); 
@@ -299,6 +306,35 @@ void readMyData(ByteFile *bf, PartitionAssignment *pa, int procId)
 	  exa_fseek(bf->fh, pos, SEEK_SET); 
 	  READ_ARRAY(bf->fh, partition->yVector[j], a.width, sizeof(unsigned char));
 	}
+#else 
+      /*  if the entire partition is assigned to this process, read it
+          in one go. Otherwise, several seeks are necessary.  */
+      if( a.width == (partition->upper - partition->lower ) )
+        {
+	  exa_off_t
+            pos = alnPos + (partition->lower * bf->numTax) * sizeof(unsigned char); 
+
+	  assert(alnPos <= pos); 
+	  exa_fseek(bf->fh, pos, SEEK_SET); 
+	  READ_ARRAY(bf->fh, partition->yResource, a.width * bf->numTax, sizeof(unsigned char));
+        }
+      else 
+        {
+          for(j = 1; j <= bf->numTax; ++j )
+            {
+              exa_off_t 
+                pos = alnPos + sizeof(unsigned char) 
+                * ( 
+                   (partition->lower * bf->numTax ) /* until start of partition  */
+                   + ((j-1) * (partition->upper - partition->lower) ) /* until start of sequence of taxon within partition */
+                   + a.offset )  ; 
+
+              assert(alnPos <= pos); 
+              exa_fseek(bf->fh, pos, SEEK_SET); 
+              READ_ARRAY(bf->fh, partition->yVector[j], a.width, sizeof(unsigned char));
+            }
+        }
+#endif
     }
 
   
@@ -312,8 +348,16 @@ void readMyData(ByteFile *bf, PartitionAssignment *pa, int procId)
   for(i = 0; i < numAssign; ++i)
     {
       Assignment a = myAssigns[i]; 
-      pInfo *partition = bf->partitions[a.partId]; 
-      len = a.width * sizeof(int); 
+      pInfo *partition = bf->partitions[a.partId];
+
+#ifdef __MIC_NATIVE
+     /* for Xeon Phi, wgt must be padded to the multiple of 8 (because of site blocking in kernels) */
+     const int padded_width = GET_PADDED_WIDTH(a.width);
+     len = padded_width * sizeof(int);
+#else
+     len = a.width * sizeof(int);
+#endif
+
       partition->wgt = (int*)malloc_aligned( len); 
       memset(partition->wgt, 0, len); 
 

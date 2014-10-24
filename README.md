@@ -16,3 +16,9 @@ memory saving techniques.
 [1] A. Stamatakis,  A.J. Aberer, C. Goll, S.A. Smith, S.A. Berger, F. Izquierdo-Carrasco: 
     "RAxML-Light: A Tool for computing TeraByte Phylogenies", 
     Bioinformatics 2012; doi: 10.1093/bioinformatics/bts309.
+
+
+Intel Xeon Phi
+--------------
+
+For details on running ExaML on Intel MIC (aka Xeon Phi), please refer to README_MIC.txt.

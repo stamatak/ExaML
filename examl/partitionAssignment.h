@@ -34,7 +34,7 @@ typedef struct
 /*
   constructor
 */ 
-void initializePartitionAssignment( PartitionAssignment **pAssPtr, pInfo **partitions, int numPart, int numProc); 
+void initializePartitionAssignment( PartitionAssignment **pAssPtr, pInfo **partitions, int numPart, int numProc);
 /* 
    deletor 
  */ 
@@ -54,6 +54,10 @@ void printAssignment(Assignment a, int procid);
 void printLoad(PartitionAssignment *pa); 
 
 void copyAssignmentInfoToTree(PartitionAssignment *pa, tree *tr); 
+
+#ifdef _USE_OMP
+void copyThreadAssignmentInfoToTree(PartitionAssignment *pa, tree *tr);
+#endif
 
 void printAssignments(PartitionAssignment *pa); 
 

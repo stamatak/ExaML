@@ -47,7 +47,7 @@
 
 
 
-#ifdef _OPTIMIZED_FUNCTIONS
+#if defined(_OPTIMIZED_FUNCTIONS) && !defined(__MIC_NATIVE)
 static inline void computeVectorGTRCATPROT(double *lVector, int *eVector, double ki, int i, double qz, double rz,
 					   traversalInfo *ti, double *EIGN, double *EI, double *EV, double *tipVector, 
 					   unsigned  char **yVector, int mxtips);
@@ -77,9 +77,7 @@ static double evaluatePartialGTRCAT(int i, double ki, int counter,  traversalInf
 				    int branchReference, int mxtips);
 
 
-#endif
-
-#ifndef _OPTIMIZED_FUNCTIONS
+#else
 
 static inline void computeVectorCAT_FLEX(double *lVector, int *eVector, double ki, int i, double qz, double rz,
 					 traversalInfo *ti, double *EIGN, double *EI, double *EV, double *tipVector, 
@@ -266,7 +264,7 @@ double evaluatePartialGeneric (tree *tr, int i, double ki, int _model)
   else
     branchReference = 0;
 
-  #ifndef _OPTIMIZED_FUNCTIONS
+#ifndef _OPTIMIZED_FUNCTIONS
   if(tr->rateHetModel == CAT)
     result = evaluatePartialCAT_FLEX(index, ki, tr->td[0].count, tr->td[0].ti, tr->td[0].ti[0].qz[branchReference], 
 				     tr->partitionData[_model].wgt[index],
@@ -284,7 +282,19 @@ double evaluatePartialGeneric (tree *tr, int i, double ki, int _model)
     assert(0); 
   
  
-  #else
+#elif defined(__MIC_NATIVE)
+if (tr->rateHetModel == CAT)
+    result = evaluatePartialCAT_FLEX(index, ki, tr->td[0].count, tr->td[0].ti, tr->td[0].ti[0].qz[branchReference],
+                     tr->partitionData[_model].wgt[index],
+                     tr->partitionData[_model].EIGN,
+                     tr->partitionData[_model].EI,
+                     tr->partitionData[_model].EV,
+                     tr->partitionData[_model].tipVector,
+                     tr->partitionData[_model].yVector, branchReference, tr->mxtips, states);
+else
+    assert(0);
+
+#else
   switch(states)
     {
    

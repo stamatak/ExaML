@@ -19,7 +19,7 @@ typedef struct
   size_t numPattern; 
   int numPartitions; 
   double gappyness; 
-  pInfo **partitions; 
+  pInfo **partitions;
   char **taxaNames; 
   FILE *fh; 
   char hasRead ; 
