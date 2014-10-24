@@ -926,8 +926,7 @@ void newviewIterative (tree *tr, int startIndex)
 
 	int
 	  categories,
-	  states = tr->partitionData[model].states,
-	  maxStateValue = getUndetermined(tr->partitionData[model].dataType) + 1;
+	  states = tr->partitionData[model].states;
 
 	double
 	  qz,
@@ -1115,11 +1114,7 @@ void newviewIterative (tree *tr, int startIndex)
 
 	      unsigned char
 		*tipX1 = (unsigned char *)NULL,
-		*tipX2 = (unsigned char *)NULL;
-
-	      double 
-		qz, 
-		rz;	     
+		*tipX2 = (unsigned char *)NULL;	
 	      
 	      size_t
 		gapOffset = 0,

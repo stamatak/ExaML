@@ -566,8 +566,7 @@ void evaluateIterative(tree *tr)
 	    *wgt = tr->partitionData[model].wgt + offset;
 	  
 	  double 
-	    *rateCategories = (double*)NULL,
-	    z, 
+	    *rateCategories = (double*)NULL,	    
 	    partitionLikelihood = 0.0, 	   
 	    *x1_start   = (double*)NULL, 
 	    *x2_start   = (double*)NULL,
