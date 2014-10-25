@@ -633,6 +633,24 @@ typedef struct List_{
 #define MOD_OPT       4
 
 typedef struct {
+  boolean useMedian;
+  int saveBestTrees;
+  boolean saveMemory;
+  boolean searchConvergenceCriterion;
+  boolean perGeneBranchLengths; //adef
+  double likelihoodEpsilon; //adef
+  int categories;
+  int mode; //adef
+  int fastTreeEvaluation;
+  boolean doCutoff;
+  boolean initialSet;//adef
+  int initial;//adef
+  int rateHetModel;
+  
+
+} commandLine;
+
+typedef struct {
  
   int state;
 
@@ -679,8 +697,10 @@ typedef struct {
   /* modOpt */
 
   int catOpt;
-  int treeIteration;
-                                                                    
+  int treeIteration; 
+                           
+  commandLine cmd;
+  
 } checkPointState;
 
 
@@ -792,6 +812,8 @@ typedef  struct  {
   boolean          rooted;
   boolean          doCutoff;
  
+
+
   double         gapyness;
 
   char **nameList;
@@ -1261,7 +1283,7 @@ extern void checkPerSiteRates(const tree * const tr );
 
 extern void restart(tree *tr, analdef *adef);
 
-extern void writeCheckpoint(tree *tr);
+extern void writeCheckpoint(tree *tr, analdef *adef);
 
 extern boolean isGap(unsigned int *x, int pos);
 extern boolean noGap(unsigned int *x, int pos);

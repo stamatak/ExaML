@@ -993,6 +993,8 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
   tr->saveMemory = FALSE;
   tr->constraintTree = FALSE;
 
+  tr->fastTreeEvaluation = FALSE;
+
   /* tr->manyPartitions = FALSE; */
 
   tr->categories             = 25;
@@ -1016,7 +1018,7 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	seedSet = 1;
 	break;
       case 'a':
-	tr->useMedian = TRUE;
+	tr->useMedian = TRUE;	
 	break;
       case 'B':
 	sscanf(optarg,"%d", &(tr->saveBestTrees));
@@ -2240,7 +2242,7 @@ static void optimizeTrees(tree *tr, analdef *adef)
 
 	  ckp.treeIteration = i;
 	  
-	  writeCheckpoint(tr);
+	  writeCheckpoint(tr, adef);
 
 	  treeEvaluate(tr, 2);
 	}

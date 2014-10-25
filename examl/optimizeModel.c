@@ -2632,7 +2632,7 @@ void modOpt(tree *tr, double likelihoodEpsilon, analdef *adef, int treeIteration
 
 	  ckp.treeIteration = treeIteration;
 	  
-	  writeCheckpoint(tr );
+	  writeCheckpoint(tr, adef);
 	}   
       
       currentLikelihood = tr->likelihood;     

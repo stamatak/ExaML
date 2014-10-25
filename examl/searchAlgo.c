@@ -1150,7 +1150,7 @@ static void gatherDistributedCatInfos(tree *tr, int **rateCategory_result, doubl
     added parameters patrat and rateCategory. The checkpoint writer
     has to gather this distributed information first. 
  */ 
-static void writeCheckpointInner(tree *tr, int *rateCategory, double *patrat )
+static void writeCheckpointInner(tree *tr, int *rateCategory, double *patrat, analdef *adef)
 {
   int   
     model; 
@@ -1173,9 +1173,24 @@ static void writeCheckpointInner(tree *tr, int *rateCategory, double *patrat )
   ckpCount++;
 
   f = myfopen(extendedName, "w"); 
+  
+
+  ckp.cmd.useMedian = tr->useMedian;
+  ckp.cmd.saveBestTrees = tr->saveBestTrees;
+  ckp.cmd.saveMemory = tr->saveMemory;
+  ckp.cmd.searchConvergenceCriterion = tr->searchConvergenceCriterion;
+  ckp.cmd.perGeneBranchLengths = adef->perGeneBranchLengths; //adef
+  ckp.cmd.likelihoodEpsilon = adef->likelihoodEpsilon; //adef
+  ckp.cmd.categories =  tr->categories;
+  ckp.cmd.mode = adef->mode; //adef
+  ckp.cmd.fastTreeEvaluation =  tr->fastTreeEvaluation;
+  ckp.cmd.doCutoff = tr->doCutoff;
+  ckp.cmd.initialSet = adef->initialSet;//adef
+  ckp.cmd.initial = adef->initial;//adef
+  ckp.cmd.rateHetModel = tr->rateHetModel;
+  
 
   /* cdta */   
-
   
   ckp.accumulatedTime = accumulatedTime + (gettime() - masterTime);
   ckp.constraintTree = tr->constraintTree;
@@ -1254,7 +1269,7 @@ static void writeCheckpointInner(tree *tr, int *rateCategory, double *patrat )
 }
 
 
-void writeCheckpoint(tree *tr)
+void writeCheckpoint(tree *tr, analdef *adef)
 {
   int 
     *rateCategory = (int *)NULL; 
@@ -1267,7 +1282,7 @@ void writeCheckpoint(tree *tr)
 
   if(processID == 0)
     {
-      writeCheckpointInner(tr, rateCategory, patrat); 
+      writeCheckpointInner(tr, rateCategory, patrat, adef); 
 
       if(tr->rateHetModel == CAT)
 	{
@@ -1349,8 +1364,115 @@ static void readTree(tree *tr, FILE *f)
   printBothOpen("ExaML Restart with likelihood: %1.50f\n", tr->likelihood);
 }
 
+static void genericError(void)
+{
+  printBothOpen("\nError: command lines used in initial run and re-start from checkpoint do not match!\n");
+}
 
-static void readCheckpoint(tree *tr)
+static void checkCommandLineArguments(tree *tr, analdef *adef)
+{
+  boolean
+    match = TRUE;
+
+  if(ckp.cmd.useMedian != tr->useMedian)
+    {
+      genericError();
+      printBothOpen("\nDisagreement in median for gamma option: -a\n");
+      match = FALSE;
+    }
+  
+  if(ckp.cmd.saveBestTrees != tr->saveBestTrees)
+    {
+      genericError();
+      printBothOpen("\nDisagreement in tree saving option: -B\n");
+      match = FALSE;
+    }
+  
+  if(ckp.cmd.saveMemory != tr->saveMemory)
+    {
+      genericError();
+      printBothOpen("\nDisagreement in memory saving option: -S\n");
+      match = FALSE;
+    }
+  
+  if(ckp.cmd.searchConvergenceCriterion != tr->searchConvergenceCriterion)
+    {
+      genericError();
+      printBothOpen("\nDisagreement in search convergence criterion: -D\n");
+      match = FALSE;
+    }
+  
+  if(ckp.cmd.perGeneBranchLengths != adef->perGeneBranchLengths)
+    {
+      genericError();
+      printBothOpen("\nDisagreement in using per-partition branch lengths: -M\n");
+      match = FALSE;
+    }
+  
+  if(ckp.cmd.likelihoodEpsilon != adef->likelihoodEpsilon)
+     {
+      genericError();
+      printBothOpen("\nDisagreement in likelihood epsilon value: -e\n");
+      match = FALSE;
+    }
+  
+  if(ckp.cmd.categories !=  tr->categories)
+    {
+      genericError();
+      printBothOpen("\nDisagreement in number of PSR rate categories: -c\n");
+      match = FALSE;
+    }
+
+  if(ckp.cmd.mode != adef->mode)
+    {
+      genericError();
+      printBothOpen("\nDisagreement in tree search or evaluation mode\n");
+      match = FALSE;
+    }
+  
+  if(ckp.cmd.fastTreeEvaluation !=  tr->fastTreeEvaluation)
+    {
+      genericError();
+      printBothOpen("\nDisagreement in fast tree evaluation: -e|-E\n");
+      match = FALSE;
+    }
+  
+  if(ckp.cmd.doCutoff != tr->doCutoff)
+    {
+      genericError();
+      printBothOpen("\nDisagreement in thorough tree search: -f o\n");
+      match = FALSE;
+    }
+
+  if(ckp.cmd.initialSet != adef->initialSet)
+     {
+      genericError();
+      printBothOpen("\nDisagreement in rearrangement radius limitation setting: -i\n");
+      match = FALSE;
+    }
+  
+  if(ckp.cmd.initial != adef->initial)
+     {
+      genericError();
+      printBothOpen("\nDisagreement in rearrangement radius value: -i\n");
+      match = FALSE;
+    }
+  
+  if(ckp.cmd.rateHetModel != tr->rateHetModel)
+     {
+      genericError();
+      printBothOpen("\nDisagreement in rate heterogeneity model: -m\n");
+      match = FALSE;
+    }
+
+  if(!match)
+    {
+      printBothOpen("\nExaML will exit now ...\n\n");
+      errorExit(-1);
+    }
+}
+
+static void readCheckpoint(tree *tr, analdef *adef)
 {
   int   
     model; 
@@ -1361,6 +1483,8 @@ static void readCheckpoint(tree *tr)
   /* cdta */   
 
   myBinFread(&ckp, sizeof(checkPointState), 1, f);
+
+  checkCommandLineArguments(tr, adef);
 
   tr->constraintTree = ckp.constraintTree;
 
@@ -1561,7 +1685,7 @@ static void readCheckpoint(tree *tr)
 
 void restart(tree *tr, analdef *adef)
 {  
-  readCheckpoint(tr);
+  readCheckpoint(tr, adef);
 
   switch(ckp.state)
     {
@@ -1655,7 +1779,7 @@ int determineRearrangementSetting(tree *tr,  analdef *adef, bestlist *bestT, bes
 	ckp.tr_itCount  = tr->itCount;
 	  
 	  
-	writeCheckpoint(tr);    
+	writeCheckpoint(tr, adef);    
       }
 
       if (maxtrav > tr->mxtips - 3)  
@@ -1986,7 +2110,7 @@ void computeBIGRAPID (tree *tr, analdef *adef, boolean estimateModel)
 	ckp.tr_doCutoff = tr->doCutoff;
 	  
 	/* write a binary checkpoint */
-	writeCheckpoint(tr); 
+	writeCheckpoint(tr, adef); 
       }	
 
       /* this is the aforementioned convergence criterion that requires computing the RF,
@@ -2258,7 +2382,7 @@ void computeBIGRAPID (tree *tr, analdef *adef, boolean estimateModel)
 	  
 	  /* write binary checkpoint to file */
 	  
-	  writeCheckpoint(tr); 
+	  writeCheckpoint(tr, adef); 
 	}
     
       if(impr)
