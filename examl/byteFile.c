@@ -2,7 +2,7 @@
 
 #if defined(__APPLE__)
 #include <malloc/malloc.h>
-#elseif
+#else
 #include <malloc.h>
 #endif
 
