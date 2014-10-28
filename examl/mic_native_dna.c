@@ -287,10 +287,14 @@ void newviewGTRGAMMA_MIC(int tipCase,
 
             if(vmax1 < minlikelihood && vmax2 < minlikelihood)
             {
-        	t1 = _mm512_mul_pd(t1, twotothe256_MIC);
+	      /*	t1 = _mm512_mul_pd(t1, twotothe256_MIC);
         	_mm512_store_pd(&v3[0], t1);
         	t2 = _mm512_mul_pd(t2, twotothe256_MIC);
-        	_mm512_store_pd(&v3[8], t2);
+        	_mm512_store_pd(&v3[8], t2);*/
+	     
+#pragma vector aligned nontemporal
+	      for(int l = 0; l < span; l++)
+		v3[l] *= twotothe256;
 
                 addScale += wgt[i];
             }
@@ -345,12 +349,17 @@ void newviewGTRGAMMA_MIC(int tipCase,
 
             if(vmax1 < minlikelihood && vmax2 < minlikelihood)
             {
-        	t1 = _mm512_mul_pd(t1, twotothe256_MIC);
+	      /* t1 = _mm512_mul_pd(t1, twotothe256_MIC);
         	_mm512_store_pd(&v3[0], t1);
         	t2 = _mm512_mul_pd(t2, twotothe256_MIC);
         	_mm512_store_pd(&v3[8], t2);
+	      */
+	      
+#pragma vector aligned nontemporal
+	      for(int l = 0; l < span; l++)
+		v3[l] *= twotothe256;
 
-                addScale += wgt[i];
+	      addScale += wgt[i];
             }
         }
     } break;
