@@ -491,6 +491,9 @@ void printLoad(PartitionAssignment *pa)
   printf("#proc\t#part\t#sites\n"); 
   for( i = 0; i < pa->numProc ; ++i)
     printf("%d\t%d\t%lu\n", i, numsPerProc[i], sitesPerProc[i]); 
+
+  free(numsPerProc);
+  free(sitesPerProc);
 }
 
 
