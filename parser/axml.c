@@ -1822,28 +1822,7 @@ static int dataExists(char *model, analdef *adef)
     {
       adef->model = M_BINGAMMA;      
       return 1;
-    }
-
-  
-
-  /*********** 32 state ****************************/
-
-  if(strcmp(model, "MULTI\0") == 0)
-    {
-      adef->model = M_32GAMMA;     
-      return 1;
-    }
-  
-
-  /*********** 64 state ****************************/
-
-  if(strcmp(model, "CODON\0") == 0)
-    {
-      adef->model = M_64GAMMA;     
-      return 1;
-    }
-
-  
+    }  
 
   /*********** DNA **********************/
 
@@ -1853,23 +1832,13 @@ static int dataExists(char *model, analdef *adef)
       return 1;
     }
 
- 
-
-
-
   /*************** AA GTR ********************/
-
-  /* TODO empirical FREQS */
 
   if(strcmp(model, "PROT\0") == 0)
     {
       adef->model = M_PROTGAMMA;     
       return 1;
     } 
-
- 
-
-
 
   return 0;
 }
@@ -1899,6 +1868,7 @@ static void printREADME(void)
   printf("\n"); 
   printf("      -m Model of  Nucleotide or Amino Acid Substitution:\n");
   printf("\n"); 
+  printf("              For Binary data use: BIN\n");
   printf("              For DNA data use:    DNA\n");	
   printf("              For AA data use:     PROT\n");			   
   printf("\n"); 
@@ -2721,7 +2691,7 @@ int main (int argc, char *argv[])
 
 	//multiply partition width with number of states we need to store in each CLV entry
 
-	mem_reqs_cat += (size_t)tr->partitionData[model].states * width;
+	mem_reqs_cat += (size_t)tr->partitionData[model].states * width;	
 
         for(i = 0; i < (size_t)tr->mxtips; ++i)
           {
