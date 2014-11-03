@@ -325,6 +325,14 @@ static double evaluateCAT_FLEX (int *cptr, int *wptr,
    
 
 #ifdef _OPTIMIZED_FUNCTIONS
+static double evaluateGTRGAMMA_BINARY(int *ex1, int *ex2, int *wptr,
+                                      double *x1_start, double *x2_start, 
+                                      double *tipVector, 
+                                      unsigned char *tipX1, const int n, double *diagptable, const boolean fastScaling);
+
+static double evaluateGTRCAT_BINARY (int *ex1, int *ex2, int *cptr, int *wptr,
+                                     double *x1_start, double *x2_start, double *tipVector,                   
+                                     unsigned char *tipX1, int n, double *diagptable_start, const boolean fastScaling);
 
 static double evaluateGTRGAMMAPROT_LG4(int *ex1, int *ex2, int *wptr,
 				       double *x1, double *x2,  
@@ -414,7 +422,8 @@ void evaluateIterative(tree *tr)
   /* iterate over all valid entries in the traversal descriptor */
   newviewIterative(tr, 1);
 
-  int m;
+  int 
+    m;
 
 #ifdef _USE_OMP
 #pragma omp parallel for
@@ -494,28 +503,28 @@ void evaluateIterative(tree *tr)
 
 
 #ifdef _USE_OMP
-
     	  int
     	    tid = omp_get_thread_num();
 
     	  /* check if this thread should process this partition */
-    	  Assign* pAss = tr->threadPartAssigns[tid * tr->maxModelsPerThread + m];
+    	  Assign* 
+	    pAss = tr->threadPartAssigns[tid * tr->maxModelsPerThread + m];
 
-    	  if (pAss)
-    	  {
-      	    model  = pAss->partitionId;
-      	    width  = pAss->width;
-      	    offset = pAss->offset;
-
-      	    assert(model < tr->NumberOfModels);
-
-      	    diagptable = tr->partitionData[model].left;
-	    globalScaler = tr->partitionData[model].threadGlobalScaler[tid];
-	    perPartitionLH = &tr->partitionData[model].reductionBuffer[tid];
-    	  }
+    	  if(pAss)
+	    {
+	      model  = pAss->partitionId;
+	      width  = pAss->width;
+	      offset = pAss->offset;
+	      
+	      assert(model < tr->NumberOfModels);
+	      
+	      diagptable = tr->partitionData[model].left;
+	      globalScaler = tr->partitionData[model].threadGlobalScaler[tid];
+	      perPartitionLH = &tr->partitionData[model].reductionBuffer[tid];
+	    }
     	  else
     	    break;
-
+	  
 #else
     	  model = m;
 
@@ -689,6 +698,18 @@ void evaluateIterative(tree *tr)
 	  
 	  switch(states)
 	    { 	  
+	    case 2:
+	      assert(!tr->saveMemory);
+	      if(tr->rateHetModel == CAT)
+		partitionLikelihood = evaluateGTRCAT_BINARY((int *)NULL, (int *)NULL, tr->partitionData[model].rateCategory, wgt,
+				      x1_start, x2_start, tr->partitionData[model].tipVector, 
+				      tip, width, diagptable, TRUE);
+	      else				  
+		partitionLikelihood = evaluateGTRGAMMA_BINARY((int *)NULL, (int *)NULL, wgt,
+							     x1_start, x2_start, 
+							     tr->partitionData[model].tipVector,
+							     tip, width, diagptable, TRUE);	      	      
+	      break;
 	    case 4: /* DNA */
 	      {
 		if(tr->rateHetModel == CAT)
@@ -988,6 +1009,157 @@ void evaluateGeneric (tree *tr, nodeptr p, boolean fullTraversal)
 /* below are the optimized function versions with geeky intrinsics */
 
 #ifdef _OPTIMIZED_FUNCTIONS
+
+/* binary data */
+
+static double evaluateGTRCAT_BINARY (int *ex1, int *ex2, int *cptr, int *wptr,
+                                     double *x1_start, double *x2_start, double *tipVector,                   
+                                     unsigned char *tipX1, int n, double *diagptable_start, const boolean fastScaling)
+{
+  double  sum = 0.0, term;       
+  int     i;
+  double  *diagptable, *x1, *x2;                            
+ 
+  if(tipX1)
+    {          
+      for (i = 0; i < n; i++) 
+        {
+          double 
+	    t[2] __attribute__ ((aligned (BYTE_ALIGNMENT)));
+
+          x1 = &(tipVector[2 * tipX1[i]]);
+          x2 = &(x2_start[2 * i]);
+          
+          diagptable = &(diagptable_start[2 * cptr[i]]);                          
+        
+
+          _mm_store_pd(t, _mm_mul_pd(_mm_load_pd(x1), _mm_mul_pd(_mm_load_pd(x2), _mm_load_pd(diagptable))));
+          
+          if(fastScaling)
+            term = log(fabs(t[0] + t[1]));
+          else
+            term = log(fabs(t[0] + t[1])) + (ex2[i] * log(minlikelihood));                           
+
+          sum += wptr[i] * term;
+        }       
+    }               
+  else
+    {
+      for (i = 0; i < n; i++) 
+        {       
+          double 
+	    t[2] __attribute__ ((aligned (BYTE_ALIGNMENT)));                                 
+            
+          x1 = &x1_start[2 * i];
+          x2 = &x2_start[2 * i];
+          
+          diagptable = &diagptable_start[2 * cptr[i]];            
+
+          _mm_store_pd(t, _mm_mul_pd(_mm_load_pd(x1), _mm_mul_pd(_mm_load_pd(x2), _mm_load_pd(diagptable))));
+          
+          if(fastScaling)
+            term = log(fabs(t[0] + t[1]));
+          else
+            term = log(fabs(t[0] + t[1])) + ((ex1[i] + ex2[i]) * log(minlikelihood));                        
+
+          
+          sum += wptr[i] * term;
+        }          
+    }
+       
+  return  sum;         
+} 
+
+
+static double evaluateGTRGAMMA_BINARY(int *ex1, int *ex2, int *wptr,
+                                      double *x1_start, double *x2_start, 
+                                      double *tipVector, 
+                                      unsigned char *tipX1, const int n, double *diagptable, const boolean fastScaling)
+{
+  double   sum = 0.0, term;    
+  int     i, j;  
+  double  *x1, *x2;             
+
+  if(tipX1)
+    {          
+      for (i = 0; i < n; i++)
+        {
+          double t[2] __attribute__ ((aligned (BYTE_ALIGNMENT)));
+          __m128d termv, x1v, x2v, dv;
+	  
+          x1 = &(tipVector[2 * tipX1[i]]);       
+          x2 = &x2_start[8 * i];                                
+
+          termv = _mm_set1_pd(0.0);                
+          
+          for(j = 0; j < 4; j++)
+            {
+              x1v = _mm_load_pd(&x1[0]);
+              x2v = _mm_load_pd(&x2[j * 2]);
+              dv   = _mm_load_pd(&diagptable[j * 2]);
+              
+              x1v = _mm_mul_pd(x1v, x2v);
+              x1v = _mm_mul_pd(x1v, dv);
+              
+              termv = _mm_add_pd(termv, x1v);                 
+            }
+          
+          _mm_store_pd(t, termv);               
+          
+          if(fastScaling)
+            term = log(0.25 * (fabs(t[0] + t[1])));
+          else
+            term = log(0.25 * (fabs(t[0] + t[1]))) + (ex2[i] * log(minlikelihood));       
+ 
+          
+          sum += wptr[i] * term;
+        }         
+    }
+  else
+    {         
+      for (i = 0; i < n; i++) 
+        {
+
+          double t[2] __attribute__ ((aligned (BYTE_ALIGNMENT)));
+          __m128d termv, x1v, x2v, dv;
+                        
+          x1 = &x1_start[8 * i];
+          x2 = &x2_start[8 * i];
+                  
+
+          termv = _mm_set1_pd(0.0);                
+          
+          for(j = 0; j < 4; j++)
+            {
+              x1v = _mm_load_pd(&x1[j * 2]);
+              x2v = _mm_load_pd(&x2[j * 2]);
+              dv   = _mm_load_pd(&diagptable[j * 2]);
+              
+              x1v = _mm_mul_pd(x1v, x2v);
+              x1v = _mm_mul_pd(x1v, dv);
+              
+              termv = _mm_add_pd(termv, x1v);                 
+            }
+          
+          _mm_store_pd(t, termv);
+          
+          
+          if(fastScaling)
+            term = log(0.25 * (fabs(t[0] + t[1])));
+          else
+            term = log(0.25 * (fabs(t[0] + t[1]))) + ((ex1[i] +ex2[i]) * log(minlikelihood));     
+
+
+          sum += wptr[i] * term;
+        }                       
+    }
+
+  return sum;
+} 
+
+
+/* binary data end */
+
 
 static double evaluateGTRGAMMAPROT_LG4(int *ex1, int *ex2, int *wptr,
 				       double *x1, double *x2,  
@@ -1874,3 +2046,5 @@ static double evaluateGTRCAT (int *cptr, int *wptr,
 
 
 #endif
+
+

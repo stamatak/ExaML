@@ -1346,14 +1346,15 @@ static void optBaseFreqs(tree *tr, double modelEpsilon, linkageList *ll)
     i,
     states,
     dnaPartitions = 0,
-    aaPartitions  = 0;
+    aaPartitions  = 0,
+    binaryPartitions = 0;
 
   /* first do DNA */
 
   for(i = 0; i < ll->entries; i++)
     {
       switch(tr->partitionData[ll->ld[i].partitionList[0]].dataType)
-	{
+	{       	  	  
 	case DNA_DATA:	
 	  states = tr->partitionData[ll->ld[i].partitionList[0]].states;	 
 	  if(tr->partitionData[ll->ld[i].partitionList[0]].optimizeBaseFrequencies)
@@ -1365,6 +1366,7 @@ static void optBaseFreqs(tree *tr, double modelEpsilon, linkageList *ll)
 	    ll->ld[i].valid = FALSE;
 	  break;       
 	case AA_DATA:
+	case BINARY_DATA:
 	  ll->ld[i].valid = FALSE;
 	  break;
 	default:
@@ -1392,7 +1394,8 @@ static void optBaseFreqs(tree *tr, double modelEpsilon, linkageList *ll)
 	  else
 	    ll->ld[i].valid = FALSE; 
 	  break;
-	case DNA_DATA:	    
+	case DNA_DATA:	 
+	case BINARY_DATA:
 	  ll->ld[i].valid = FALSE;
 	  break;
 	default:
@@ -1402,6 +1405,35 @@ static void optBaseFreqs(tree *tr, double modelEpsilon, linkageList *ll)
   
   if(aaPartitions > 0)      
     optFreqs(tr, modelEpsilon, ll, aaPartitions, states);
+
+
+  //then binary 
+
+  for(i = 0; i < ll->entries; i++)
+    {
+      switch(tr->partitionData[ll->ld[i].partitionList[0]].dataType)
+	{
+	case BINARY_DATA:	  
+	  states = tr->partitionData[ll->ld[i].partitionList[0]].states; 	      
+	  if(tr->partitionData[ll->ld[i].partitionList[0]].optimizeBaseFrequencies)
+	    {
+	      ll->ld[i].valid = TRUE;
+	      binaryPartitions++;		
+	    }
+	  else
+	    ll->ld[i].valid = FALSE; 
+	  break;
+	case DNA_DATA:	    
+	case AA_DATA:
+	  ll->ld[i].valid = FALSE;
+	  break;	 
+	default:
+	  assert(0);
+	}	 
+    }
+  
+  if(binaryPartitions > 0)      
+    optFreqs(tr, modelEpsilon, ll, binaryPartitions, states);
 
   for(i = 0; i < ll->entries; i++)
     ll->ld[i].valid = TRUE;
@@ -2619,6 +2651,8 @@ void modOpt(tree *tr, double likelihoodEpsilon, analdef *adef, int treeIteration
   inputLikelihood = tr->likelihood;
 
   evaluateGeneric(tr, tr->start, TRUE); 
+
+ 
 
   assert(inputLikelihood == tr->likelihood);
 

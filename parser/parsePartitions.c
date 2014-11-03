@@ -200,28 +200,39 @@ static void analyzeIdentifier(char **ch, int modelNumber, tree *tr)
 		      tr->initialPartitionData[modelNumber].protModels = -1;		  
 		      tr->initialPartitionData[modelNumber].protFreqs  = -1;
 		      tr->initialPartitionData[modelNumber].dataType   = BINARY_DATA;
-		      
+		      tr->initialPartitionData[modelNumber].optimizeBaseFrequencies = FALSE;
 		      found = TRUE;
 		    }
 		  else
 		    {
-		      if(strcasecmp(model, "MULTI") == 0)
-			{	     	      
+		      if(strcasecmp(model, "BINX") == 0)
+			{
 			  tr->initialPartitionData[modelNumber].protModels = -1;		  
 			  tr->initialPartitionData[modelNumber].protFreqs  = -1;
-			  tr->initialPartitionData[modelNumber].dataType   = GENERIC_32;
-			  
+			  tr->initialPartitionData[modelNumber].dataType   = BINARY_DATA;
+			  tr->initialPartitionData[modelNumber].optimizeBaseFrequencies = TRUE;
 			  found = TRUE;
 			}
 		      else
 			{
-			  if(strcasecmp(model, "CODON") == 0)
+			  if(strcasecmp(model, "MULTI") == 0)
 			    {	     	      
 			      tr->initialPartitionData[modelNumber].protModels = -1;		  
 			      tr->initialPartitionData[modelNumber].protFreqs  = -1;
-			      tr->initialPartitionData[modelNumber].dataType   = GENERIC_64;
+			      tr->initialPartitionData[modelNumber].dataType   = GENERIC_32;
 			      
 			      found = TRUE;
+			    }
+			  else
+			    {
+			      if(strcasecmp(model, "CODON") == 0)
+				{	     	      
+				  tr->initialPartitionData[modelNumber].protModels = -1;		  
+				  tr->initialPartitionData[modelNumber].protFreqs  = -1;
+				  tr->initialPartitionData[modelNumber].dataType   = GENERIC_64;
+				  
+				  found = TRUE;
+				}
 			    }
 			}
 		    }

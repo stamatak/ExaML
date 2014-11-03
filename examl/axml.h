@@ -642,7 +642,6 @@ typedef struct {
   int categories;
   int mode; //adef
   int fastTreeEvaluation;
-  boolean doCutoff;
   boolean initialSet;//adef
   int initial;//adef
   int rateHetModel;

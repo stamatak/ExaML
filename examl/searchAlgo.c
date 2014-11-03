@@ -1184,7 +1184,6 @@ static void writeCheckpointInner(tree *tr, int *rateCategory, double *patrat, an
   ckp.cmd.categories =  tr->categories;
   ckp.cmd.mode = adef->mode; //adef
   ckp.cmd.fastTreeEvaluation =  tr->fastTreeEvaluation;
-  ckp.cmd.doCutoff = tr->doCutoff;
   ckp.cmd.initialSet = adef->initialSet;//adef
   ckp.cmd.initial = adef->initial;//adef
   ckp.cmd.rateHetModel = tr->rateHetModel;
@@ -1224,14 +1223,19 @@ static void writeCheckpointInner(tree *tr, int *rateCategory, double *patrat, an
       int 
 	dataType = tr->partitionData[model].dataType;
             
+      
+
       myBinFwrite(&(tr->partitionData[model].numberOfCategories), sizeof(int), 1, f);
       myBinFwrite(tr->partitionData[model].perSiteRates, sizeof(double), tr->maxCategories, f);
       myBinFwrite(tr->partitionData[model].EIGN, sizeof(double), pLengths[dataType].eignLength, f);
       myBinFwrite(tr->partitionData[model].EV, sizeof(double),  pLengths[dataType].evLength, f);
       myBinFwrite(tr->partitionData[model].EI, sizeof(double),  pLengths[dataType].eiLength, f);  
 
-      myBinFwrite(tr->partitionData[model].frequencies, sizeof(double),  pLengths[dataType].frequenciesLength, f);
-      myBinFwrite(tr->partitionData[model].tipVector, sizeof(double),  pLengths[dataType].tipVectorLength, f);  
+      myBinFwrite(tr->partitionData[model].freqExponents, sizeof(double),  pLengths[dataType].frequenciesLength, f);
+      myBinFwrite(tr->partitionData[model].frequencies,   sizeof(double),  pLengths[dataType].frequenciesLength, f);
+      myBinFwrite(tr->partitionData[model].tipVector,     sizeof(double),  pLengths[dataType].tipVectorLength, f);  
+
+     
       myBinFwrite(tr->partitionData[model].substRates, sizeof(double),  pLengths[dataType].substRatesLength, f);
 
       if(tr->partitionData[model].protModels == LG4)
@@ -1437,12 +1441,7 @@ static void checkCommandLineArguments(tree *tr, analdef *adef)
       match = FALSE;
     }
   
-  if(ckp.cmd.doCutoff != tr->doCutoff)
-    {
-      genericError();
-      printBothOpen("\nDisagreement in thorough tree search: -f o\n");
-      match = FALSE;
-    }
+  
 
   if(ckp.cmd.initialSet != adef->initialSet)
      {
@@ -1638,6 +1637,7 @@ static void readCheckpoint(tree *tr, analdef *adef)
       myBinFread(tr->partitionData[model].EV, sizeof(double),  pLengths[dataType].evLength, f);
       myBinFread(tr->partitionData[model].EI, sizeof(double),  pLengths[dataType].eiLength, f);  
 
+      myBinFread(tr->partitionData[model].freqExponents, sizeof(double),  pLengths[dataType].frequenciesLength, f);
       myBinFread(tr->partitionData[model].frequencies, sizeof(double),  pLengths[dataType].frequenciesLength, f);
       myBinFread(tr->partitionData[model].tipVector, sizeof(double),  pLengths[dataType].tipVectorLength, f);  
       myBinFread(tr->partitionData[model].substRates, sizeof(double),  pLengths[dataType].substRatesLength, f);  
@@ -2058,8 +2058,7 @@ void computeBIGRAPID (tree *tr, analdef *adef, boolean estimateModel)
 	  tr->lhCutoff = ckp.tr_lhCutoff;
 	  tr->lhAVG    = ckp.tr_lhAVG;
 	  tr->lhDEC    = ckp.tr_lhDEC;   	 
-	  tr->itCount = ckp.tr_itCount;
-	  tr->doCutoff = ckp.tr_doCutoff;
+	  tr->itCount = ckp.tr_itCount;	  
 
 	  adef->useCheckpoint = FALSE;
 	}
@@ -2106,8 +2105,7 @@ void computeBIGRAPID (tree *tr, analdef *adef, boolean estimateModel)
 	ckp.tr_lhCutoff = tr->lhCutoff;
 	ckp.tr_lhAVG    = tr->lhAVG;
 	ckp.tr_lhDEC    = tr->lhDEC;       
-	ckp.tr_itCount  = tr->itCount;
-	ckp.tr_doCutoff = tr->doCutoff;
+	ckp.tr_itCount  = tr->itCount;       
 	  
 	/* write a binary checkpoint */
 	writeCheckpoint(tr, adef); 
@@ -2331,8 +2329,7 @@ void computeBIGRAPID (tree *tr, analdef *adef, boolean estimateModel)
 	  tr->lhCutoff = ckp.tr_lhCutoff;
 	  tr->lhAVG    = ckp.tr_lhAVG;
 	  tr->lhDEC    = ckp.tr_lhDEC;   	 
-	  tr->itCount = ckp.tr_itCount;
-	  tr->doCutoff = ckp.tr_doCutoff;
+	  tr->itCount = ckp.tr_itCount;	 
 
 	  adef->useCheckpoint = FALSE;
 	}
@@ -2377,8 +2374,7 @@ void computeBIGRAPID (tree *tr, analdef *adef, boolean estimateModel)
 	  ckp.tr_lhCutoff = tr->lhCutoff;
 	  ckp.tr_lhAVG    = tr->lhAVG;
 	  ckp.tr_lhDEC    = tr->lhDEC;     
-	  ckp.tr_itCount  = tr->itCount;
-	  ckp.tr_doCutoff = tr->doCutoff;
+	  ckp.tr_itCount  = tr->itCount;	
 	  
 	  /* write binary checkpoint to file */
 	  

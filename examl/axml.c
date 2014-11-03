@@ -1297,17 +1297,11 @@ static void printModelAndProgramInfo(tree *tr, analdef *adef, int argc, char *ar
 	strcpy(modelType, "GAMMA");   
      
       printBoth(infoFile, "\n\nThis is %s version %s released by Alexandros Stamatakis, Andre Aberer, and Alexey Kozlov in %s.\n\n",  programName, programVersion, programDate);
-     
-      
-      
-     
+                     
       printBoth(infoFile, "\nAlignment has %zu distinct alignment patterns\n\n",  tr->originalCrunchedLength);
-      
-     
-      
+                 
       printBoth(infoFile, "Proportion of gaps and completely undetermined characters in this alignment: %3.2f%s\n", 100.0 * tr->gapyness, "%");
       
-
       switch(adef->mode)
 	{	
 	case  BIG_RAPID_MODE:	 
@@ -1319,42 +1313,21 @@ static void printModelAndProgramInfo(tree *tr, analdef *adef, int argc, char *ar
 	default:
 	  assert(0);
 	}
-
-     
-	  
+     	  
       if(adef->perGeneBranchLengths)
 	printBoth(infoFile, "Using %d distinct models/data partitions with individual per partition branch length optimization\n\n\n", tr->NumberOfModels);
       else
 	printBoth(infoFile, "Using %d distinct models/data partitions with joint branch length optimization\n\n\n", tr->NumberOfModels);	
-	
-
-      
-     
-
-
-      
-      
+	      
       printBoth(infoFile, "All free model parameters will be estimated by ExaML\n");
-      
-     
-	
+           	
       if(tr->rateHetModel == GAMMA || tr->rateHetModel == GAMMA_I)
 	printBoth(infoFile, "%s model of rate heteorgeneity, ML estimate of alpha-parameter\n\n", modelType);
       else
 	{
 	  printBoth(infoFile, "ML estimate of %d per site rate categories\n\n", tr->categories);
-	  /*
-	    if(adef->mode != CLASSIFY_ML)
-	    printBoth(infoFile, "Likelihood of final tree will be evaluated and optimized under %s\n\n", modelType);
-	  */
-	}
-      
-      /*
-	if(adef->mode != CLASSIFY_ML)
-	printBoth(infoFile, "%s Model parameters will be estimated up to an accuracy of %2.10f Log Likelihood units\n\n",
-	modelType, adef->likelihoodEpsilon);
-      */
-    
+	 
+	}               
       
       for(model = 0; model < tr->NumberOfModels; model++)
 	{
@@ -1383,38 +1356,41 @@ static void printModelAndProgramInfo(tree *tr, analdef *adef, int argc, char *ar
 	      printBoth(infoFile, "DataType: BINARY/MORPHOLOGICAL\n");	      
 	      printBoth(infoFile, "Substitution Matrix: Uncorrected\n");
 	      break;
-	    case SECONDARY_DATA:
-	      printBoth(infoFile, "DataType: SECONDARY STRUCTURE\n");	     
-	      printBoth(infoFile, "Substitution Matrix: %s\n", secondaryModelList[tr->secondaryStructureModel]);
-	      break;
-	    case SECONDARY_DATA_6:
-	      printBoth(infoFile, "DataType: SECONDARY STRUCTURE 6 STATE\n");	     
-	      printBoth(infoFile, "Substitution Matrix: %s\n", secondaryModelList[tr->secondaryStructureModel]);
-	      break;
-	    case SECONDARY_DATA_7:
-	      printBoth(infoFile, "DataType: SECONDARY STRUCTURE 7 STATE\n");	      
-	      printBoth(infoFile, "Substitution Matrix: %s\n", secondaryModelList[tr->secondaryStructureModel]);
-	      break;
-	    case GENERIC_32:
-	      printBoth(infoFile, "DataType: Multi-State with %d distinct states in use (maximum 32)\n",tr->partitionData[model].states);		  
-	      switch(tr->multiStateModel)
+	    
+	      /*
+		case SECONDARY_DATA:
+		printBoth(infoFile, "DataType: SECONDARY STRUCTURE\n");	     
+		printBoth(infoFile, "Substitution Matrix: %s\n", secondaryModelList[tr->secondaryStructureModel]);
+		break;
+		case SECONDARY_DATA_6:
+		printBoth(infoFile, "DataType: SECONDARY STRUCTURE 6 STATE\n");	     
+		printBoth(infoFile, "Substitution Matrix: %s\n", secondaryModelList[tr->secondaryStructureModel]);
+		break;
+		case SECONDARY_DATA_7:
+		printBoth(infoFile, "DataType: SECONDARY STRUCTURE 7 STATE\n");	      
+		printBoth(infoFile, "Substitution Matrix: %s\n", secondaryModelList[tr->secondaryStructureModel]);
+		break;
+		case GENERIC_32:
+		printBoth(infoFile, "DataType: Multi-State with %d distinct states in use (maximum 32)\n",tr->partitionData[model].states);		  
+		switch(tr->multiStateModel)
 		{
 		case ORDERED_MULTI_STATE:
-		  printBoth(infoFile, "Substitution Matrix: Ordered Likelihood\n");
-		  break;
+		printBoth(infoFile, "Substitution Matrix: Ordered Likelihood\n");
+		break;
 		case MK_MULTI_STATE:
-		  printBoth(infoFile, "Substitution Matrix: MK model\n");
-		  break;
+		printBoth(infoFile, "Substitution Matrix: MK model\n");
+		break;
 		case GTR_MULTI_STATE:
-		  printBoth(infoFile, "Substitution Matrix: GTR\n");
-		  break;
+		printBoth(infoFile, "Substitution Matrix: GTR\n");
+		break;
 		default:
-		  assert(0);
+		assert(0);
 		}
-	      break;
-	    case GENERIC_64:
-	      printBoth(infoFile, "DataType: Codon\n");		  
-	      break;		
+		break;
+		case GENERIC_64:
+		printBoth(infoFile, "DataType: Codon\n");		  
+		break;	
+	      */
 	    default:
 	      assert(0);
 	    }
@@ -1849,8 +1825,14 @@ static void clean_MPI_Exit(void)
 {
   MPI_Barrier(MPI_COMM_WORLD);
   MPI_Finalize();
+}
 
-  return;
+static void error_MPI_Exit(void)
+{
+  MPI_Barrier(MPI_COMM_WORLD);
+  MPI_Finalize();
+
+  exit(1);
 }
 
 
@@ -2096,7 +2078,7 @@ static void initializeTree(tree *tr, analdef *adef)
 	printf("You have specified per-partition branch lengths (-M option) with %d  models. \n\
 Please set #define NUM_BRANCHES in axml.h to %d (or higher) and recompile %s\n", 
 	       tr->NumberOfModels,tr->NumberOfModels, programName );
-      clean_MPI_Exit();
+      error_MPI_Exit();
     }
 
 
@@ -2542,31 +2524,67 @@ int main (int argc, char *argv[])
 	printBothOpen("Memory Saving Option: %s\n", (tr->saveMemory == TRUE)?"ENABLED":"DISABLED");   	             
       }
 	
-    /* do some error checks for the LG4 model */
+    /* do some error checks for the LG4 model and the binary models and the MIC and exit gracefully */
 
     {
       int 
+	countBinary = 0,
 	countLG4 = 0,
 	model;
 	
+#ifdef __MIC_NATIVE
+      if(tr->saveMemory)
+	{
+	  printBothOpen("Error: There is no MIC support yet for the memory saving option \"-S\"!\n\n");	  
+	  error_MPI_Exit();  	      
+	}
+      
+      if(tr->rateHetModel == CAT)
+	{
+	  printBothOpen("Error: There is no MIC support yet for the PSR model!\n\n");	  
+	  error_MPI_Exit(); 
+	}
+#endif
+
+
       for(model = 0; model < tr->NumberOfModels; model++)
-	if(tr->partitionData[model].protModels == LG4)
-	  countLG4++;
+	{
+	  if(tr->partitionData[model].protModels == LG4)
+	    countLG4++;
+	  if(tr->partitionData[model].states == 2)
+	    countBinary++;
+	}
 
       if(countLG4 > 0)
 	{
 	  if(tr->saveMemory == TRUE)
 	    {
-	      printBothOpen("Error: the LG4 substitution model does not work in combination with the \"-U\" memory saving flag!\n\n");	  
-	      clean_MPI_Exit();
+	      printBothOpen("Error: the LG4 substitution model does not work in combination with the \"-S\" memory saving flag!\n\n");	  
+	      error_MPI_Exit();
 	    }
 
 	  if(tr->rateHetModel == CAT)
 	    {
 	      printBothOpen("Error: the LG4 substitution model does not work for proportion of invariavble sites estimates!\n\n");
-	      clean_MPI_Exit();
+	      error_MPI_Exit();
 	    }
 	}
+
+      if(countBinary > 0)
+	{
+	  if(tr->saveMemory == TRUE)
+	    {
+	      printBothOpen("Error: Binary data partitions can not be used in combination with the \"-S\" memory saving flag!\n\n");	  
+	      error_MPI_Exit();
+	    }
+	  
+#ifdef __MIC_NATIVE
+	printBothOpen("Error: There is no MIC support yet for binary data partitions!\n\n");	  
+	error_MPI_Exit();  	      
+#endif
+
+	}
+
     }
 	             
     /* 
