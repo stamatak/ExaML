@@ -400,9 +400,17 @@ void assign(PartitionAssignment *pa)
   int 
     partitionsHandled = 0,
     curType = -1,
+    j, 
     i; 
 
-  while(partitionsHandled < pa->numPartitions)
+  /* 
+     only handling 3 types (BIN, DNA, AA) at the moment. Please adapt,
+     when the number of types increases. 
+   */ 
+  int
+    types[3] = { 2, 4, 20 };
+
+  for(j = 0; j < 3 ; ++j)
     {
       size_t 
 	cnt; 
@@ -410,15 +418,7 @@ void assign(PartitionAssignment *pa)
       Partition 
 	*curPartitions = (Partition *)NULL; 
 
-      /* search next type */
-      for( i = 0; i < pa->numPartitions; ++i)
-	{
-	  if(curType < pa->partitions[i].type )
-	    {
-	      curType = pa->partitions[i].type; 
-	      break; 
-	    }
-	}
+      curType = types[j]; 
       
       /* count number of type */
       cnt = 0; 
@@ -428,6 +428,9 @@ void assign(PartitionAssignment *pa)
 	    ++cnt; 
 	}
 
+      if(cnt == 0 )
+	continue; 
+      
       curPartitions = (Partition*)calloc((size_t)cnt, sizeof(Partition)); 
       
       cnt = 0; 
@@ -442,6 +445,8 @@ void assign(PartitionAssignment *pa)
       
       partitionsHandled += cnt; 
     }
+
+  assert(partitionsHandled ==  pa->numPartitions); 
 }
 
 

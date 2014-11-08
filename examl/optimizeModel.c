@@ -2448,10 +2448,7 @@ static void autoProtein(tree *tr)
 		}
 	    }
 
-	  //this barrier needs to be called in the library 
-	  //#ifdef _USE_PTHREADS	
-	  //masterBarrier(THREAD_COPY_RATES, tr);	   
-	  //#endif
+	  
       
 	  resetBranches(tr);
 	  evaluateGeneric(tr, tr->start, TRUE);  
