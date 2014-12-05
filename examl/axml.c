@@ -550,9 +550,13 @@ static boolean setupTree (tree *tr)
   tr->maxCategories = MAX(4, tr->categories);
   
   tr->partitionContributions = (double *)malloc(sizeof(double) * tr->NumberOfModels);
-  
+  tr->partitionWeights       = (double *)malloc(sizeof(double) * tr->NumberOfModels);
+
   for(i = 0; i < tr->NumberOfModels; i++)
-    tr->partitionContributions[i] = -1.0;
+    {
+      tr->partitionContributions[i] = -1.0;
+      tr->partitionWeights[i] = -1.0;
+    }
   
   tr->perPartitionLH = (double *)malloc(sizeof(double) * tr->NumberOfModels);
     
@@ -2035,7 +2039,10 @@ static void initializePartitions(tree *tr)
 	wgtsum += modelWeights[model]; 
 
       for(model = 0; model < tr->NumberOfModels; model++)      	
-	tr->partitionContributions[model] = ((double)modelWeights[model]) / ((double)wgtsum); 
+	{
+	  tr->partitionWeights[model]       = (double)modelWeights[model];
+	  tr->partitionContributions[model] = ((double)modelWeights[model]) / ((double)wgtsum); 
+	}
        
        free(modelWeights);
     }

@@ -784,6 +784,8 @@ typedef  struct  {
 
 
   double            *partitionContributions;
+  double            *partitionWeights;
+
   double            fracchange;
   double            lhCutoff;
   double            lhAVG;

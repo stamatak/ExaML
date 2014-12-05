@@ -2525,11 +2525,19 @@ static void autoProtein(tree *tr, analdef *adef)
 	      double
 		bestLhFixed = bestScores[model],
 		bestLhEmp   = bestScoresEmpFreqs[model],
-		samples = (double)(tr->partitionData[model].upper -  tr->partitionData[model].lower),		
+		samples = 0.0,		
 		freeParamsFixed = 0.0,
-		freeParamsEmp = 19.0;	      	  	      
+		freeParamsEmp = 0.0;	      	  	      
 	      
+	      samples = tr->partitionWeights[model];
+	      assert(samples != -1.0 && samples > 0.0);
 	     
+	      //printf("Sample size %f\n", samples);
+
+	      //we always deal with comprehensive trees in ExaML 
+	      assert(tr->ntips == tr->mxtips);
+	      freeParamsFixed = freeParamsEmp = (2 * tr->ntips - 3);
+	      freeParamsEmp += 19.0;
 
 	      switch(tr->rateHetModel)
 		{
@@ -2605,7 +2613,22 @@ static void autoProtein(tree *tr, analdef *adef)
 		  { 
 		    //AICc: AIC + (2 * k * (k + 1))/(n - k - 1)
 		    double
-		      aiccFixed = (2.0 * (freeParamsFixed - bestLhFixed)) + ((2.0 * freeParamsFixed * (freeParamsFixed + 1.0)) / (samples - freeParamsFixed - 1.0)),
+		      aiccFixed, 
+		      aiccEmp;   
+
+		    /* 
+		     * Even though samples and freeParamsFixed are fp variables, they are actually integers.
+		     * That's why we are comparing with a 0.5 threshold.
+		     */
+		    
+		    if(fabs(samples - freeParamsFixed - 1.0) < 0.5) 		      
+		      aiccFixed = 0.0;
+		    else 
+		      aiccFixed = (2.0 * (freeParamsFixed - bestLhFixed)) + ((2.0 * freeParamsFixed * (freeParamsFixed + 1.0)) / (samples - freeParamsFixed - 1.0));
+
+		    if(fabs(samples - freeParamsEmp - 1.0) < 0.5)
+		      aiccEmp = 0.0;
+		    else 
 		      aiccEmp   = (2.0 * (freeParamsEmp   - bestLhEmp))   + ((2.0 * freeParamsEmp   * (freeParamsEmp + 1.0))   / (samples - freeParamsEmp   - 1.0));
 
 		    if(aiccFixed < aiccEmp)
