@@ -1187,6 +1187,7 @@ static void writeCheckpointInner(tree *tr, int *rateCategory, double *patrat, an
   ckp.cmd.initialSet = adef->initialSet;//adef
   ckp.cmd.initial = adef->initial;//adef
   ckp.cmd.rateHetModel = tr->rateHetModel;
+  ckp.cmd.autoProteinSelectionType = tr->autoProteinSelectionType;
   
 
   /* cdta */   
@@ -1461,6 +1462,13 @@ static void checkCommandLineArguments(tree *tr, analdef *adef)
      {
       genericError();
       printBothOpen("\nDisagreement in rate heterogeneity model: -m\n");
+      match = FALSE;
+    }
+
+   if(ckp.cmd.autoProteinSelectionType != tr->autoProteinSelectionType)
+     {
+      genericError();
+      printBothOpen("\nDisagreement in protein model selection criterion: --auto-prot\n");
       match = FALSE;
     }
 

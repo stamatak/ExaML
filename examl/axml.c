@@ -47,7 +47,8 @@
 #include <string.h>
 #include <stdarg.h>
 #include <limits.h>
-
+#include <unistd.h>
+#include <getopt.h>
 
 #include <mpi.h>
 
@@ -711,73 +712,6 @@ static int modelExists(char *model, tree *tr)
 
 
 
-static int mygetopt(int argc, char **argv, char *opts, int *optind, char **optarg)
-{
-  static int sp = 1;
-  register int c;
-  register char *cp;
-
-  if(sp == 1)
-    {
-      if(*optind >= argc || argv[*optind][0] != '-' || argv[*optind][1] == '\0')
-	return -1;
-    }
-  else
-    {
-      if(strcmp(argv[*optind], "--") == 0)
-	{
-	  *optind =  *optind + 1;
-	  return -1;
-	}
-    }
-
-  c = argv[*optind][sp];
-  if(c == ':' || (cp=strchr(opts, c)) == 0)
-    {
-      printf(": illegal option -- %c \n", c);
-      if(argv[*optind][++sp] == '\0')
-	{
-	  *optind =  *optind + 1;
-	  sp = 1;
-	}
-      return('?');
-    }
-  if(*++cp == ':')
-    {
-      if(argv[*optind][sp+1] != '\0')
-	{
-	  *optarg = &argv[*optind][sp+1];
-	  *optind =  *optind + 1;
-	}
-      else
-	{
-	  *optind =  *optind + 1;
-	  if(*optind >= argc)
-	    {
-	      printf(": option requires an argument -- %c\n", c);
-	      sp = 1;
-	      return('?');
-	    }
-	  else
-	    {
-	      *optarg = argv[*optind];
-	      *optind =  *optind + 1;
-	    }
-	}
-      sp = 1;
-    }
-  else
-    {
-      if(argv[*optind][++sp] == '\0')
-	{
-	  sp = 1;
-	  *optind =  *optind + 1;
-	}
-      *optarg = 0;
-    }
-  return(c);
-  }
-
 
 
 
@@ -849,6 +783,7 @@ static void printREADME(void)
       printf("      [-S]\n");
       printf("      [-v]\n"); 
       printf("      [-w outputDirectory] \n"); 
+      printf("      [--auto-prot=ml|bic|aic|aicc]\n");
       printf("\n");  
       printf("      -a      use the median for the discrete approximation of the GAMMA model of rate heterogeneity\n");
       printf("\n");
@@ -919,6 +854,12 @@ static void printREADME(void)
       printf("      -w      FULL (!) path to the directory into which ExaML shall write its output files\n");
       printf("\n");
       printf("              DEFAULT: current directory\n");  
+      printf("\n");
+      printf("      --auto-prot=ml|bic|aic|aicc When using automatic protein model selection you can chose the criterion for selecting these models.\n");
+      printf("              RAxML will test all available prot subst. models except for LG4M, LG4X and GTR-based models, with and without empirical base frequencies.\n");
+      printf("              You can chose between ML score based selection and the BIC, AIC, and AICc criteria.\n");
+      printf("\n");
+      printf("              DEFAULT: ml\n");
       printf("\n\n\n\n");
     }
 }
@@ -958,21 +899,19 @@ static void analyzeRunId(char id[128])
 
 static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 {
-  boolean
-    bad_opt    =FALSE,
+  boolean   
     resultDirSet = FALSE;
 
   char
     resultDir[1024] = "",          
-    *optarg,
+    //*optarg,
     model[1024] = "",       
     modelChar;
 
   double 
     likelihoodEpsilon;
   
-  int     
-    optind = 1,        
+  int        
     c,
     nameSet = 0,
     treeSet = 0,   
@@ -1003,137 +942,207 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
   tr->saveBestTrees          = 0;
 
   tr->useMedian = FALSE;
-
+  
+  tr->autoProteinSelectionType = AUTO_ML;
+  
   /********* tr inits end*************/
-
-
-
-
-  while(!bad_opt && ((c = mygetopt(argc,argv,"R:B:e:c:f:i:m:t:g:w:n:s:p:vhMSDa", &optind, &optarg))!=-1))
+	
+  //while(!bad_opt && ((c = mygetopt(argc,argv,"R:B:e:c:f:i:m:t:g:w:n:s:p:vhMSDa", &optind, &optarg))!=-1))
+	
+  static 
+    int flag;
+  
+  while(1)
     {
-    switch(c)
-      {    
-      case 'p':
-	sscanf(optarg,"%u", &(tr->randomSeed));
-	seedSet = 1;
-	break;
-      case 'a':
-	tr->useMedian = TRUE;	
-	break;
-      case 'B':
-	sscanf(optarg,"%d", &(tr->saveBestTrees));
-	if(tr->saveBestTrees < 0)
-	  {
-	    printf("Number of best trees to save must be greater than 0!\n");
-	    errorExit(-1);	 
-	  }
-	break;       
-      case 's':		 	
-	strcpy(byteFileName, optarg);	 	
-	byteFileSet = TRUE;
-	/*printf("%s \n", byteFileName);*/
-	break;      
-      case 'S':
-	tr->saveMemory = TRUE;
-	break;
-      case 'D':
-	tr->searchConvergenceCriterion = TRUE;	
-	break;
-      case 'R':
-	adef->useCheckpoint = TRUE;
-	strcpy(binaryCheckpointInputName, optarg);
-	break;          
-      case 'M':
-	adef->perGeneBranchLengths = TRUE;
-	break;                                 
-      case 'e':
-	sscanf(optarg,"%lf", &likelihoodEpsilon);
-	adef->likelihoodEpsilon = likelihoodEpsilon;
-	break;    
+      static struct 
+	option long_options[2] =
+	{	 	 
+	  {"auto-prot",   required_argument, &flag, 1},	   	  	 
+	  {0, 0, 0, 0}
+	};
       
-      case 'v':
-	printVersionInfo();
-	errorExit(0);
+      int 
+	option_index;
       
-      case 'h':
-	printREADME();
-	errorExit(0);     
-      case 'c':
-	sscanf(optarg, "%d", &tr->categories);
-	break;     
-      case 'f':
-	sscanf(optarg, "%c", &modelChar);
-	switch(modelChar)
-	  {	 
-	  case 'e':
-	    adef->mode = TREE_EVALUATION;
-	    tr->fastTreeEvaluation = TRUE;
-	    break;
-	  case 'E':
-	    adef->mode = TREE_EVALUATION;
-	    tr->fastTreeEvaluation = FALSE;
-	    break;
-	  case 'd':
-	    adef->mode = BIG_RAPID_MODE;
-	    tr->doCutoff = TRUE;
-	    break;	  
-	  case 'o':
-	    adef->mode = BIG_RAPID_MODE;
-	    tr->doCutoff = FALSE;
-	    break;	    	  	  	     
-	  default:
+      flag = 0;        
+
+      c = getopt_long(argc, argv, "R:B:e:c:f:i:m:t:g:w:n:s:p:vhMSDa", long_options, &option_index);    
+    
+      if(c == -1)
+	break;
+      
+      if(flag > 0)
+	{
+	  switch(option_index)
 	    {
-	      if(processID == 0)
-		{
-		  printf("Error select one of the following algorithms via -f :\n");
-		  printMinusFUsage();
-		}
-	      errorExit(-1);
-	    }
-	  }
-	break;
-      case 'i':
-	sscanf(optarg, "%d", &adef->initial);
-	adef->initialSet = TRUE;
-	break;
-      case 'n':
-        strcpy(run_id,optarg);
-	analyzeRunId(run_id);
-	nameSet = 1;
-        break;
-      case 'w':
-        strcpy(resultDir, optarg);
-	resultDirSet = TRUE;
-        break;
-      case 't':
-	strcpy(tree_file, optarg);       
-	treeSet = 1;       
-	break;
-      case 'g':
-	strcpy(tree_file, optarg);       
-	treeSet = 1;       
-	tr->constraintTree = TRUE;
-	break;	
-      case 'm':
-	strcpy(model,optarg);
-	if(modelExists(model, tr) == 0)
-	  {
-	    if(processID == 0)
+	    case 0:
 	      {
-		printf("Rate heterogeneity Model %s does not exist\n\n", model);               
-		printf("For per site rates (called CAT in previous versions) use: PSR\n");	
-		printf("For GAMMA use: GAMMA\n");		
+		char 
+		  *autoModels[4] = {"ml", "bic", "aic", "aicc"};
+
+		int 
+		  k;
+
+		for(k = 0; k < 4; k++)		  
+		  if(strcmp(optarg, autoModels[k]) == 0)
+		    break;
+
+		if(k == 4)
+		  {
+		    printf("\nError, unknown protein model selection type, you can specify one of the following selection criteria:\n\n");
+		    for(k = 0; k < 4; k++)
+		      printf("--auto-prot=%s\n", autoModels[k]);
+		    printf("\n");
+		    errorExit(-1);
+		  }
+		else
+		  {
+		    switch(k)
+		      {
+		      case 0:
+			tr->autoProteinSelectionType = AUTO_ML;
+			break;
+		      case 1:
+			tr->autoProteinSelectionType = AUTO_BIC;
+			break;
+		      case 2:
+			tr->autoProteinSelectionType = AUTO_AIC;
+			break;
+		      case 3:
+			tr->autoProteinSelectionType = AUTO_AICC;
+			break;
+		      default:
+			assert(0);
+		      }
+		  }
 	      }
+	      break;
+	    default:
+	      assert(0);
+	    }
+	}
+      else	
+	switch(c)
+	  {    
+	  case 'p':
+	    sscanf(optarg,"%u", &(tr->randomSeed));
+	    seedSet = 1;
+	    break;
+	  case 'a':
+	    tr->useMedian = TRUE;	
+	    break;
+	  case 'B':
+	    sscanf(optarg,"%d", &(tr->saveBestTrees));
+	    if(tr->saveBestTrees < 0)
+	      {
+		printf("Number of best trees to save must be greater than 0!\n");
+		errorExit(-1);	 
+	      }
+	    break;       
+	  case 's':	    
+	    strcpy(byteFileName, optarg);	 	
+	    byteFileSet = TRUE;
+	    /*printf("%s \n", byteFileName);*/
+	    break;      
+	  case 'S':
+	    tr->saveMemory = TRUE;
+	    break;
+	  case 'D':
+	    tr->searchConvergenceCriterion = TRUE;	
+	    break;
+	  case 'R':
+	    adef->useCheckpoint = TRUE;
+	    strcpy(binaryCheckpointInputName, optarg);
+	    break;          
+	  case 'M':
+	    adef->perGeneBranchLengths = TRUE;
+	    break;                                 
+	  case 'e':
+	    sscanf(optarg,"%lf", &likelihoodEpsilon);
+	    adef->likelihoodEpsilon = likelihoodEpsilon;
+	    break;    	    
+	  case 'v':
+	    printVersionInfo();
+	    errorExit(0);	    
+	  case 'h':
+	    printREADME();
+	    errorExit(0);     
+	  case 'c':
+	    sscanf(optarg, "%d", &tr->categories);
+	    break;     
+	  case 'f':
+	    sscanf(optarg, "%c", &modelChar);
+	    switch(modelChar)
+	      {	 
+	      case 'e':
+		adef->mode = TREE_EVALUATION;
+		tr->fastTreeEvaluation = TRUE;
+		break;
+	      case 'E':
+		adef->mode = TREE_EVALUATION;
+		tr->fastTreeEvaluation = FALSE;
+		break;
+	      case 'd':
+		adef->mode = BIG_RAPID_MODE;
+		tr->doCutoff = TRUE;
+		break;	  
+	      case 'o':
+		adef->mode = BIG_RAPID_MODE;
+		tr->doCutoff = FALSE;
+		break;	    	  	  	     
+	      default:
+		{
+		  if(processID == 0)
+		    {
+		      printf("Error select one of the following algorithms via -f :\n");
+		      printMinusFUsage();
+		    }
+		  errorExit(-1);
+		}
+	      }
+	    break;
+	  case 'i':
+	    sscanf(optarg, "%d", &adef->initial);
+	    adef->initialSet = TRUE;
+	    break;
+	  case 'n':
+	    strcpy(run_id,optarg);
+	    analyzeRunId(run_id);
+	    nameSet = 1;
+	    break;
+	  case 'w':
+	    strcpy(resultDir, optarg);
+	    resultDirSet = TRUE;
+	    break;
+	  case 't':
+	    strcpy(tree_file, optarg);       
+	    treeSet = 1;       
+	    break;
+	  case 'g':
+	    strcpy(tree_file, optarg);       
+	    treeSet = 1;       
+	    tr->constraintTree = TRUE;
+	    break;	
+	  case 'm':
+	    strcpy(model,optarg);
+	    if(modelExists(model, tr) == 0)
+	      {
+		if(processID == 0)
+		  {
+		    printf("Rate heterogeneity Model %s does not exist\n\n", model);               
+		    printf("For per site rates (called CAT in previous versions) use: PSR\n");	
+		    printf("For GAMMA use: GAMMA\n");		
+		  }
+		errorExit(-1);
+	      }
+	    else
+	      modelSet = 1;
+	    break;     
+	  default:
 	    errorExit(-1);
 	  }
-	else
-	  modelSet = 1;
-	break;     
-      default:
-	errorExit(-1);
-      }
     }
-
+  
 
 
   if(tr->constraintTree)
@@ -2010,11 +2019,14 @@ static void initializePartitions(tree *tr)
       /* determine my weights per partition    */
       for(model = 0; model < tr->NumberOfModels; model++)      
 	 {
-	   const pInfo partition =  tr->partitionData[ model] ; 
-	   size_t i = 0; 
+	   const pInfo 
+	     partition =  tr->partitionData[model] ; 
+	   
+	   size_t 
+	     i = 0; 
+	   
 	   for(i = 0; i < partition.width; ++i)
 	     modelWeights[model] += (long) partition.wgt[i]; 
-
 	 }
       MPI_Allreduce(MPI_IN_PLACE, modelWeights, tr->NumberOfModels, MPI_UNSIGNED_LONG, MPI_SUM, MPI_COMM_WORLD); 
        
@@ -2269,14 +2281,18 @@ static void optimizeTrees(tree *tr, analdef *adef)
 static void readByteFile (tree *tr, int commRank, int commSize )
 {
   /* read stuff that is cheap; do not change the order! */
-  ByteFile *bFile = NULL; 
+  ByteFile 
+    *bFile = NULL; 
+  
   initializeByteFile(&bFile, byteFileName); 
   readHeader(bFile);
   readTaxa(bFile);
   readPartitions(bFile); 
 
   /* calculate optimal distribution of data */
-  PartitionAssignment *pAss = NULL; 
+  PartitionAssignment 
+    *pAss = NULL; 
+  
   initializePartitionAssignment(&pAss, bFile->partitions, bFile->numPartitions, commSize); 
   assign(pAss);
 

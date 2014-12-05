@@ -2727,7 +2727,7 @@ int main (int argc, char *argv[])
 		  mem_reqs_gamma / (1024 * 1024 * 1024));
 
     printBothOpen("\nPlease note that, these are just the memory requirements for doing likelihood calculations!\n");
-    printBothOpen("To be on the safe side, we recommend that you execute ExaML on a sysytem with twice that memory.\n");
+    printBothOpen("To be on the safe side, we recommend that you execute ExaML on a system with twice that memory.\n");
 
 #endif
   }

@@ -155,6 +155,12 @@ static void analyzeIdentifier(char **ch, int modelNumber, tree *tr)
 	      tr->initialPartitionData[modelNumber].protFreqs  = 1;
 	      tr->initialPartitionData[modelNumber].dataType   = AA_DATA;
 	      found = TRUE;
+
+	      if(tr->initialPartitionData[modelNumber].protModels == AUTO)
+		{
+		  printf("\nError: Option AUTOF has been deprecated, exiting\n\n");
+		  errorExit(-1);
+		}
 	    }	
 
 	  strcpy(thisModel, protModels[i]);
@@ -167,6 +173,12 @@ static void analyzeIdentifier(char **ch, int modelNumber, tree *tr)
 	      tr->initialPartitionData[modelNumber].optimizeBaseFrequencies = TRUE;
 	      tr->initialPartitionData[modelNumber].dataType   = AA_DATA;
 	      found = TRUE;
+
+	      if(tr->initialPartitionData[modelNumber].protModels == AUTO)
+		{
+		  printf("\nError: Option AUTOX has been deprecated, exiting\n\n");
+		  errorExit(-1);
+		}
 	    }	
 
 	  /*if(found)

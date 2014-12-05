@@ -3311,10 +3311,9 @@ void initReversibleGTR(tree *tr, int model)
    *frequencies      = tr->partitionData[model].frequencies,
    *ext_initialRates = tr->partitionData[model].substRates,
    *tipVector        = tr->partitionData[model].tipVector;
-
- 
   
- int states = tr->partitionData[model].states;
+ int 
+   states = tr->partitionData[model].states;
 
  switch(tr->partitionData[model].dataType)
    { 
@@ -3325,25 +3324,28 @@ void initReversibleGTR(tree *tr, int model)
    case SECONDARY_DATA:
    case DNA_DATA:
    case BINARY_DATA:
-   {    
-     initGeneric(states, 
-		 getBitVector(tr->partitionData[model].dataType), 
-		 getUndetermined(tr->partitionData[model].dataType) + 1, 
-		 fracchanges,
-		 ext_EIGN, 
-		 EV, 
-		 EI, 
-		 frequencies, 
-		 ext_initialRates,
-		 tipVector, 
-		 model);
-    }    
+     {    
+       initGeneric(states, 
+		   getBitVector(tr->partitionData[model].dataType), 
+		   getUndetermined(tr->partitionData[model].dataType) + 1, 
+		   fracchanges,
+		   ext_EIGN, 
+		   EV, 
+		   EI, 
+		   frequencies, 
+		   ext_initialRates,
+		   tipVector, 
+		   model);
+     }    
      break;   
    case AA_DATA:
      if(tr->partitionData[model].protModels != GTR)           
        {
-	 double f[20];
-	 int l;
+	 double 
+	   f[20];
+	 
+	 int 
+	   l;
 
 	 if(tr->partitionData[model].protModels == LG4)
 	   {
@@ -3371,11 +3373,19 @@ void initReversibleGTR(tree *tr, int model)
 	     /*if(adef->protEmpiricalFreqs && tr->NumberOfModels == 1)
 	       assert(tr->partitionData[model].protFreqs);*/
 	     
-	     if(!tr->partitionData[model].protFreqs && !tr->partitionData[model].optimizeBaseFrequencies)	       	  
-	       {	     	    
-		 for(l = 0; l < 20; l++)		
-		   frequencies[l] = f[l];
-	       } 
+	     if(tr->partitionData[model].protModels == AUTO)
+	       {
+		 if(tr->partitionData[model].protFreqs)
+		   memcpy(frequencies, f, 20 * sizeof(double));
+		 else
+		   memcpy(frequencies, tr->partitionData[model].empiricalFrequencies, 20 * sizeof(double));
+	       }
+	     else
+	       if(!tr->partitionData[model].protFreqs && !tr->partitionData[model].optimizeBaseFrequencies)	       	  
+		 {	     	    
+		   for(l = 0; l < 20; l++)		
+		     frequencies[l] = f[l];
+		 } 
 	   }
        }  
                

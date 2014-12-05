@@ -90,6 +90,11 @@
 #define unlikely       -1.0E300    /* low likelihood for initialization */
 
 
+#define AUTO_ML   0
+#define AUTO_BIC  1
+#define AUTO_AIC  2
+#define AUTO_AICC 3
+
 #define SUMMARIZE_LENGTH -3
 #define SUMMARIZE_LH     -2
 #define NO_BRANCHES      -1
@@ -645,7 +650,7 @@ typedef struct {
   boolean initialSet;//adef
   int initial;//adef
   int rateHetModel;
-  
+  int autoProteinSelectionType;
 
 } commandLine;
 
@@ -854,6 +859,8 @@ typedef  struct  {
   char bits_in_16bits [0x1u << 16];
   
   boolean useMedian;
+
+  int autoProteinSelectionType;
 
   int numberOfTrees;
 
