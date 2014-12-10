@@ -2529,10 +2529,11 @@ static void autoProtein(tree *tr, analdef *adef)
 		freeParamsFixed = 0.0,
 		freeParamsEmp = 0.0;	      	  	      
 	      
-	      samples = tr->partitionWeights[model];
+	      samples = tr->partitionWeights[model]; 
+	      //printf("Sample size %f\n", samples);
 	      assert(samples != -1.0 && samples > 0.0);
 	     
-	      //printf("Sample size %f\n", samples);
+	     
 
 	      //we always deal with comprehensive trees in ExaML 
 	      assert(tr->ntips == tr->mxtips);

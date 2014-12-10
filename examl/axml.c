@@ -2030,47 +2030,48 @@ static void initializePartitions(tree *tr)
 
   /* set up the averaged frac changes per partition such that no further reading accesses to aliaswgt are necessary
      and we can free the array for the GAMMA model */
-
-  if(tr->NumberOfModels > 1)
-    {      
-      /* definitions: 
-	 sizeof(short) <= sizeof(int) <= sizeof(long)
-	 size_t defined by address space (here: 64 bit). 
-	 
-	 size_t + MPI is a bad idea: in the mpi2.2 standard, they do
+ 
+  {      
+    /* definitions: 
+       sizeof(short) <= sizeof(int) <= sizeof(long)
+       size_t defined by address space (here: 64 bit). 
+       
+       size_t + MPI is a bad idea: in the mpi2.2 standard, they do
 	 not mention it once.
-       */
-      unsigned long 
-	*modelWeights = (unsigned long*) calloc(tr->NumberOfModels, sizeof(unsigned long)); 
-      size_t
-	wgtsum = 0;  
+    */
 
-      /* determine my weights per partition    */
-      for(model = 0; model < tr->NumberOfModels; model++)      
-	 {
-	   const pInfo 
-	     partition =  tr->partitionData[model] ; 
-	   
-	   size_t 
-	     i = 0; 
-	   
-	   for(i = 0; i < partition.width; ++i)
-	     modelWeights[model] += (long) partition.wgt[i]; 
-	 }
-      MPI_Allreduce(MPI_IN_PLACE, modelWeights, tr->NumberOfModels, MPI_UNSIGNED_LONG, MPI_SUM, MPI_COMM_WORLD); 
-       
-      /* determine sum */
-      for(model = 0; model < tr->NumberOfModels; ++model)
-	wgtsum += modelWeights[model]; 
+    unsigned long 
+      *modelWeights = (unsigned long*) calloc(tr->NumberOfModels, sizeof(unsigned long)); 
+    
+    size_t
+      wgtsum = 0;  
 
-      for(model = 0; model < tr->NumberOfModels; model++)      	
-	{
-	  tr->partitionWeights[model]       = (double)modelWeights[model];
-	  tr->partitionContributions[model] = ((double)modelWeights[model]) / ((double)wgtsum); 
-	}
+    /* determine my weights per partition    */
+    for(model = 0; model < tr->NumberOfModels; model++)      
+      {
+	const pInfo 
+	  partition =  tr->partitionData[model] ; 
+	   
+	size_t 
+	  i = 0; 
+	   
+	for(i = 0; i < partition.width; ++i)
+	  modelWeights[model] += (long) partition.wgt[i]; 
+      }
+    MPI_Allreduce(MPI_IN_PLACE, modelWeights, tr->NumberOfModels, MPI_UNSIGNED_LONG, MPI_SUM, MPI_COMM_WORLD); 
        
-       free(modelWeights);
-    }
+    /* determine sum */
+    for(model = 0; model < tr->NumberOfModels; ++model)
+      wgtsum += modelWeights[model]; 
+
+    for(model = 0; model < tr->NumberOfModels; model++)      	
+      {
+	tr->partitionWeights[model]       = (double)modelWeights[model];
+	tr->partitionContributions[model] = ((double)modelWeights[model]) / ((double)wgtsum); 
+      }
+       
+    free(modelWeights);
+  }
 
   /* initialize gap bit vectors at tips when memory saving option is enabled */
   
