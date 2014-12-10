@@ -2747,7 +2747,7 @@ static void checkTolerance(double l1, double l2)
   if(l1 < l2)
     {   
       double 
-	tolerance = MAX(l1, l2) * 0.000000000001;
+	tolerance = fabs(MAX(l1, l2) * 0.000000000001)
 
       if(fabs(l1 - l2) > MIN(0.1, tolerance))
 	{
