@@ -1553,13 +1553,13 @@ static void sitecombcrunch (rawdata *rdta, cruncheddata *cdta, tree *tr, analdef
 	allGap = TRUE;
 
       unsigned char 
-	undetermined = getUndetermined(tr->dataVector[sitei]);
-
-      
+	undetermined;
 
       sitei = cdta->alias[i];
       sitej = cdta->alias[j];      
 
+      undetermined = getUndetermined(tr->dataVector[sitej]);
+      
       for(k = 1; k <= rdta->numsp; k++)
 	{	 
 	  if(rdta->y[k][sitej] != undetermined)
