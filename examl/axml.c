@@ -78,6 +78,15 @@
 
 /***************** UTILITY FUNCTIONS **************************/
 
+/*pInfo *cleanPinfoInit()
+{
+  pInfo *p = (pInfo*)malloc(sizeof(pInfo));
+
+  
+  return p;
+  }*/
+
+
 void storeExecuteMaskInTraversalDescriptor(tree *tr)
 {
    int model;
@@ -1870,6 +1879,12 @@ static void initializePartitions(tree *tr)
       const partitionLengths 
 	*pl = getPartitionLengths(&(tr->partitionData[model])); 
 
+      //must already be set as a consequence of alloc in function readPartitions
+      //and the subsequent copy of bf->partitions into tr->partitions!
+      assert(tr->partitionData[model].partitionName != (char*)NULL);
+
+      //printf("Partition name %s\n", tr->partitionData[model].partitionName);
+
       width = tr->partitionData[model].width;
 	
       /* 
@@ -1886,7 +1901,9 @@ static void initializePartitions(tree *tr)
       tr->partitionData[model].reductionBuffer 	  = (double*) calloc(tr->nThreads, sizeof(double));
       tr->partitionData[model].reductionBuffer2   = (double*) calloc(tr->nThreads, sizeof(double));
 
-      int t;
+      int 
+	t;
+      
       for (t = 0; t < tr->maxThreadsPerModel; ++t)
 	{
 	  Assign*
@@ -1909,7 +1926,15 @@ static void initializePartitions(tree *tr)
       tr->partitionData[model].EI                = (double*)malloc(pl->eiLength * sizeof(double));
       
       tr->partitionData[model].substRates        = (double *)malloc(pl->substRatesLength * sizeof(double));
-      tr->partitionData[model].frequencies       = (double*)malloc(pl->frequenciesLength * sizeof(double));
+
+
+      //must already be set as a consequence of alloc in function readPartitions
+      //and the subsequent copy of bf->partitions into tr->partitions!
+      assert(tr->partitionData[model].frequencies != (double*)NULL);
+      //tr->partitionData[model].frequencies       = (double*)malloc(pl->frequenciesLength * sizeof(double));
+
+     
+
       tr->partitionData[model].freqExponents     = (double*)malloc(pl->frequenciesLength * sizeof(double));
       tr->partitionData[model].empiricalFrequencies       = (double*)malloc(pl->frequenciesLength * sizeof(double));
       tr->partitionData[model].tipVector         = (double *)malloc_aligned(pl->tipVectorLength * sizeof(double));
@@ -2076,15 +2101,6 @@ static void initializeTree(tree *tr, analdef *adef)
   size_t 
     i ;
 
-  int 
-    model; 
-
-  double 
-    **empiricalFrequencies;	 
-
-
-  empiricalFrequencies = (double **)malloc(sizeof(double *) * tr->NumberOfModels);
-  
   if(adef->perGeneBranchLengths)
     tr->numBranches = tr->NumberOfModels;
   else
@@ -2119,24 +2135,10 @@ Please set #define NUM_BRANCHES in axml.h to %d (or higher) and recompile %s\n",
   
   for(i = 1; i <= (size_t)tr->mxtips; i++)
     addword(tr->nameList[i], tr->nameHash, i);
-
-
-  /* we have read the empirical frequencies variable, let's fix that
-     here; ownership of the data is shifted to empiricalFrequencies */
-  for(model = 0; model < tr->NumberOfModels; ++model)
-    {
-      empiricalFrequencies[model] = tr->partitionData[model].frequencies; 
-      tr->partitionData[model].frequencies = NULL; 
-    }
-  
+   
   initializePartitions(tr);
 
-  initModel(tr, empiricalFrequencies); 
-  
-  for(model = 0; model < tr->NumberOfModels; model++)
-    free(empiricalFrequencies[model]);
-
-  free(empiricalFrequencies);
+  initModel(tr);
 }
 
 
@@ -2602,12 +2604,10 @@ int main (int argc, char *argv[])
 	    }
 	  
 #ifdef __MIC_NATIVE
-	printBothOpen("Error: There is no MIC support yet for binary data partitions!\n\n");	  
-	error_MPI_Exit();  	      
+	  printBothOpen("Error: There is no MIC support yet for binary data partitions!\n\n");	  
+	  error_MPI_Exit();  	      
 #endif
-
 	}
-
     }
 	             
     /* 
@@ -2621,9 +2621,6 @@ int main (int argc, char *argv[])
 	optimizeTrees(tr, adef);	
 	break;
       case BIG_RAPID_MODE:
-       
-
-
 	if(adef->useCheckpoint)
 	  {      
 	    /* read checkpoint file */

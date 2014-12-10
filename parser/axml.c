@@ -2281,15 +2281,15 @@ static void smoothFreqs(const int n, double *pfreqs, double *dst, pInfo *partiti
     loopCounter = 0;  
   
 
-  /*
-    for(l = 0; l < n; l++)
+ 
+  for(l = 0; l < n; l++)
     if(pfreqs[l] < FREQ_MIN)
       countScale++;
-  */
+ 
 
-  for(l = 0; l < n; l++)
+  /* for(l = 0; l < n; l++)
     if(pfreqs[l] == 0.0)
-      countScale++;
+    countScale++;*/
 
   if(countScale > 0)
     {	     
@@ -2425,7 +2425,9 @@ static void genericBaseFrequencies(tree *tr, const int numFreqs, rawdata *rdta, 
     }
   
   if(smoothFrequencies)         
-    smoothFreqs(numFreqs, pfreqs,  tr->partitionData[model].frequencies, &(tr->partitionData[model]));	   
+    {          
+      smoothFreqs(numFreqs, pfreqs,  tr->partitionData[model].frequencies, &(tr->partitionData[model]));	   
+    }
   else    
     {
       boolean 
@@ -2456,6 +2458,8 @@ static void genericBaseFrequencies(tree *tr, const int numFreqs, rawdata *rdta, 
 	}     
     }  
  
+   
+
 }
 
 
@@ -2664,6 +2668,10 @@ int main (int argc, char *argv[])
 	myBinFwrite(&len, sizeof(int), 1);
 	myBinFwrite(p->partitionName, sizeof(char), len);	    
 	myBinFwrite(tr->partitionData[model].frequencies, sizeof(double), tr->partitionData[model].states);
+
+
+	
+
       }	            
 
 #ifdef OLD_LAYOUT

@@ -212,6 +212,9 @@ void readPartitions(ByteFile *bf)
       bf->partitions[i] = (pInfo*)calloc(1,sizeof(pInfo));
       pInfo* p = bf->partitions[i];
 
+      p->frequencies = (double*)NULL;
+      p->partitionName = (char *)NULL;
+
       READ_VAR(bf->fh, p->states);
       READ_VAR(bf->fh, p->maxTipStates);
       READ_VAR(bf->fh, p->lower);
@@ -415,10 +418,13 @@ void initializeTreeFromByteFile(ByteFile *bf, tree *tr)
    * partition contains only shallow copies of a few data arrays that
    * needed to be initialized at this point
    */
-  int myLength = 0; 
-  tr->partitionData = (pInfo*)calloc( tr->NumberOfModels, sizeof(pInfo));
+  int 
+    myLength = 0; 
+
+  tr->partitionData = (pInfo*)calloc(tr->NumberOfModels, sizeof(pInfo));
+
   for(i = 0; i < tr->NumberOfModels; ++i)
-    {
+    {     
       tr->partitionData[i] = *(bf->partitions[i]);
       myLength += tr->partitionData[i].width; 
       assert( bf->partitions[i]->wgt != (int*)NULL || bf->partitions[i]->width == 0); 

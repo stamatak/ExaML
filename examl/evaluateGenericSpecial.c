@@ -833,6 +833,8 @@ void evaluateIterative(tree *tr)
 
 	  /* check that there was no major numerical screw-up, the log likelihood should be < 0.0 always */
 
+	  
+
 	  assert(partitionLikelihood < 0.0);
 
 	  /* now we have the correct log likelihood for the current partition after undoing scaling multiplications */	  	 

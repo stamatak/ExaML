@@ -3303,40 +3303,38 @@ static void initGeneric(const int n, const unsigned int *valueVector, int valueV
 
 void initReversibleGTR(tree *tr, int model)
 { 
- double   
-   *fracchanges      = tr->fracchanges,    
-   *ext_EIGN         = tr->partitionData[model].EIGN,
-   *EV               = tr->partitionData[model].EV,
-   *EI               = tr->partitionData[model].EI,
-   *frequencies      = tr->partitionData[model].frequencies,
-   *ext_initialRates = tr->partitionData[model].substRates,
-   *tipVector        = tr->partitionData[model].tipVector;
+  double   
+    *fracchanges      = tr->fracchanges,    
+    *ext_EIGN         = tr->partitionData[model].EIGN,
+    *EV               = tr->partitionData[model].EV,
+    *EI               = tr->partitionData[model].EI,
+    *frequencies      = tr->partitionData[model].frequencies,
+    *ext_initialRates = tr->partitionData[model].substRates,
+    *tipVector        = tr->partitionData[model].tipVector;
   
- int 
-   states = tr->partitionData[model].states;
-
- switch(tr->partitionData[model].dataType)
-   { 
-   case GENERIC_32:
-   case GENERIC_64:
-   case SECONDARY_DATA_6:
-   case SECONDARY_DATA_7: 
-   case SECONDARY_DATA:
-   case DNA_DATA:
-   case BINARY_DATA:
-     {    
-       initGeneric(states, 
-		   getBitVector(tr->partitionData[model].dataType), 
-		   getUndetermined(tr->partitionData[model].dataType) + 1, 
-		   fracchanges,
-		   ext_EIGN, 
-		   EV, 
-		   EI, 
-		   frequencies, 
-		   ext_initialRates,
-		   tipVector, 
-		   model);
-     }    
+  int 
+    states = tr->partitionData[model].states;
+  
+  switch(tr->partitionData[model].dataType)
+    { 
+    case GENERIC_32:
+    case GENERIC_64:
+    case SECONDARY_DATA_6:
+    case SECONDARY_DATA_7: 
+    case SECONDARY_DATA:
+    case DNA_DATA:
+    case BINARY_DATA:     
+      initGeneric(states, 
+		  getBitVector(tr->partitionData[model].dataType), 
+		  getUndetermined(tr->partitionData[model].dataType) + 1, 
+		  fracchanges,
+		  ext_EIGN, 
+		  EV, 
+		  EI, 
+		  frequencies, 
+		  ext_initialRates,
+		  tipVector, 
+		  model);
      break;   
    case AA_DATA:
      if(tr->partitionData[model].protModels != GTR)           
@@ -3344,9 +3342,6 @@ void initReversibleGTR(tree *tr, int model)
 	 double 
 	   f[20];
 	 
-	 int 
-	   l;
-
 	 if(tr->partitionData[model].protModels == LG4)
 	   {
 	     int 
@@ -3356,9 +3351,10 @@ void initReversibleGTR(tree *tr, int model)
 	       {		 
 		 initProtMat(f, tr->partitionData[model].protModels, &(tr->partitionData[model].substRates_LG4[i][0]), i);
 		 
-		 if(!tr->partitionData[model].protFreqs && !tr->partitionData[model].optimizeBaseFrequencies)	       	  	  
-		   for(l = 0; l < 20; l++)		
-		     tr->partitionData[model].frequencies_LG4[i][l] = f[l];
+		 if(!tr->partitionData[model].protFreqs && !tr->partitionData[model].optimizeBaseFrequencies)
+		   memcpy(tr->partitionData[model].frequencies_LG4[i], f, 20 * sizeof(double));
+		 //for(l = 0; l < 20; l++)		
+		 //   tr->partitionData[model].frequencies_LG4[i][l] = f[l];
 		 else
 		   memcpy(tr->partitionData[model].frequencies_LG4[i], frequencies, 20 * sizeof(double));
 	       }
@@ -3378,14 +3374,26 @@ void initReversibleGTR(tree *tr, int model)
 		 if(tr->partitionData[model].protFreqs)
 		   memcpy(frequencies, f, 20 * sizeof(double));
 		 else
-		   memcpy(frequencies, tr->partitionData[model].empiricalFrequencies, 20 * sizeof(double));
+		   memcpy(frequencies, tr->partitionData[model].empiricalFrequencies, 20 * sizeof(double));		 
 	       }
 	     else
-	       if(!tr->partitionData[model].protFreqs && !tr->partitionData[model].optimizeBaseFrequencies)	       	  
-		 {	     	    
-		   for(l = 0; l < 20; l++)		
-		     frequencies[l] = f[l];
-		 } 
+	       {
+		 if(!tr->partitionData[model].optimizeBaseFrequencies)
+		   {
+		     if(!tr->partitionData[model].protFreqs)	       	  
+		       {
+			 memcpy(frequencies, f, 20 * sizeof(double));
+			 /*for(l = 0; l < 20; l++)		
+			   frequencies[l] = f[l];			 */
+		       } 
+		     else
+		       {			
+			 memcpy(frequencies, tr->partitionData[model].empiricalFrequencies, 20 * sizeof(double));
+			 /*for(l = 0; l < 20; l++)		
+			   frequencies[l] = tr->partitionData[model].empiricalFrequencies[l];			 */
+		       }
+		   }
+	       }
 	   }
        }  
                
@@ -3404,7 +3412,9 @@ void initReversibleGTR(tree *tr, int model)
 	   {
 	     fracchanges_LG4[i]  = (double *)malloc(tr->NumberOfModels * sizeof(double));
 	     initGeneric(states, bitVectorAA, 23, fracchanges_LG4[i],
-			 tr->partitionData[model].EIGN_LG4[i],  tr->partitionData[model].EV_LG4[i],  tr->partitionData[model].EI_LG4[i], tr->partitionData[model].frequencies_LG4[i], tr->partitionData[model].substRates_LG4[i],
+			 tr->partitionData[model].EIGN_LG4[i],  tr->partitionData[model].EV_LG4[i],  
+			 tr->partitionData[model].EI_LG4[i], tr->partitionData[model].frequencies_LG4[i], 
+			 tr->partitionData[model].substRates_LG4[i],
 			 tr->partitionData[model].tipVector_LG4[i], 
 			 model);   
 	   }
@@ -3987,16 +3997,20 @@ static void setupSecondaryStructureSymmetries(tree *tr)
 
 }
 
-static void initializeBaseFreqs(tree *tr, double **empiricalFrequencies)
+
+/* this function is only called once at program start-up ! */
+
+static void initializeBaseFreqs(tree *tr)
 {
   size_t 
     model;
 
   for(model = 0; model < (size_t)tr->NumberOfModels; model++)
-    {
+    {      
       if(tr->partitionData[model].optimizeBaseFrequencies)
 	{
 	  //set all base frequencies to identical starting values 1.0 / numberOfDataStates
+	  //if we want to optimize base freqeuncies for the current partition
 	  
 	  int 
 	    l,
@@ -4012,14 +4026,19 @@ static void initializeBaseFreqs(tree *tr, double **empiricalFrequencies)
 	    }
 	}
       else
-	{
-	  memcpy(tr->partitionData[model].frequencies,          empiricalFrequencies[model], sizeof(double) * tr->partitionData[model].states);
-	  memcpy(tr->partitionData[model].empiricalFrequencies, empiricalFrequencies[model], sizeof(double) * tr->partitionData[model].states);
+	{	 
+	  //otherwise, at startup examl reads and stores the empirical base frequencies as determined by the
+	  //parser code in .frequencies, now we just store them in .empiricalFrequencies such that we can 
+	  //overwrite .frequencies without losing the empirical base freqs
+	 
+	  memcpy(tr->partitionData[model].empiricalFrequencies, tr->partitionData[model].frequencies, sizeof(double) * tr->partitionData[model].states);	  
 	}
     }
 }
 
-void initModel(tree *tr, double **empiricalFrequencies)
+/* this function is only called once at program start-up ! */
+
+void initModel(tree *tr)
 {  
   int 
     model;
@@ -4051,7 +4070,7 @@ void initModel(tree *tr, double **empiricalFrequencies)
   
   initRateMatrix(tr); 
 
-  initializeBaseFreqs(tr, empiricalFrequencies);
+  initializeBaseFreqs(tr);
   
   for(model = 0; model < tr->NumberOfModels; model++)
     {
@@ -4061,7 +4080,7 @@ void initModel(tree *tr, double **empiricalFrequencies)
       tr->partitionData[model].alpha = 1.0;    
       
       if(tr->partitionData[model].protModels == AUTO)
-	tr->partitionData[model].autoProtModels = WAG; /* initialize by WAG per default */
+	tr->partitionData[model].autoProtModels = WAG; /* initialize by WAG per default when AUTO is used */
                          
       initReversibleGTR(tr, model);
       makeGammaCats(tr->partitionData[model].alpha, tr->partitionData[model].gammaRates, 4, tr->useMedian);     
@@ -4071,8 +4090,6 @@ void initModel(tree *tr, double **empiricalFrequencies)
 
     }                   		       
   
-   
-
   if(tr->NumberOfModels > 1)
     {
       tr->fracchange = 0;
