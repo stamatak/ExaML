@@ -1504,11 +1504,19 @@ static void sitesort(rawdata *rdta, cruncheddata *cdta, tree *tr, analdef *adef)
 
 static void sitecombcrunch (rawdata *rdta, cruncheddata *cdta, tree *tr, analdef *adef)
 {
-  int  i, sitei, j, sitej, k;
-  boolean  tied;
+  
+  boolean  
+    tied;
+  
   int 
     *aliasModel = (int*)NULL,
-    *aliasSuperModel = (int*)NULL;
+    *aliasSuperModel = (int*)NULL,
+    i, 
+    sitei, 
+    j, 
+    sitej, 
+    k,
+    undeterminedSites = 0;
 
   if(adef->useMultipleModel)
     {
@@ -1541,8 +1549,29 @@ static void sitecombcrunch (rawdata *rdta, cruncheddata *cdta, tree *tr, analdef
   i = 0;
   for (j = 1; j <= rdta->sites; j++)
     {
+      int 
+	allGap = TRUE;
+
+      unsigned char 
+	undetermined = getUndetermined(tr->dataVector[sitei]);
+
+      
+
       sitei = cdta->alias[i];
-      sitej = cdta->alias[j];
+      sitej = cdta->alias[j];      
+
+      for(k = 1; k <= rdta->numsp; k++)
+	{	 
+	  if(rdta->y[k][sitej] != undetermined)
+	    {
+	      allGap = FALSE;
+	      break;
+	    }
+	}
+
+      if(allGap)      
+	undeterminedSites++;	 
+          
       if(!adef->compressPatterns)
 	tied = 0;
       else
@@ -1556,11 +1585,13 @@ static void sitecombcrunch (rawdata *rdta, cruncheddata *cdta, tree *tr, analdef
 	  else
 	    tied = 1;
 	}
-
+      
       for (k = 1; tied && (k <= rdta->numsp); k++)
 	tied = (rdta->y[k][sitei] == rdta->y[k][sitej]);
+	      
+      assert(!(tied && allGap));
 
-      if (tied)
+      if(tied && !allGap)
 	{
 	  if(adef->mode == PER_SITE_LL)
 	    {
@@ -1579,22 +1610,26 @@ static void sitecombcrunch (rawdata *rdta, cruncheddata *cdta, tree *tr, analdef
 	}
       else
 	{
-	  if (cdta->aliaswgt[i] > 0) i++;
-
-	  if(adef->mode == PER_SITE_LL)
+	  if(!allGap)
 	    {
-	      tr->patternPosition[j - 1] = i;
-	      tr->columnPosition[j - 1] = sitej;
-	      /*printf("Pattern %d is from cloumn %d\n", i, sitej);*/
-	    }
-
-	  cdta->aliaswgt[i] = rdta->wgt[sitej];
-	  cdta->alias[i] = sitej;
-	  if(adef->useMultipleModel)
-	    {
-	      aliasModel[i]      = tr->model[sitej];
-	      aliasSuperModel[i] = tr->dataVector[sitej];
-	    }
+	      if(cdta->aliaswgt[i] > 0) 
+		i++;
+	      
+	      if(adef->mode == PER_SITE_LL)
+		{
+		  tr->patternPosition[j - 1] = i;
+		  tr->columnPosition[j - 1] = sitej;
+		  /*printf("Pattern %d is from cloumn %d\n", i, sitej);*/
+		}
+	      
+	      cdta->aliaswgt[i] = rdta->wgt[sitej];
+	      cdta->alias[i] = sitej;
+	      if(adef->useMultipleModel)
+		{
+		  aliasModel[i]      = tr->model[sitej];
+		  aliasSuperModel[i] = tr->dataVector[sitej];
+		}
+	    }	  
 	}
     }
 
@@ -1630,6 +1665,9 @@ static void sitecombcrunch (rawdata *rdta, cruncheddata *cdta, tree *tr, analdef
       free(aliasModel);
       free(aliasSuperModel);
     }     
+
+  if(undeterminedSites > 0)    
+    printBothOpen("\nAlignment has %d completely undetermined sites that will be automatically removed from the binary alignment file\n\n", undeterminedSites);
 }
 
 
