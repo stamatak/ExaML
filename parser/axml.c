@@ -198,7 +198,7 @@ int getStates(int dataType)
   return pLengths[dataType].states;
 }
 
-int getUndetermined(int dataType)
+unsigned char getUndetermined(int dataType)
 {
   assert(MIN_MODEL < dataType && dataType < MAX_MODEL);
 
@@ -261,20 +261,7 @@ double gettime(void)
 #endif
 }
 
-int gettimeSrand(void)
-{
-#ifdef WIN32
-  time_t tp;
-  struct tm localtm;
-  tp = time(NULL);
-  localtm = *localtime(&tp);
-  return 24*60*60*localtm.tm_yday + 60*60*localtm.tm_hour + 60*localtm.tm_min  + localtm.tm_sec;
-#else
-  struct timeval ttime;
-  gettimeofday(&ttime , NULL);
-  return ttime.tv_sec + ttime.tv_usec;
-#endif
-}
+
 
 double randum (long  *seed)
 {
@@ -430,7 +417,7 @@ static void getyspace (rawdata *rdta)
   int    i;
   unsigned char *y0;
 
-  rdta->y = (unsigned char **) malloc((rdta->numsp + 1) * sizeof(unsigned char *));
+  rdta->y = (unsigned char **) malloc(((size_t)rdta->numsp + 1) * sizeof(unsigned char *));
   assert(rdta->y);   
 
   y0 = (unsigned char *)calloc(((size_t)(rdta->numsp + 1)) * size, sizeof(unsigned char));
@@ -505,7 +492,7 @@ static boolean setupTree (tree *tr, analdef *adef)
 
   if(!adef->readTaxaOnly)
     {
-      tr->yVector      = (unsigned char **)  malloc((tr->mxtips + 1) * sizeof(unsigned char *));
+      tr->yVector      = (unsigned char **)  malloc(((size_t)tr->mxtips + 1) * sizeof(unsigned char *));
 
       /*      tr->fracchanges  = (double *)malloc(tr->NumberOfModels * sizeof(double));
 	      tr->likelihoods  = (double *)malloc(adef->multipleRuns * sizeof(double));*/
@@ -538,10 +525,10 @@ static boolean setupTree (tree *tr, analdef *adef)
 
       tr->constraintVector = (int *)malloc((2 * tr->mxtips) * sizeof(int));*/
 
-      tr->nameList = (char **)malloc(sizeof(char *) * (tips + 1));
+      tr->nameList = (char **)malloc(sizeof(char *) * ((size_t)tips + 1));
     }
 
-  if (!(p0 = (nodeptr) malloc((tips + 3*inter) * sizeof(node))))
+  if (!(p0 = (nodeptr) malloc(((size_t)tips + 3 * (size_t)inter) * sizeof(node))))
     {
       printf("\n Error: unable to obtain sufficient tree memory\n\n");
       return  FALSE;
@@ -735,7 +722,7 @@ static boolean getdata(analdef *adef, rawdata *rdta, tree *tr)
 
 	      do
 		{
-		  buffer[my_i] = ch;
+		  buffer[my_i] = (char)ch;
 		  ch = getc(INFILE);
 		  my_i++;
 		  if(my_i >= nmlngth)
@@ -756,9 +743,9 @@ static boolean getdata(analdef *adef, rawdata *rdta, tree *tr)
 	      ungetc(ch, INFILE);
 
 	      buffer[my_i] = '\0';
-	      len = strlen(buffer) + 1;
+	      len = (int)strlen(buffer) + 1;
 	      checkTaxonName(buffer, len);
-	      tr->nameList[i] = (char *)malloc(sizeof(char) * len);
+	      tr->nameList[i] = (char *)malloc(sizeof(char) * (size_t)len);
 	      strcpy(tr->nameList[i], buffer);
 	    }
 
@@ -801,7 +788,7 @@ static boolean getdata(analdef *adef, rawdata *rdta, tree *tr)
 	      if (meaning != -1)
 		{
 		  j++;
-		  rdta->y[i][j] = ch;		 
+		  rdta->y[i][j] = (unsigned char)ch;		 
 		}
 	      else
 		{
@@ -893,7 +880,7 @@ static boolean getdata(analdef *adef, rawdata *rdta, tree *tr)
 	  }
 
 	total++;
-	rdta->y[j][i] = meaning;
+	rdta->y[j][i] = (unsigned char)meaning;
       }
 
   adef->gapyness = (double)gaps / (double)total;
@@ -922,7 +909,7 @@ static void inputweights (rawdata *rdta)
 {
   int i, w, fres;
   FILE *weightFile;
-  int *wv = (int *)malloc(sizeof(int) *  rdta->sites);
+  int *wv = (int *)malloc(sizeof(int) *  (size_t)rdta->sites);
 
   weightFile = myfopen(weightFileName, "rb");
 
@@ -953,15 +940,18 @@ static void inputweights (rawdata *rdta)
   fclose(weightFile);
   free(wv);
 }
-static hashNumberType  hashString(char *p, hashNumberType tableSize)
+
+static hashNumberType hashString(char *p, hashNumberType tableSize)
 {
-  hashNumberType h = 0;
+  hashNumberType 
+    h = 0;
   
   for(; *p; p++)
-    h = 31 * h + *p;
+    h = 31 * h + (hashNumberType)*p;
   
   return (h % tableSize);
 }
+
 static void addword(char *s, stringHashtable *h, int nodeNumber)
 {
   hashNumberType position = hashString(s, h->tableSize);
@@ -1052,12 +1042,12 @@ static void getinput(analdef *adef, rawdata *rdta, cruncheddata *cdta, tree *tr)
   tr->mxtips            = rdta->numsp;
   
   
-  rdta->wgt             = (int *)    malloc((rdta->sites + 1) * sizeof(int));
-  cdta->alias           = (int *)    malloc((rdta->sites + 1) * sizeof(int));
-  cdta->aliaswgt        = (int *)    malloc((rdta->sites + 1) * sizeof(int)); 
-  tr->model             = (int *)    calloc((rdta->sites + 1), sizeof(int));
-  tr->initialDataVector  = (int *)    malloc((rdta->sites + 1) * sizeof(int));
-  tr->extendedDataVector = (int *)    malloc((rdta->sites + 1) * sizeof(int));         
+  rdta->wgt             = (int *)    malloc(((size_t)rdta->sites + 1) * sizeof(int));
+  cdta->alias           = (int *)    malloc(((size_t)rdta->sites + 1) * sizeof(int));
+  cdta->aliaswgt        = (int *)    malloc(((size_t)rdta->sites + 1) * sizeof(int)); 
+  tr->model             = (int *)    calloc(((size_t)rdta->sites + 1), sizeof(int));
+  tr->initialDataVector  = (int *)    malloc(((size_t)rdta->sites + 1) * sizeof(int));
+  tr->extendedDataVector = (int *)    malloc(((size_t)rdta->sites + 1) * sizeof(int));         
   
   if(!adef->useWeightFile)
     {
@@ -1128,9 +1118,9 @@ static void getinput(analdef *adef, rawdata *rdta, cruncheddata *cdta, tree *tr)
   
   if(adef->useSecondaryStructure)
     {
-      memcpy(tr->extendedDataVector, tr->initialDataVector, (rdta->sites + 1) * sizeof(int));
+      memcpy(tr->extendedDataVector, tr->initialDataVector, ((size_t)rdta->sites + 1) * sizeof(int));
       
-      tr->extendedPartitionData =(pInfo*)malloc(sizeof(pInfo) * tr->NumberOfModels);
+      tr->extendedPartitionData =(pInfo*)malloc(sizeof(pInfo) * (size_t)tr->NumberOfModels);
       
       for(i = 0; i < tr->NumberOfModels; i++)
 	{
@@ -1167,7 +1157,7 @@ static void getinput(analdef *adef, rawdata *rdta, cruncheddata *cdta, tree *tr)
       errorExit(1);
     }
       
-  tr->nameHash = initStringHashTable(10 * tr->mxtips);
+  tr->nameHash = initStringHashTable(10 * (size_t)tr->mxtips);
   for(i = 1; i <= tr->mxtips; i++)
     addword(tr->nameList[i], tr->nameHash, i);
       
@@ -1178,7 +1168,8 @@ static void getinput(analdef *adef, rawdata *rdta, cruncheddata *cdta, tree *tr)
 
 static unsigned char buildStates(int secModel, unsigned char v1, unsigned char v2)
 {
-  unsigned char new = 0;
+  unsigned char 
+    new = 0;
 
   switch(secModel)
     {
@@ -1374,7 +1365,7 @@ static unsigned char buildStates(int secModel, unsigned char v1, unsigned char v
 
 static void adaptRdataToSecondary(tree *tr, rawdata *rdta)
 {
-  int *alias = (int*)calloc(rdta->sites, sizeof(int));
+  int *alias = (int*)calloc((size_t)rdta->sites, sizeof(int));
   int i, j, realPosition;  
 
   for(i = 0; i < rdta->sites; i++)
@@ -1508,20 +1499,22 @@ static void sitecombcrunch (rawdata *rdta, cruncheddata *cdta, tree *tr, analdef
   boolean  
     tied;
   
-  int 
-    *aliasModel = (int*)NULL,
-    *aliasSuperModel = (int*)NULL,
-    i, 
+  int
+    i,
     sitei, 
     j, 
     sitej, 
-    k,
+    k;
+
+  int 
+    *aliasModel = (int*)NULL,
+    *aliasSuperModel = (int*)NULL,        
     undeterminedSites = 0;
 
   if(adef->useMultipleModel)
     {
-      aliasSuperModel = (int*)malloc(sizeof(int) * (rdta->sites + 1));
-      aliasModel      = (int*)malloc(sizeof(int) * (rdta->sites + 1));
+      aliasSuperModel = (int*)malloc(sizeof(int) * ((size_t)rdta->sites + 1));
+      aliasModel      = (int*)malloc(sizeof(int) * ((size_t)rdta->sites + 1));
     } 
 
   i = 0;
@@ -1529,11 +1522,10 @@ static void sitecombcrunch (rawdata *rdta, cruncheddata *cdta, tree *tr, analdef
   cdta->aliaswgt[0] = 0;
 
   if(adef->mode == PER_SITE_LL)
-    {
-      int i;
-
+    {      
       assert(0);
 
+      /*
       tr->patternPosition = (int*)malloc(sizeof(int) * rdta->sites);
       tr->columnPosition  = (int*)malloc(sizeof(int) * rdta->sites);
 
@@ -1542,6 +1534,7 @@ static void sitecombcrunch (rawdata *rdta, cruncheddata *cdta, tree *tr, analdef
 	  tr->patternPosition[i] = -1;
 	  tr->columnPosition[i]  = -1;
 	}
+      */
     }
 
   
@@ -1633,8 +1626,9 @@ static void sitecombcrunch (rawdata *rdta, cruncheddata *cdta, tree *tr, analdef
 	}
     }
 
-  cdta->endsite = i;
-  if (cdta->aliaswgt[i] > 0) cdta->endsite++;
+  cdta->endsite = (size_t)i;
+  if (cdta->aliaswgt[i] > 0) 
+    cdta->endsite++;
 
   if(adef->mode == PER_SITE_LL)
     {

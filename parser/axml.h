@@ -1014,7 +1014,7 @@ typedef struct
   boolean nonGTR;
   boolean optimizeBaseFrequencies;
 
-  int undetermined;
+  unsigned char undetermined;
 
   const char *inverseMeaning;
 
@@ -1051,7 +1051,7 @@ extern size_t discreteRateCategories(int rateHetModel);
 extern partitionLengths * getPartitionLengths(pInfo *p);
 extern boolean getSmoothFreqs(int dataType);
 extern const unsigned int *getBitVector(int dataType);
-extern int getUndetermined(int dataType);
+extern unsigned char getUndetermined(int dataType);
 extern int getStates(int dataType);
 extern char getInverseMeaning(int dataType, unsigned char state);
 extern double gettime ( void );
