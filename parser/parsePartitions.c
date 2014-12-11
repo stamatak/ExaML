@@ -161,6 +161,13 @@ static void analyzeIdentifier(char **ch, int modelNumber, tree *tr)
 		  printf("\nError: Option AUTOF has been deprecated, exiting\n\n");
 		  errorExit(-1);
 		}
+	      
+	      if(tr->initialPartitionData[modelNumber].protModels == LG4M || tr->initialPartitionData[modelNumber].protModels == LG4X)
+		{
+		  printf("\nError: Options LG4MF and LG4XF have been deprecated.\n");
+		  printf("They shall only be used with the given base frequencies of the model, exiting\n\n");
+		  errorExit(-1);
+		}
 	    }	
 
 	  strcpy(thisModel, protModels[i]);
@@ -179,6 +186,14 @@ static void analyzeIdentifier(char **ch, int modelNumber, tree *tr)
 		  printf("\nError: Option AUTOX has been deprecated, exiting\n\n");
 		  errorExit(-1);
 		}
+	      
+	      if(tr->initialPartitionData[modelNumber].protModels == LG4M || tr->initialPartitionData[modelNumber].protModels == LG4X)
+		{
+		  printf("\nError: Options LG4MX and LG4XX have been deprecated.\n");
+		  printf("They shall only be used with the given base frequencies of the model, exiting\n\n");
+		  errorExit(-1);
+		}
+
 	    }	
 
 	  /*if(found)

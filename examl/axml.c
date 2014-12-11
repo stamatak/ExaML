@@ -579,6 +579,7 @@ static boolean setupTree (tree *tr)
  
   
   tr->fracchanges  = (double *)malloc(tr->NumberOfModels * sizeof(double));
+  tr->rawFracchanges  = (double *)malloc(tr->NumberOfModels * sizeof(double));
   
   tr->treeStringLength = tr->mxtips * (nmlngth+128) + 256 + tr->mxtips * 2;
 
@@ -597,8 +598,13 @@ static boolean setupTree (tree *tr)
   tr->td[0].parameterValues = (double *)malloc(sizeof(double) * tr->NumberOfModels);
   
   for(i = 0; i < tr->NumberOfModels; i++)
-    tr->fracchanges[i] = -1.0;
+    {
+      tr->fracchanges[i] = -1.0;
+      tr->rawFracchanges[i] = -1.0;
+    }
+  
   tr->fracchange = -1.0;
+  tr->rawFracchange = -1.0;
   
   tr->constraintVector = (int *)malloc((2 * tr->mxtips) * sizeof(int));
 
@@ -1717,7 +1723,7 @@ static void printModelParams(tree *tr, analdef *adef, int treeIteration)
 				   "H", "I", "L", "K", "M", "F", "P", "S",
 				   "T", "W", "Y", "V"};
 
-	     if(tr->partitionData[model].protModels == LG4)
+	     if(tr->partitionData[model].protModels == LG4M || tr->partitionData[model].protModels == LG4X)
 	      {
 		int 
 		  k;
@@ -1940,7 +1946,7 @@ static void initializePartitions(tree *tr)
       tr->partitionData[model].tipVector         = (double *)malloc_aligned(pl->tipVectorLength * sizeof(double));
 
 
-      if(tr->partitionData[model].protModels == LG4)      
+      if(tr->partitionData[model].protModels == LG4M || tr->partitionData[model].protModels == LG4X)      
 	{	  	  
 	  int 
 	    k;
@@ -1966,7 +1972,7 @@ static void initializePartitions(tree *tr)
       //      tr->partitionData[model].optimizeBaseFrequencies = FALSE; 
       
 
-      tr->partitionData[model].gammaRates = (double*)malloc(sizeof(double) * 4);
+      //tr->partitionData[model].gammaRates = (double*)malloc(sizeof(double) * 4);
 
       tr->partitionData[model].xVector = (double **)malloc(sizeof(double*) * tr->mxtips);   
       	
@@ -2575,7 +2581,7 @@ int main (int argc, char *argv[])
 
       for(model = 0; model < tr->NumberOfModels; model++)
 	{
-	  if(tr->partitionData[model].protModels == LG4)
+	  if(tr->partitionData[model].protModels == LG4M ||  tr->partitionData[model].protModels == LG4X)
 	    countLG4++;
 	  if(tr->partitionData[model].states == 2)
 	    countBinary++;

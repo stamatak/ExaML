@@ -170,6 +170,9 @@
 
 #define FREQ_MIN     0.001
 
+#define LG4X_RATE_MIN 0.0000001
+#define LG4X_RATE_MAX 1000.0
+
 /* 
    previous values between 0.001 and 0.000001
 
@@ -249,10 +252,11 @@
 #define JTTDCMUT   16
 #define FLU        17 
 #define AUTO       18
-#define LG4        19
-#define GTR        20  /* GTR always needs to be the last one */
+#define LG4M       19
+#define LG4X       20
+#define GTR        21  /* GTR always needs to be the last one */
 
-#define NUM_PROT_MODELS 21
+#define NUM_PROT_MODELS 22
 
 /* bipartition stuff */
 
@@ -545,7 +549,7 @@ typedef struct {
   int    *frequencyGrouping;
     
   double *sumBuffer; 
-  double *gammaRates;
+  double gammaRates[4];
   double *EIGN;
   double *EV;
   double *EI;
@@ -562,6 +566,16 @@ typedef struct {
   double *tipVector_LG4[4];
   double *substRates_LG4[4];
   
+  /* LG4X */
+
+  double weights[4];
+  double weightExponents[4];
+
+  double weightsBuffer[4];
+  double weightExponentsBuffer[4];
+
+  double weightLikelihood;
+
   /* LG4 */
 
   double *frequencies;
@@ -773,6 +787,8 @@ typedef  struct  {
   
   double           *fracchanges;
 
+  double           *rawFracchanges;
+
   /* model stuff end */
 
   unsigned char             **yVector;
@@ -787,6 +803,7 @@ typedef  struct  {
   double            *partitionWeights;
 
   double            fracchange;
+  double            rawFracchange;
   double            lhCutoff;
   double            lhAVG;
   unsigned long     lhDEC;

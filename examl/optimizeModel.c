@@ -333,9 +333,60 @@ static void freeLinkageList( linkageList* ll)
   free(ll);   
 }
 
-#define ALPHA_F 0
-#define RATE_F  1
-#define FREQ_F  2
+#define ALPHA_F    0
+#define RATE_F     1
+#define FREQ_F     2
+#define LXRATE_F   3
+#define LXWEIGHT_F 4
+
+static void updateWeights(tree *tr, int model, int rate, double value)
+{
+  int 
+    j;
+
+  double 
+    w = 0.0;
+
+  assert(rate >= 0 && rate < 4);
+
+  tr->partitionData[model].weightExponents[rate] = value;
+
+  for(j = 0; j < 4; j++)
+    w += exp(tr->partitionData[model].weightExponents[j]);
+
+  for(j = 0; j < 4; j++)	    	    
+    tr->partitionData[model].weights[j] = exp(tr->partitionData[model].weightExponents[j]) / w;
+}
+
+static void optimizeWeights(tree *tr, double modelEpsilon, linkageList *ll, int numberOfModels)
+{
+  int 
+    i;
+  
+  double 
+    initialLH = 0.0,
+    finalLH   = 0.0;
+
+  evaluateGeneric(tr, tr->start, FALSE);
+ 
+  initialLH = tr->likelihood;
+  //printf("W: %f %f [%f] ->", tr->perPartitionLH[0], tr->perPartitionLH[1], initialLH);
+
+  for(i = 0; i < 4; i++)   
+    optParamGeneric(tr, modelEpsilon, ll, numberOfModels, i, -1000000.0, 200.0, LXWEIGHT_F);
+    //optLG4X_Weights(tr, ll, numberOfModels, i, modelEpsilon);
+
+  evaluateGeneric(tr, tr->start, TRUE); 
+
+  finalLH = tr->likelihood;
+
+  if(finalLH < initialLH)
+    printf("Final: %f initial: %f\n", finalLH, initialLH);
+  assert(finalLH >= initialLH);
+
+  //printf("%f %f [%f]\n",  tr->perPartitionLH[0], tr->perPartitionLH[1], finalLH);
+}
+
 
 static void changeModelParameters(int index, int rateNumber, double value, int whichParameterType, tree *tr)
 {
@@ -369,6 +420,12 @@ static void changeModelParameters(int index, int rateNumber, double value, int w
 	initReversibleGTR(tr, index);
       }
       break;
+    case LXRATE_F:
+      tr->partitionData[index].gammaRates[rateNumber] = value;
+      break;
+    case LXWEIGHT_F:
+      updateWeights(tr, index, rateNumber, value);
+      break;
     default:
       assert(0);
     }
@@ -381,6 +438,8 @@ static void evaluateChange(tree *tr, int rateNumber, double *value, double *resu
     k, 
     pos;
 
+  boolean
+    atLeastOnePartition = FALSE;
    
   for(i = 0, pos = 0; i < ll->entries; i++)
     {
@@ -396,6 +455,8 @@ static void evaluateChange(tree *tr, int rateNumber, double *value, double *resu
 	    }
 	  else
 	    {
+	      atLeastOnePartition = TRUE;
+
 	      for(k = 0; k < ll->ld[i].partitions; k++)
 		{
 		  int 
@@ -418,11 +479,75 @@ static void evaluateChange(tree *tr, int rateNumber, double *value, double *resu
 
   assert(pos == numberOfModels);
 
+  //some error checks for individual model parameters
+
+  switch(whichFunction)
+    {      
+    case RATE_F:
+      assert(rateNumber != -1);       
+      break;
+    case ALPHA_F:	     
+      break;    
+    case LXRATE_F:
+      assert(rateNumber != -1);
+    case LXWEIGHT_F:
+      assert(rateNumber != -1);
+      break;
+    case FREQ_F:
+      break;
+    default:
+      assert(0);      
+    }
+
+  switch(whichFunction)
+    {
+    case RATE_F:
+    case ALPHA_F:  
+    case LXRATE_F: 
+    case FREQ_F:
+      evaluateGeneric(tr, tr->start, TRUE);      
+      break;
+    case LXWEIGHT_F:   
+      evaluateGeneric(tr, tr->start, FALSE);  
+      break;
+    default:
+      assert(0);
+    }
+
+   //nested optimization for LX4 model, now optimize the weights!
+
+  if(whichFunction == LXRATE_F && atLeastOnePartition)
+    {
+      boolean 
+	*buffer = (boolean*)malloc(tr->NumberOfModels * sizeof(boolean));
+	    
+      memcpy(buffer, tr->executeModel, sizeof(boolean) * tr->NumberOfModels);
+	    
+      for(i = 0; i < tr->NumberOfModels; i++)
+	tr->executeModel[i] = FALSE;
+	    
+      for(i = 0, pos = 0; i < ll->entries; i++)	
+	{  
+	  int 
+	    index = ll->ld[i].partitionList[0];	    	      
+	    
+	  if(ll->ld[i].valid)		  	    	      		   	    
+	    tr->executeModel[index] = TRUE;	    
+	}
+
+      optimizeWeights(tr, modelEpsilon, ll, numberOfModels);      
+	    
+      memcpy(tr->executeModel, buffer, sizeof(boolean) * tr->NumberOfModels);
+	    
+      free(buffer);
+    }
+    
 
   //LIBRARY: need to switch over parallel regions here either call 
   //the one for the rates or for alpha!
-
-  evaluateGeneric(tr, tr->start, TRUE);  
+  
+  //commented out evaluate below in the course of the LG4X integration
+  //evaluateGeneric(tr, tr->start, TRUE);  
                
   for(i = 0, pos = 0; i < ll->entries; i++)	
     {
@@ -990,6 +1115,74 @@ static int brakGeneric(double *param, double *ax, double *bx, double *cx, double
 }
 
 
+/*******************************************************************************************************/
+/******** LG4X ***************************************************************************************/
+
+static void optLG4X(tree *tr, double modelEpsilon, linkageList *ll, int numberOfModels)
+{
+  int 
+    i;
+
+  double
+    lg4xScaler,
+    *lg4xScalers = (double *)calloc(tr->NumberOfModels, sizeof(double)),   
+    wgtsum = 0.0;
+
+  for(i = 0; i < 4; i++)
+    optParamGeneric(tr, modelEpsilon, ll, numberOfModels, i, LG4X_RATE_MIN, LG4X_RATE_MAX, LXRATE_F);
+    
+  for(i = 0; i < tr->NumberOfModels; i++)
+    lg4xScalers[i] = 1.0;
+
+  for(i = 0; i < ll->entries; i++)
+    {
+      if(ll->ld[i].valid)
+	{
+	  int
+	    j,
+	    index = ll->ld[i].partitionList[0];
+	  
+	  double
+	    averageRate = 0.0;
+	  
+	  assert(ll->ld[i].partitions == 1);
+	  
+	  for(j = 0; j < 4; j++)
+	    averageRate += tr->partitionData[index].gammaRates[j];	  
+	  
+	  averageRate /= 4.0;
+	  
+	  lg4xScalers[index] = averageRate;
+	  //printf("Average rate %f\n", averageRate);
+	}
+    }
+
+  if(tr->NumberOfModels > 1)
+    {
+      for(i = 0; i < tr->NumberOfModels; i++)
+	tr->fracchanges[i] = tr->rawFracchanges[i] * (1.0 / lg4xScalers[i]);
+    }
+
+  for(i = 0; i < tr->NumberOfModels; i++)         
+    wgtsum += (double)tr->partitionWeights[i];
+ 
+
+  lg4xScaler = 0.0;
+
+  for(i = 0; i < tr->NumberOfModels; i++)
+    {
+      double 
+	fraction = (double)tr->partitionWeights[i] / wgtsum; 
+      
+      lg4xScaler += (fraction * lg4xScalers[i]); 
+    }
+
+  tr->fracchange = tr->rawFracchange * (1.0 / lg4xScaler);
+
+  free(lg4xScalers);
+}
+
+
 /**********************************************************************************************************/
 /* ALPHA PARAM ********************************************************************************************/
 
@@ -1025,16 +1218,16 @@ static void optAlphasGeneric(tree *tr, double modelEpsilon, linkageList *ll)
 	  break;
 	case AA_DATA:	  
 	  //to be implemented later-on 
-	  /*if(tr->partitionData[ll->ld[i].partitionList[0]].protModels == LG4X)
+	  if(tr->partitionData[ll->ld[i].partitionList[0]].protModels == LG4X)
 	    {
-	    LG4X_Partitions++;	      
-	    ll->ld[i].valid = FALSE;
+	      LG4X_Partitions++;	      
+	      ll->ld[i].valid = FALSE;
 	    }
-	    else*/
-	  {
-	    ll->ld[i].valid = TRUE;
-	    non_LG4X_Partitions++;
-	  }
+	  else
+	    {
+	      ll->ld[i].valid = TRUE;
+	      non_LG4X_Partitions++;
+	    }
 	  break;
 	default:
 	  assert(0);
@@ -1046,9 +1239,8 @@ static void optAlphasGeneric(tree *tr, double modelEpsilon, linkageList *ll)
   if(non_LG4X_Partitions > 0)    
     optParamGeneric(tr, modelEpsilon, ll, non_LG4X_Partitions, -1, ALPHA_MIN, ALPHA_MAX, ALPHA_F);
   
-  //right now this assertion shouldn't fail, undo when implementing LG4X  
-  assert(LG4X_Partitions == 0);
- 
+  
+  
 
   /* then LG4x partitions */
 
@@ -1065,20 +1257,19 @@ static void optAlphasGeneric(tree *tr, double modelEpsilon, linkageList *ll)
 	case GENERIC_64:
 	  ll->ld[i].valid = FALSE;	  
 	  break;
-	case AA_DATA:	  
-	  //deal with this later-on
-	  /*if(tr->partitionData[ll->ld[i].partitionList[0]].protModels == LG4X)	      
+	case AA_DATA:	  	  
+	  if(tr->partitionData[ll->ld[i].partitionList[0]].protModels == LG4X)	      
 	    ll->ld[i].valid = TRUE;	   
-	    else*/
-	  ll->ld[i].valid = FALSE;	   	    
+	  else
+	    ll->ld[i].valid = FALSE;	   	    
 	  break;
 	default:
 	  assert(0);
 	}      
     }   
   
-  //if(LG4X_Partitions > 0)
-  //  optLG4X(tr, modelEpsilon, ll, LG4X_Partitions);
+  if(LG4X_Partitions > 0)
+    optLG4X(tr, modelEpsilon, ll, LG4X_Partitions);
 
   for(i = 0; i < ll->entries; i++)
     ll->ld[i].valid = TRUE;
@@ -1154,7 +1345,10 @@ static void optParamGeneric(tree *tr, double modelEpsilon, linkageList *ll, int 
     j, 
     pos;
     
-  double 
+  double  
+    *startRates   = (double *)malloc(sizeof(double) * numberOfModels * 4),
+    *startWeights = (double *)malloc(sizeof(double) * numberOfModels * 4),
+    *startExponents = (double *)malloc(sizeof(double) * numberOfModels * 4),
     *startValues = (double *)malloc(sizeof(double) * numberOfModels),
     *startLH    = (double *)malloc(sizeof(double) * numberOfModels),
     *endLH      = (double *)malloc(sizeof(double) * numberOfModels),
@@ -1168,8 +1362,21 @@ static void optParamGeneric(tree *tr, double modelEpsilon, linkageList *ll, int 
     *_x         = (double *)malloc(sizeof(double) * numberOfModels),
     *lim_inf    = (double *)malloc(sizeof(double) * numberOfModels),
     *lim_sup    = (double *)malloc(sizeof(double) * numberOfModels);
+ 
+  if(whichParameterType == LXWEIGHT_F)
+    evaluateGeneric(tr, tr->start, FALSE);
+  else
+    {
+      evaluateGeneric(tr, tr->start, TRUE);
 
-  evaluateGeneric(tr, tr->start, TRUE);
+      if(whichParameterType == LXRATE_F)
+	{
+	  int j;
+
+	  for(j = 0; j < tr->NumberOfModels; j++)
+	    tr->partitionData[j].weightLikelihood = tr->perPartitionLH[j];
+	}
+    }
   
 #ifdef  _DEBUG_MOD_OPT
   double
@@ -1211,6 +1418,21 @@ static void optParamGeneric(tree *tr, double modelEpsilon, linkageList *ll, int 
 		  lim_inf[pos] = minFreq(index, rateNumber, tr, _lim_inf);
 		  lim_sup[pos] = maxFreq(index, rateNumber, tr, _lim_sup);
 		  startValues[pos] = tr->partitionData[index].freqExponents[rateNumber];
+		  break;
+		case LXRATE_F:		 
+		  lim_inf[pos] = _lim_inf;
+		  lim_sup[pos] = _lim_sup;
+		  assert(rateNumber >= 0 && rateNumber < 4);
+		  startValues[pos] = tr->partitionData[index].gammaRates[rateNumber];
+		  memcpy(&startRates[pos * 4],   tr->partitionData[index].gammaRates, 4 * sizeof(double)); 
+		  memcpy(&startExponents[pos * 4], tr->partitionData[index].weightExponents, 4 * sizeof(double));
+		  memcpy(&startWeights[pos * 4], tr->partitionData[index].weights,    4 * sizeof(double));
+		  break;
+		case LXWEIGHT_F: 		  
+		  lim_inf[pos] = _lim_inf;
+		  lim_sup[pos] = _lim_sup;
+		  assert(rateNumber >= 0 && rateNumber < 4);
+		  startValues[pos] = tr->partitionData[index].weightExponents[rateNumber];		  
 		  break;
 		default:
 		  assert(0);
@@ -1273,6 +1495,13 @@ static void optParamGeneric(tree *tr, double modelEpsilon, linkageList *ll, int 
 		  int 
 		    index = ll->ld[k].partitionList[j];
 		  
+		  if(whichParameterType == LXRATE_F)
+		    {
+		      memcpy(tr->partitionData[index].weights,         &startWeights[pos * 4], sizeof(double) * 4);
+		      memcpy(tr->partitionData[index].gammaRates,      &startRates[pos * 4], sizeof(double) * 4);
+		      memcpy(tr->partitionData[index].weightExponents, &startExponents[pos * 4], 4 * sizeof(double));
+		    }
+		  
 		  changeModelParameters(index, rateNumber, startValues[pos], whichParameterType, tr);		 
 		}
 	    }
@@ -1287,7 +1516,23 @@ static void optParamGeneric(tree *tr, double modelEpsilon, linkageList *ll, int 
 		  int 
 		    index = ll->ld[k].partitionList[j];
 
-		  changeModelParameters(index, rateNumber, _x[pos], whichParameterType, tr);		  		  
+		  changeModelParameters(index, rateNumber, _x[pos], whichParameterType, tr);
+
+		  if(whichParameterType == LXWEIGHT_F)
+		    {
+		      if(endLH[pos] > tr->partitionData[index].weightLikelihood)
+			{
+			  memcpy(tr->partitionData[index].weightsBuffer,         tr->partitionData[index].weights, sizeof(double) * 4);
+			  memcpy(tr->partitionData[index].weightExponentsBuffer, tr->partitionData[index].weightExponents, sizeof(double) * 4);
+			  tr->partitionData[index].weightLikelihood = endLH[pos];
+			}
+		    }
+
+		  if(whichParameterType == LXRATE_F)
+		    {
+		      memcpy(tr->partitionData[index].weights,         tr->partitionData[index].weightsBuffer, sizeof(double) * 4);		 
+		      memcpy(tr->partitionData[index].weightExponents, tr->partitionData[index].weightExponentsBuffer, sizeof(double) * 4);
+		    }
 		}
 	    }
 	  pos++;
@@ -1310,6 +1555,9 @@ static void optParamGeneric(tree *tr, double modelEpsilon, linkageList *ll, int 
   free(_param);
   free(_x);  
   free(startValues);
+  free(startRates);
+  free(startWeights);
+  free(startExponents);
   free(lim_inf);
   free(lim_sup);
 

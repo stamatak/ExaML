@@ -1218,14 +1218,18 @@ static void writeCheckpointInner(tree *tr, int *rateCategory, double *patrat, an
   myBinFwrite(tr->fracchanges,  sizeof(double), tr->NumberOfModels, f);
   myBinFwrite(&(tr->fracchange),   sizeof(double), 1, f);
 
+  //LG4X related stuff
+
+  myBinFwrite(tr->rawFracchanges,  sizeof(double), tr->NumberOfModels, f);
+  myBinFwrite(&(tr->rawFracchange),   sizeof(double), 1, f);
+
+  //end
 
   for(model = 0; model < tr->NumberOfModels; model++)
     {
       int 
 	dataType = tr->partitionData[model].dataType;
             
-      
-
       myBinFwrite(&(tr->partitionData[model].numberOfCategories), sizeof(int), 1, f);
       myBinFwrite(tr->partitionData[model].perSiteRates, sizeof(double), tr->maxCategories, f);
       myBinFwrite(tr->partitionData[model].EIGN, sizeof(double), pLengths[dataType].eignLength, f);
@@ -1234,12 +1238,19 @@ static void writeCheckpointInner(tree *tr, int *rateCategory, double *patrat, an
 
       myBinFwrite(tr->partitionData[model].freqExponents, sizeof(double),  pLengths[dataType].frequenciesLength, f);
       myBinFwrite(tr->partitionData[model].frequencies,   sizeof(double),  pLengths[dataType].frequenciesLength, f);
-      myBinFwrite(tr->partitionData[model].tipVector,     sizeof(double),  pLengths[dataType].tipVectorLength, f);  
-
-     
+      myBinFwrite(tr->partitionData[model].tipVector,     sizeof(double),  pLengths[dataType].tipVectorLength, f);       
       myBinFwrite(tr->partitionData[model].substRates, sizeof(double),  pLengths[dataType].substRatesLength, f);
 
-      if(tr->partitionData[model].protModels == LG4)
+      //LG4X related variables 
+
+      myBinFwrite(tr->partitionData[model].weights , sizeof(double), 4, f);
+      myBinFwrite(tr->partitionData[model].weightExponents , sizeof(double), 4, f);
+      //myBinFwrite(tr->partitionData[model].weightsBuffer , sizeof(double), 4, f);
+      //myBinFwrite(tr->partitionData[model].weightExponentsBuffer , sizeof(double), 4, f);
+
+      //LG4X end 
+
+      if(tr->partitionData[model].protModels == LG4M || tr->partitionData[model].protModels == LG4X)
 	{
 	  int 
 	    k;
@@ -1256,6 +1267,8 @@ static void writeCheckpointInner(tree *tr, int *rateCategory, double *patrat, an
 	}
     
       myBinFwrite(&(tr->partitionData[model].alpha), sizeof(double), 1, f);
+      myBinFwrite(&(tr->partitionData[model].gammaRates), sizeof(double), 4, f);
+      
       myBinFwrite(&(tr->partitionData[model].protModels), sizeof(int), 1, f);
       myBinFwrite(&(tr->partitionData[model].autoProtModels), sizeof(int), 1, f);
     }
@@ -1634,6 +1647,13 @@ static void readCheckpoint(tree *tr, analdef *adef)
   myBinFread(tr->fracchanges,  sizeof(double), tr->NumberOfModels, f);
   myBinFread(&(tr->fracchange),   sizeof(double), 1, f);
 
+  //LG4X related stuff
+
+  myBinFread(tr->rawFracchanges,  sizeof(double), tr->NumberOfModels, f);
+  myBinFread(&(tr->rawFracchange),   sizeof(double), 1, f);
+
+  //end
+
   for(model = 0; model < tr->NumberOfModels; model++)
     {
       int 
@@ -1650,7 +1670,16 @@ static void readCheckpoint(tree *tr, analdef *adef)
       myBinFread(tr->partitionData[model].tipVector, sizeof(double),  pLengths[dataType].tipVectorLength, f);  
       myBinFread(tr->partitionData[model].substRates, sizeof(double),  pLengths[dataType].substRatesLength, f);  
 
-      if(tr->partitionData[model].protModels == LG4)
+      //LG4X related variables 
+
+      myBinFread(tr->partitionData[model].weights , sizeof(double), 4, f);
+      myBinFread(tr->partitionData[model].weightExponents , sizeof(double), 4, f);
+      //myBinFread(tr->partitionData[model].weightsBuffer , sizeof(double), 4, f);
+      //myBinFread(tr->partitionData[model].weightExponentsBuffer , sizeof(double), 4, f);
+
+      //LG4X end 
+
+      if(tr->partitionData[model].protModels == LG4X || tr->partitionData[model].protModels == LG4M)
 	{
 	  int 
 	    k;
@@ -1667,10 +1696,12 @@ static void readCheckpoint(tree *tr, analdef *adef)
 	}
 
 
-      myBinFread(&(tr->partitionData[model].alpha), sizeof(double), 1, f);
-
-      //conditional added by Andre 
-      if(tr->rateHetModel != CAT)
+      myBinFread(&(tr->partitionData[model].alpha), sizeof(double), 1, f);      
+      myBinFread(&(tr->partitionData[model].gammaRates), sizeof(double), 4, f);
+      //conditional added by Andre modified by me
+      //only overwrite values of discrete gamma cats by calling makeGammaCats if not using 
+      //LG4X!
+      if(tr->rateHetModel != CAT && !(tr->partitionData[model].protModels == LG4X))
 	makeGammaCats(tr->partitionData[model].alpha, tr->partitionData[model].gammaRates, 4, tr->useMedian); 
 
       myBinFread(&(tr->partitionData[model].protModels), sizeof(int), 1, f);

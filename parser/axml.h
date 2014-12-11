@@ -233,10 +233,11 @@ extern double exp_approx (double x);
 #define JTTDCMUT   16
 #define FLU        17 
 #define AUTO       18
-#define LG4        19
-#define GTR        20  /* GTR always needs to be the last one */
+#define LG4M       19
+#define LG4X       20
+#define GTR        21  /* GTR always needs to be the last one */
 
-#define NUM_PROT_MODELS 21
+#define NUM_PROT_MODELS 22
 
 /* bipartition stuff */
 

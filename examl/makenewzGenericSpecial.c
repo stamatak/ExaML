@@ -362,7 +362,7 @@ static void sumGTRCATPROT_SAVE(int tipCase, double *sumtable, double *x1, double
 			       double *x1_gapColumn, double *x2_gapColumn, unsigned int *x1_gap, unsigned int *x2_gap);
 
 static void coreGTRGAMMAPROT_LG4(double *gammaRates, double *EIGN[4], double *sumtable, int upper, int *wrptr,
-				 volatile double *ext_dlnLdlz,  volatile double *ext_d2lnLdlz2, double lz);
+				 volatile double *ext_dlnLdlz,  volatile double *ext_d2lnLdlz2, double lz, double *weights);
 
 static void coreGTRGAMMA(const int upper, double *sumtable,
 			 volatile double *ext_dlnLdlz,  volatile double *ext_d2lnLdlz2, double *EIGN, double *gammaRates, double lz, int *wgt);
@@ -802,13 +802,14 @@ void makenewzIterative(tree *tr)
 #endif
 		  else
 		    {
-		      if(tr->partitionData[model].protModels == LG4)		      			   		
+		      if(tr->partitionData[model].protModels == LG4M || tr->partitionData[model].protModels == LG4X)		      			   		
 #ifdef __MIC_NATIVE
-              sumGAMMAPROT_LG4_MIC(tipCase, sumBuffer, x1_start, x2_start, tr->partitionData[model].mic_tipVector, tipX1, tipX2,
-			                  width);
+			//todo alexey?
+			sumGAMMAPROT_LG4_MIC(tipCase, sumBuffer, x1_start, x2_start, tr->partitionData[model].mic_tipVector, tipX1, tipX2,
+					     width);
 #else
-		    	  sumGAMMAPROT_LG4(tipCase,  sumBuffer, x1_start, x2_start, tr->partitionData[model].tipVector_LG4,
-					 tipX1, tipX2, width);
+		      sumGAMMAPROT_LG4(tipCase,  sumBuffer, x1_start, x2_start, tr->partitionData[model].tipVector_LG4,
+				       tipX1, tipX2, width);
 #endif
 		      else
 #ifdef __MIC_NATIVE
@@ -957,7 +958,8 @@ void execCore(tree *tr, volatile double *_dlnLdlz, volatile double *_d2lnLdlz2)
 	    *wgt = tr->partitionData[model].wgt + offset;
 
 	  /* set a pointer to the part of the pre-computed sumBuffer we are going to access */
-	  double
+	  double 
+	    *weights         = tr->partitionData[model].weights,
 	    *sumBuffer = tr->partitionData[model].sumBuffer + x_offset;
 
 	  volatile double
@@ -1024,24 +1026,28 @@ void execCore(tree *tr, volatile double *_dlnLdlz, volatile double *_d2lnLdlz2)
   #endif
 		else
 		{
-		    if(tr->partitionData[model].protModels == LG4)
-  #ifdef __MIC_NATIVE
-		coreGTRGAMMAPROT_LG4_MIC(width, sumBuffer,
-			       &dlnLdlz, &d2lnLdlz2, tr->partitionData[model].EIGN_LG4, tr->partitionData[model].gammaRates, lz, wgt);
-  #else
-			    coreGTRGAMMAPROT_LG4(tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN_LG4,
-					    sumBuffer, width, wgt,
-					    &dlnLdlz, &d2lnLdlz2, lz);
-  #endif
+		  if(tr->partitionData[model].protModels == LG4M || tr->partitionData[model].protModels == LG4X)
+#ifdef __MIC_NATIVE
+		    //todo alexey
+		    coreGTRGAMMAPROT_LG4_MIC(width, sumBuffer,
+					     &dlnLdlz, &d2lnLdlz2, tr->partitionData[model].EIGN_LG4, tr->partitionData[model].gammaRates, lz, wgt);
+#else
+		  {
+		    //printf("model %d weights %f %f %f %f\n", model, weights[0], weights[1], weights[2], weights[3]);
+		  coreGTRGAMMAPROT_LG4(tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN_LG4,
+				       sumBuffer, width, wgt,
+				       &dlnLdlz, &d2lnLdlz2, lz, weights);
+		  }
+#endif
 		    else
-  #ifdef __MIC_NATIVE
-		coreGTRGAMMAPROT_MIC(width, sumBuffer,
-			       &dlnLdlz, &d2lnLdlz2, tr->partitionData[model].EIGN, tr->partitionData[model].gammaRates, lz, wgt);
-  #else
-		    coreGTRGAMMAPROT(tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN,
-					    sumBuffer, width, wgt,
-					    &dlnLdlz, &d2lnLdlz2, lz);
-  #endif
+#ifdef __MIC_NATIVE
+		      coreGTRGAMMAPROT_MIC(width, sumBuffer,
+					   &dlnLdlz, &d2lnLdlz2, tr->partitionData[model].EIGN, tr->partitionData[model].gammaRates, lz, wgt);
+#else
+		  coreGTRGAMMAPROT(tr->partitionData[model].gammaRates, tr->partitionData[model].EIGN,
+				   sumBuffer, width, wgt,
+				   &dlnLdlz, &d2lnLdlz2, lz);
+#endif
 		}
 		break;
 	      default:
@@ -2466,7 +2472,7 @@ static void coreGTRCAT(int upper, int numberOfCategories, double *sum,
 
 
 static void coreGTRGAMMAPROT_LG4(double *gammaRates, double *EIGN[4], double *sumtable, int upper, int *wrptr,
-				 volatile double *ext_dlnLdlz,  volatile double *ext_d2lnLdlz2, double lz)
+				 volatile double *ext_dlnLdlz,  volatile double *ext_d2lnLdlz2, double lz, double *weights)
 {
   double  *sum, 
     diagptable0[80] __attribute__ ((aligned (BYTE_ALIGNMENT))),
@@ -2476,7 +2482,7 @@ static void coreGTRGAMMAPROT_LG4(double *gammaRates, double *EIGN[4], double *su
   double  dlnLdlz = 0;
   double d2lnLdlz2 = 0;
   double ki, kisqr; 
-  double inv_Li, dlnLidlz, d2lnLidlz2;
+  
 
   for(i = 0; i < 4; i++)
     {
@@ -2497,35 +2503,51 @@ static void coreGTRGAMMAPROT_LG4(double *gammaRates, double *EIGN[4], double *su
 
   for (i = 0; i < upper; i++)
     { 
-      __m128d a0 = _mm_setzero_pd();
-      __m128d a1 = _mm_setzero_pd();
-      __m128d a2 = _mm_setzero_pd();
+      double 	
+	inv_Li = 0.0, 
+	dlnLidlz = 0.0, 
+	d2lnLidlz2 = 0.0;
+      
 
       sum = &sumtable[i * 80];         
 
       for(j = 0; j < 4; j++)
 	{	 	  	
-	  double 	   
+	  double 
+	    l0,
+	    l1,
+	    l2,
 	    *d0 = &diagptable0[j * 20],
 	    *d1 = &diagptable1[j * 20],
 	    *d2 = &diagptable2[j * 20];
-  	 	 
+
+	  __m128d 
+	    a0 = _mm_setzero_pd(),
+	    a1 = _mm_setzero_pd(),
+	    a2 = _mm_setzero_pd();
+	  
 	  for(l = 0; l < 20; l+=2)
 	    {
 	      __m128d tmpv = _mm_mul_pd(_mm_load_pd(&d0[l]), _mm_load_pd(&sum[j * 20 +l]));
 	      a0 = _mm_add_pd(a0, tmpv);
 	      a1 = _mm_add_pd(a1, _mm_mul_pd(tmpv, _mm_load_pd(&d1[l])));
 	      a2 = _mm_add_pd(a2, _mm_mul_pd(tmpv, _mm_load_pd(&d2[l])));
-	    }	 	  
+	    }
+
+	  a0 = _mm_hadd_pd(a0, a0);
+	  a1 = _mm_hadd_pd(a1, a1);
+	  a2 = _mm_hadd_pd(a2, a2);
+
+	  _mm_storel_pd(&l0, a0);
+	  _mm_storel_pd(&l1, a1);
+	  _mm_storel_pd(&l2, a2);
+	  
+	  inv_Li     += weights[j] * l0;
+	  dlnLidlz   += weights[j] * l1;
+	  d2lnLidlz2 += weights[j] * l2;
 	}
 
-      a0 = _mm_hadd_pd(a0, a0);
-      a1 = _mm_hadd_pd(a1, a1);
-      a2 = _mm_hadd_pd(a2, a2);
-
-      _mm_storel_pd(&inv_Li, a0);
-      _mm_storel_pd(&dlnLidlz, a1);
-      _mm_storel_pd(&d2lnLidlz2, a2);
+     
 
       inv_Li = 1.0 / FABS(inv_Li);
 

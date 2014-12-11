@@ -1003,6 +1003,7 @@ void newviewIterative (tree *tr, int startIndex)
 	      break;
 	    case 20: /* AA data */
 	      {
+		//TODO alexey
 		if(tr->partitionData[model].protModels == LG4)
 		  {
 		    makeP_PROT_LG4_MIC(qz, rz, tr->partitionData[model].gammaRates,
@@ -1031,7 +1032,7 @@ void newviewIterative (tree *tr, int startIndex)
 	      assert(0);
 	    }
 #else
-	  if(tr->partitionData[model].protModels == LG4)
+	  if(tr->partitionData[model].protModels == LG4M || tr->partitionData[model].protModels == LG4X)
 	    makeP_FlexLG4(qz, rz, tr->partitionData[model].gammaRates,
 			  tr->partitionData[model].EI_LG4,
 			  tr->partitionData[model].EIGN_LG4,
@@ -1454,9 +1455,10 @@ void newviewIterative (tree *tr, int startIndex)
 			}
 		      else
 			{
-			  if(tr->partitionData[model].protModels == LG4)
+			  if(tr->partitionData[model].protModels == LG4M || tr->partitionData[model].protModels == LG4X)
 			    {
 #ifdef __MIC_NATIVE
+			      //todo alexey
 			      newviewGTRGAMMAPROT_LG4_MIC(tInfo->tipCase,
 							x1_start, x2_start, x3_start, tr->partitionData[model].mic_EV, tr->partitionData[model].mic_tipVector,
 							tipX1, tipX2,

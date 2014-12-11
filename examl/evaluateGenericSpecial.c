@@ -145,6 +145,8 @@ static void calcDiagptableFlex_LG4(double z, int numberOfCategories, double *rpt
 }
 
 
+
+
 #ifndef _OPTIMIZED_FUNCTIONS
 
 /* below a a slow generic implementation of the likelihood computation at the root under the GAMMA model */
@@ -337,7 +339,7 @@ static double evaluateGTRCAT_BINARY (int *ex1, int *ex2, int *cptr, int *wptr,
 static double evaluateGTRGAMMAPROT_LG4(int *ex1, int *ex2, int *wptr,
 				       double *x1, double *x2,  
 				       double *tipVector[4], 
-				       unsigned char *tipX1, int n, double *diagptable, const boolean fastScaling);
+				       unsigned char *tipX1, int n, double *diagptable, const boolean fastScaling, double *weights);
 
 /* GAMMA for proteins with memory saving */
 
@@ -461,7 +463,7 @@ void evaluateIterative(tree *tr)
 	    categories = 4;
 	  }
 
-	if(tr->partitionData[m].protModels == LG4)
+	if(tr->partitionData[m].protModels == LG4M || tr->partitionData[m].protModels == LG4X)
 	  calcDiagptableFlex_LG4(z, 4, tr->partitionData[m].gammaRates, tr->partitionData[m].EIGN_LG4, diagptable, 20);
 	else
 	  calcDiagptable(z, states, categories, rateCategories, tr->partitionData[m].EIGN, diagptable);
@@ -576,7 +578,8 @@ void evaluateIterative(tree *tr)
 	  
 	  double 
 	    *rateCategories = (double*)NULL,	    
-	    partitionLikelihood = 0.0, 	   
+	    partitionLikelihood = 0.0, 	 
+	    *weights = tr->partitionData[model].weights,
 	    *x1_start   = (double*)NULL, 
 	    *x2_start   = (double*)NULL,
 	    *x1_gapColumn = (double*)NULL,
@@ -789,15 +792,16 @@ void evaluateIterative(tree *tr)
 #endif
 		    else
 		      {
-			if(tr->partitionData[model].protModels == LG4)
+			if(tr->partitionData[model].protModels == LG4M || tr->partitionData[model].protModels == LG4X)
 #ifdef __MIC_NATIVE
+			  //TODO alexey
 			 partitionLikelihood = evaluateGAMMAPROT_LG4_MIC(wgt,
                                x1_start, x2_start, tr->partitionData[model].mic_tipVector,
                                tip, width, diagptable);
 #else
 			  partitionLikelihood =  evaluateGTRGAMMAPROT_LG4((int *)NULL, (int *)NULL, wgt,
 									  x1_start, x2_start, tr->partitionData[model].tipVector_LG4,
-									  tip, width, diagptable, TRUE);
+									  tip, width, diagptable, TRUE, weights);
 #endif
 			else
 #ifdef __MIC_NATIVE
@@ -999,7 +1003,7 @@ void evaluateGeneric (tree *tr, nodeptr p, boolean fullTraversal)
 
   
   
-  /* printf("after eval: %f\n", tr->likelihood);  */
+ 
 }
 
 
@@ -1166,7 +1170,7 @@ static double evaluateGTRGAMMA_BINARY(int *ex1, int *ex2, int *wptr,
 static double evaluateGTRGAMMAPROT_LG4(int *ex1, int *ex2, int *wptr,
 				       double *x1, double *x2,  
 				       double *tipVector[4], 
-				       unsigned char *tipX1, int n, double *diagptable, const boolean fastScaling)
+				       unsigned char *tipX1, int n, double *diagptable, const boolean fastScaling, double *weights)
 {
   double   sum = 0.0, term;        
   int     i, j, l;   
@@ -1176,37 +1180,54 @@ static double evaluateGTRGAMMAPROT_LG4(int *ex1, int *ex2, int *wptr,
     {               
       for (i = 0; i < n; i++) 
 	{
-#ifdef __SIM_SSE3
-	  __m128d tv = _mm_setzero_pd();
-	 	  	  	  
+#ifdef __SIM_SSE3  	  
+	  __m128d 
+	    tv = _mm_setzero_pd();
+	      	 	  	 
 	  for(j = 0, term = 0.0; j < 4; j++)
 	    {
-	      double *d = &diagptable[j * 20];
+	      double 
+		*d = &diagptable[j * 20];
+
+	      __m128d 
+		t = _mm_setzero_pd(),
+		w = _mm_set1_pd(weights[j]);
+	      
+	      
 	      left = &(tipVector[j][20 * tipX1[i]]);
 	      right = &(x2[80 * i + 20 * j]);
+	      
 	      for(l = 0; l < 20; l+=2)
 		{
 		  __m128d mul = _mm_mul_pd(_mm_load_pd(&left[l]), _mm_load_pd(&right[l]));
-		  tv = _mm_add_pd(tv, _mm_mul_pd(mul, _mm_load_pd(&d[l])));		   
-		}		 		
+		  t = _mm_add_pd(t, _mm_mul_pd(mul, _mm_load_pd(&d[l])));		   
+		}
+	      
+	      tv = _mm_add_pd(tv, _mm_mul_pd(t, w));	      	      	     
 	    }
+	  
 	  tv = _mm_hadd_pd(tv, tv);
 	  _mm_storel_pd(&term, tv);
 	  
 #else	  	  	  	  
 	  for(j = 0, term = 0.0; j < 4; j++)
 	    {
+	      double 
+		t = 0.0;
+	      
 	      left = &(tipVector[j][20 * tipX1[i]]);
 	      right = &(x2[80 * i + 20 * j]);
 	      for(l = 0; l < 20; l++)
-		term += left[l] * right[l] * diagptable[j * 20 + l];	      
+		t += left[l] * right[l] * diagptable[j * 20 + l];	      
+
+	      term += weights[j] * t;
 	    }	  
 #endif
 	  
 	  if(fastScaling)
-	    term = LOG(0.25 * FABS(term));
+	    term = LOG(FABS(term));
 	  else
-	    term = LOG(0.25 * FABS(term)) + (ex2[i] * LOG(minlikelihood));	   
+	    term = LOG(FABS(term)) + (ex2[i] * LOG(minlikelihood));	   
 	  
 	  sum += wptr[i] * term;
 	}    	        
@@ -1215,38 +1236,54 @@ static double evaluateGTRGAMMAPROT_LG4(int *ex1, int *ex2, int *wptr,
     {
       for (i = 0; i < n; i++) 
 	{	  	 	             
-#ifdef __SIM_SSE3
-	  __m128d tv = _mm_setzero_pd();	 	  	  
+#ifdef __SIM_SSE3        
+	  __m128d 
+	    tv = _mm_setzero_pd();	 	  	  
 	      
 	  for(j = 0, term = 0.0; j < 4; j++)
 	    {
-	      double *d = &diagptable[j * 20];
+	      double 
+		*d = &diagptable[j * 20];
+
+	      __m128d 
+		t = _mm_setzero_pd(),
+		w = _mm_set1_pd(weights[j]);
+	      
 	      left  = &(x1[80 * i + 20 * j]);
 	      right = &(x2[80 * i + 20 * j]);
 	      
 	      for(l = 0; l < 20; l+=2)
 		{
 		  __m128d mul = _mm_mul_pd(_mm_load_pd(&left[l]), _mm_load_pd(&right[l]));
-		  tv = _mm_add_pd(tv, _mm_mul_pd(mul, _mm_load_pd(&d[l])));		   
-		}		 		
+		  t = _mm_add_pd(t, _mm_mul_pd(mul, _mm_load_pd(&d[l])));		   
+		}		 
+
+	       tv = _mm_add_pd(tv, _mm_mul_pd(t, w));
 	    }
+	  
 	  tv = _mm_hadd_pd(tv, tv);
 	  _mm_storel_pd(&term, tv);	  
+	  
 #else
 	  for(j = 0, term = 0.0; j < 4; j++)
 	    {
+	      double
+		t = 0.0;
+	      
 	      left  = &(x1[80 * i + 20 * j]);
 	      right = &(x2[80 * i + 20 * j]);	    
 	      
 	      for(l = 0; l < 20; l++)
-		term += left[l] * right[l] * diagptable[j * 20 + l];	
+		t += left[l] * right[l] * diagptable[j * 20 + l];	
+
+	      term += weights[j] * t;
 	    }
 #endif
 	  
 	  if(fastScaling)
-	    term = LOG(0.25 * FABS(term));
+	    term = LOG(FABS(term));
 	  else
-	    term = LOG(0.25 * FABS(term)) + ((ex1[i] + ex2[i])*LOG(minlikelihood));
+	    term = LOG(FABS(term)) + ((ex1[i] + ex2[i])*LOG(minlikelihood));
 	  
 	  sum += wptr[i] * term;
 	}         
