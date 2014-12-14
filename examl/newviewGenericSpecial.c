@@ -878,6 +878,21 @@ static void newviewGTRCATPROT_SAVE(int tipCase, double *extEV,
 				   unsigned int *x1_gap, unsigned int *x2_gap, unsigned int *x3_gap,
 				   double *x1_gapColumn, double *x2_gapColumn, double *x3_gapColumn, const int maxCats);
 
+#endif
+
+#ifdef _OPTIMIZED_FUNCTIONS
+
+static void newviewGTRCAT_BINARY( int tipCase,  double *EV,  int *cptr,
+                                  double *x1_start,  double *x2_start,  double *x3_start,  double *tipVector,
+                                  int *ex3, unsigned char *tipX1, unsigned char *tipX2,
+                                  int n,  double *left, double *right, int *wgt, int *scalerIncrement, const boolean useFastScaling);
+
+static void newviewGTRGAMMA_BINARY(int tipCase,
+				   double *x1_start, double *x2_start, double *x3_start,
+				   double *EV, double *tipVector,
+				   int *ex3, unsigned char *tipX1, unsigned char *tipX2,
+				   const int n, double *left, double *right, int *wgt, int *scalerIncrement, const boolean useFastScaling
+				   );
 
 #endif
 
@@ -904,120 +919,127 @@ void newviewIterative (tree *tr, int startIndex)
   traversalInfo 
     *ti   = tr->td[0].ti;
 
-  int i;
+  int 
+    i;
 
     /* loop over traversal descriptor length. Note that on average we only re-compute the conditionals on 3 -4
        nodes in RAxML */
 
   for(i = startIndex; i < tr->td[0].count; i++)
-  {
-    traversalInfo *tInfo = &ti[i];
-
-    int model;
-
+    {
+      traversalInfo 
+	*tInfo = &ti[i];
+      
+      int 
+	model;
+      
 #ifdef _USE_OMP
-    #pragma omp parallel for
+#pragma omp parallel for
 #endif
-    for(model = 0; model < tr->NumberOfModels; model++)
-      {
-        /* check if this partition has to be processed now - otherwise no need to compute P matrix */
-	if(!tr->td[0].executeModel[model] || tr->partitionData[model].width == 0)
-	  continue;
-
-	int
-	  categories,
-	  states = tr->partitionData[model].states,
-	  maxStateValue = getUndetermined(tr->partitionData[model].dataType) + 1;
-
-	double
-	  qz,
-	  rz,
-	  *rateCategories,
-	  *left = tr->partitionData[model].left,
-	  *right = tr->partitionData[model].right;
-
-	if(tr->rateHetModel == CAT)
-	  {
-	    rateCategories = tr->partitionData[model].perSiteRates;
-	    categories = tr->partitionData[model].numberOfCategories;
-	  }
-	else
-	  {
-	    rateCategories = tr->partitionData[model].gammaRates;
-	    categories = 4;
-	  }
-
-	/* if we use per-partition branch length optimization
-	   get the branch length of partition model and take the log otherwise
-	   use the joint branch length among all partitions that is always stored
-	   at index [0] */
-	if(tr->numBranches > 1)
-	  {
-	    qz = tInfo->qz[model];
-	    rz = tInfo->rz[model];
-	  }
-	else
-	  {
-	    qz = tInfo->qz[0];
-	    rz = tInfo->rz[0];
-	  }
-
-	qz = (qz > zmin) ? log(qz) : log(zmin);
-	rz = (rz > zmin) ? log(rz) : log(zmin);
-
-	/* compute the left and right P matrices */
-#ifdef __MIC_NATIVE
-	switch (tr->partitionData[model].states)
+      for(model = 0; model < tr->NumberOfModels; model++)
 	{
-	  case 4: /* DNA data */
-	    {
-		makeP_DNA_MIC(qz, rz, rateCategories,   tr->partitionData[model].EI,
-			tr->partitionData[model].EIGN, categories,
-			left, right, tr->saveMemory, tr->maxCategories);
+	  /* check if this partition has to be processed now - otherwise no need to compute P matrix */
+	  if(!tr->td[0].executeModel[model] || tr->partitionData[model].width == 0)
+	    continue;
 
-		precomputeTips_DNA_MIC(tInfo->tipCase, tr->partitionData[model].tipVector,
-		                  left, right,
-		                  tr->partitionData[model].mic_umpLeft, tr->partitionData[model].mic_umpRight,
-		                  categories);
-	    } break;
-	  case 20: /* AA data */
+	  int
+	    categories,
+	    states = tr->partitionData[model].states;
+	  
+	  double
+	    qz,
+	    rz,
+	    *rateCategories,
+	    *left = tr->partitionData[model].left,
+	    *right = tr->partitionData[model].right;
+	  
+	  if(tr->rateHetModel == CAT)
 	    {
-		if(tr->partitionData[model].protModels == LG4)
+	      rateCategories = tr->partitionData[model].perSiteRates;
+	      categories = tr->partitionData[model].numberOfCategories;
+	    }
+	  else
+	    {
+	      rateCategories = tr->partitionData[model].gammaRates;
+	      categories = 4;
+	    }
+	  
+	  /* if we use per-partition branch length optimization
+	     get the branch length of partition model and take the log otherwise
+	     use the joint branch length among all partitions that is always stored
+	     at index [0] */
+	  if(tr->numBranches > 1)
+	    {
+	      qz = tInfo->qz[model];
+	      rz = tInfo->rz[model];
+	    }
+	  else
+	    {
+	      qz = tInfo->qz[0];
+	      rz = tInfo->rz[0];
+	    }
+	  
+	  qz = (qz > zmin) ? log(qz) : log(zmin);
+	  rz = (rz > zmin) ? log(rz) : log(zmin);
+
+	  /* compute the left and right P matrices */
+#ifdef __MIC_NATIVE
+	  switch (tr->partitionData[model].states)
+	    {
+	    case 2: /* BINARY data */
+	      assert(0 && "Binary data model is not implemented on Intel MIC");
+	      break;
+	    case 4: /* DNA data */
+	      {
+		makeP_DNA_MIC(qz, rz, rateCategories,   tr->partitionData[model].EI,
+			      tr->partitionData[model].EIGN, categories,
+			      left, right, tr->saveMemory, tr->maxCategories);
+		
+		precomputeTips_DNA_MIC(tInfo->tipCase, tr->partitionData[model].tipVector,
+				       left, right,
+				       tr->partitionData[model].mic_umpLeft, tr->partitionData[model].mic_umpRight,
+				       categories);
+	      } 
+	      break;
+	    case 20: /* AA data */
+	      {
+		if(tr->partitionData[model].protModels == LG4M || tr->partitionData[model].protModels == LG4X)
 		  {
 		    makeP_PROT_LG4_MIC(qz, rz, tr->partitionData[model].gammaRates,
-				   tr->partitionData[model].EI_LG4, tr->partitionData[model].EIGN_LG4,
-				   4, left, right);
-
+				       tr->partitionData[model].EI_LG4, tr->partitionData[model].EIGN_LG4,
+				       4, left, right);
+		    
 		    precomputeTips_PROT_LG4_MIC(tInfo->tipCase, tr->partitionData[model].tipVector_LG4,
-				      left, right,
-				      tr->partitionData[model].mic_umpLeft, tr->partitionData[model].mic_umpRight,
-				      categories);
+						left, right,
+						tr->partitionData[model].mic_umpLeft, tr->partitionData[model].mic_umpRight,
+						categories);
 		  }
 		else
 		  {
 		    makeP_PROT_MIC(qz, rz, rateCategories, tr->partitionData[model].EI,
-				    tr->partitionData[model].EIGN, categories,
-				    left, right, tr->saveMemory, tr->maxCategories);
-
+				   tr->partitionData[model].EIGN, categories,
+				   left, right, tr->saveMemory, tr->maxCategories);
+		    
 		    precomputeTips_PROT_MIC(tInfo->tipCase, tr->partitionData[model].tipVector,
-				      left, right,
-				      tr->partitionData[model].mic_umpLeft, tr->partitionData[model].mic_umpRight,
-				      categories);
+					    left, right,
+					    tr->partitionData[model].mic_umpLeft, tr->partitionData[model].mic_umpRight,
+					    categories);
 		  }
-	    } break;
-	  default:
-	    assert(0);
-	}
+	      } 
+	      break;
+	    default:
+	      assert(0);
+	    }
 #else
-	if(tr->partitionData[model].protModels == LG4)
-	  makeP_FlexLG4(qz, rz, tr->partitionData[model].gammaRates,
-			tr->partitionData[model].EI_LG4,
-			tr->partitionData[model].EIGN_LG4,
-			4, left, right, 20);
-	else
-	  makeP(qz, rz, rateCategories,   tr->partitionData[model].EI,
-		tr->partitionData[model].EIGN, categories,
-		left, right, tr->saveMemory, tr->maxCategories, states);
+	  if(tr->partitionData[model].protModels == LG4M || tr->partitionData[model].protModels == LG4X)
+	    makeP_FlexLG4(qz, rz, tr->partitionData[model].gammaRates,
+			  tr->partitionData[model].EI_LG4,
+			  tr->partitionData[model].EIGN_LG4,
+			  4, left, right, 20);
+	  else
+	    makeP(qz, rz, rateCategories,   tr->partitionData[model].EI,
+		  tr->partitionData[model].EIGN, categories,
+		  left, right, tr->saveMemory, tr->maxCategories, states);
 #endif
       } // for model
 
@@ -1026,237 +1048,232 @@ void newviewIterative (tree *tr, int startIndex)
 #ifdef _USE_OMP
 #pragma omp parallel
 #endif
-  {
-    int
-      m,
-      model,
-      maxModel;
-
+      {
+	int
+	  m,
+	  model,
+	  maxModel;
+	
 #ifdef _USE_OMP
-    maxModel = tr->maxModelsPerThread;
+	maxModel = tr->maxModelsPerThread;
 #else
-    maxModel = tr->NumberOfModels;
+	maxModel = tr->NumberOfModels;
 #endif
 
-    for(m = 0; m < maxModel; m++)
-      {
-  	  size_t
-  	    width  = 0,
-  	    offset = 0;
-
-	  double
-	    *left     = (double*)NULL,
-	    *right    = (double*)NULL;
-
-	  unsigned int
-	    *globalScaler = (unsigned int*)NULL;
+	for(m = 0; m < maxModel; m++)
+	  {
+	    size_t
+	      width  = 0,
+	      offset = 0;
+	    
+	    double
+	      *left     = (double*)NULL,
+	      *right    = (double*)NULL;
+	    
+	    unsigned int
+	      *globalScaler = (unsigned int*)NULL;
 
 #ifdef _USE_OMP
+	    int
+	      tid = omp_get_thread_num();
 
-    	  int
-    	    tid = omp_get_thread_num();
+	    /* check if this thread should process this partition */
+	    Assign* 
+	      pAss = tr->threadPartAssigns[tid * tr->maxModelsPerThread + m];
 
-    	  /* check if this thread should process this partition */
-    	  Assign* pAss = tr->threadPartAssigns[tid * tr->maxModelsPerThread + m];
+	    if(pAss)
+	      {
+		assert(tid == pAss->procId);
+		
+		model  = pAss->partitionId;
+		width  = pAss->width;
+		offset = pAss->offset;
+		
+		left  = tr->partitionData[model].left;
+		right = tr->partitionData[model].right;
+		globalScaler = tr->partitionData[model].threadGlobalScaler[tid];
+	      }
+	    else
+	      break;
+#else
+	    model = m;	    
 
-    	  if (pAss)
-    	  {
-    	    assert(tid == pAss->procId);
+	    /* number of sites in this partition */
+	    width  = (size_t)tr->partitionData[model].width;
+	    offset = 0;
 
-    	    model  = pAss->partitionId;
-    	    width  = pAss->width;
-      	    offset = pAss->offset;
-
+	    /* set the pointers to the left and right P matrices to the pre-allocated memory space for storing them */
+	    
 	    left  = tr->partitionData[model].left;
 	    right = tr->partitionData[model].right;
-	    globalScaler = tr->partitionData[model].threadGlobalScaler[tid];
-    	  }
-    	  else
-    	    break;
-#else
-    	  model = m;
-
-    	  /* number of sites in this partition */
-	  width  = (size_t)tr->partitionData[model].width,
-	  offset = 0;
-
-	  /* set the pointers to the left and right P matrices to the pre-allocated memory space for storing them */
-
-	  left  = tr->partitionData[model].left;
-	  right = tr->partitionData[model].right;
-	  globalScaler = tr->partitionData[model].globalScaler;
+	    globalScaler = tr->partitionData[model].globalScaler;
 #endif
 
-	  /* this conditional statement is exactly identical to what we do in evaluateIterative */
-	  if(tr->td[0].executeModel[model] && width > 0)
-	    {
+	    /* this conditional statement is exactly identical to what we do in evaluateIterative */
+	    if(tr->td[0].executeModel[model] && width > 0)
+	      {	      
+		double
+		  *x1_start = (double*)NULL,
+		  *x2_start = (double*)NULL,
+		  *x3_start = (double*)NULL, //tr->partitionData[model].xVector[tInfo->pNumber - tr->mxtips - 1],
+		  *x1_gapColumn = (double*)NULL,
+		  *x2_gapColumn = (double*)NULL,
+		  *x3_gapColumn = (double*)NULL,
+		  *rateCategories = (double*)NULL;
 
-	      double
-		*x1_start = (double*)NULL,
-		*x2_start = (double*)NULL,
-		*x3_start = (double*)NULL, //tr->partitionData[model].xVector[tInfo->pNumber - tr->mxtips - 1],
-		*x1_gapColumn = (double*)NULL,
-		*x2_gapColumn = (double*)NULL,
-		*x3_gapColumn = (double*)NULL,
-		*rateCategories = (double*)NULL;
-
-	      int
-		categories,
-		scalerIncrement = 0,
+		int
+		  categories,
+		  scalerIncrement = 0,
 		
-		/* integer wieght vector with pattern compression weights */
+		  /* integer wieght vector with pattern compression weights */
 
-		*wgt = tr->partitionData[model].wgt + offset;
+		  *wgt = tr->partitionData[model].wgt + offset;
 
-	      unsigned int
-		*x1_gap = (unsigned int*)NULL,
-		*x2_gap = (unsigned int*)NULL,
-		*x3_gap = (unsigned int*)NULL;
+		unsigned int
+		  *x1_gap = (unsigned int*)NULL,
+		  *x2_gap = (unsigned int*)NULL,
+		  *x3_gap = (unsigned int*)NULL;
 
-	      unsigned char
-		*tipX1 = (unsigned char *)NULL,
-		*tipX2 = (unsigned char *)NULL;
-
-	      double 
-		qz, 
-		rz;	     
+		unsigned char
+		  *tipX1 = (unsigned char *)NULL,
+		  *tipX2 = (unsigned char *)NULL;	
 	      
-	      size_t
-		gapOffset = 0,
-		rateHet = discreteRateCategories(tr->rateHetModel),
-
-		/* get the number of states in the data stored in partition model */
-
-		states = (size_t)tr->partitionData[model].states,	
-
-		/* span for single alignment site (in doubles!) */
-		span = rateHet * states,
-		x_offset = offset * span,
-
-
-		/* get the length of the current likelihood array stored at node p. This is 
-		   important mainly for the SEV-based memory saving option described in here:
-
-		   F. Izquierdo-Carrasco, S.A. Smith, A. Stamatakis: "Algorithms, Data Structures, and Numerics for Likelihood-based Phylogenetic Inference of Huge Trees".
-
-		   So tr->partitionData[model].xSpaceVector[i] provides the length of the allocated conditional array of partition model 
-		   and node i 
-		*/
+		size_t
+		  gapOffset = 0,
+		  rateHet = discreteRateCategories(tr->rateHetModel),
+		  
+		  /* get the number of states in the data stored in partition model */
+		  
+		  states = (size_t)tr->partitionData[model].states,	
+		  
+		  /* span for single alignment site (in doubles!) */
+		  span = rateHet * states,
+		  x_offset = offset * span,
+		  
+		  
+		  /* get the length of the current likelihood array stored at node p. This is 
+		     important mainly for the SEV-based memory saving option described in here:
+		     
+		     F. Izquierdo-Carrasco, S.A. Smith, A. Stamatakis: "Algorithms, Data Structures, and Numerics for Likelihood-based Phylogenetic Inference of Huge Trees".
+		     
+		     So tr->partitionData[model].xSpaceVector[i] provides the length of the allocated conditional array of partition model 
+		     and node i 
+		  */
 		
-		availableLength = tr->partitionData[model].xSpaceVector[(tInfo->pNumber - tr->mxtips - 1)],
-		requiredLength = 0;	     
+		  availableLength = tr->partitionData[model].xSpaceVector[(tInfo->pNumber - tr->mxtips - 1)],
+		  requiredLength = 0;	     
 
-	      x3_start = tr->partitionData[model].xVector[tInfo->pNumber - tr->mxtips - 1] + x_offset;
+		x3_start = tr->partitionData[model].xVector[tInfo->pNumber - tr->mxtips - 1] + x_offset;
 
-	      /* figure out what kind of rate heterogeneity approach we are using */
+		/* figure out what kind of rate heterogeneity approach we are using */
 
-	      if(tr->rateHetModel == CAT)
-		{		 
-		  rateCategories = tr->partitionData[model].perSiteRates;
-		  categories = tr->partitionData[model].numberOfCategories;
-		}
-	      else
-		{		  		 
-		  rateCategories = tr->partitionData[model].gammaRates;
-		  categories = 4;
-		}
+		if(tr->rateHetModel == CAT)
+		  {		 
+		    rateCategories = tr->partitionData[model].perSiteRates;
+		    categories = tr->partitionData[model].numberOfCategories;
+		  }
+		else
+		  {		  		 
+		    rateCategories = tr->partitionData[model].gammaRates;
+		    categories = 4;
+		  }
 	     
 	      
-	      /* memory saving stuff, not important right now, but if you are interested ask Fernando */
+		/* memory saving stuff, not important right now, but if you are interested ask Fernando */
 
-	      if(tr->saveMemory)
-		{
-		  size_t
-		    j,
-		    setBits = 0;		  
-
-		  gapOffset = states * (size_t)getUndetermined(tr->partitionData[model].dataType);
-
-		  x1_gap = &(tr->partitionData[model].gapVector[tInfo->qNumber * tr->partitionData[model].gapVectorLength]);
-		  x2_gap = &(tr->partitionData[model].gapVector[tInfo->rNumber * tr->partitionData[model].gapVectorLength]);
-		  x3_gap = &(tr->partitionData[model].gapVector[tInfo->pNumber * tr->partitionData[model].gapVectorLength]);		      		  
-
-		  for(j = 0; j < (size_t)tr->partitionData[model].gapVectorLength; j++)
-		    {		     
-		      x3_gap[j] = x1_gap[j] & x2_gap[j];
-		      setBits += (size_t)(precomputed16_bitcount(x3_gap[j], tr->bits_in_16bits));		      
-		    }
-		      		  		 
-		  requiredLength = (width - setBits)  * rateHet * states * sizeof(double);		
-		}
-	      else
-		/* if we are not trying to save memory the space required to store an inner likelihood array 
-		   is the number of sites in the partition times the number of states of the data type in the partition 
-		   times the number of discrete GAMMA rates (1 for CAT essentially) times 8 bytes */
-		requiredLength  =  width * rateHet * states * sizeof(double);
-
-	      /* Initially, even when not using memory saving no space is allocated for inner likelihood arrats hence 
-		 availableLength will be zero at the very first time we traverse the tree.
-		 Hence we need to allocate something here */
+		if(tr->saveMemory)
+		  {
+		    size_t
+		      j,
+		      setBits = 0;		  
+		    
+		    gapOffset = states * (size_t)getUndetermined(tr->partitionData[model].dataType);
+		    
+		    x1_gap = &(tr->partitionData[model].gapVector[tInfo->qNumber * tr->partitionData[model].gapVectorLength]);
+		    x2_gap = &(tr->partitionData[model].gapVector[tInfo->rNumber * tr->partitionData[model].gapVectorLength]);
+		    x3_gap = &(tr->partitionData[model].gapVector[tInfo->pNumber * tr->partitionData[model].gapVectorLength]);		      		  
+		    
+		    for(j = 0; j < (size_t)tr->partitionData[model].gapVectorLength; j++)
+		      {		     
+			x3_gap[j] = x1_gap[j] & x2_gap[j];
+			setBits += (size_t)(precomputed16_bitcount(x3_gap[j], tr->bits_in_16bits));		      
+		      }
+		    
+		    requiredLength = (width - setBits)  * rateHet * states * sizeof(double);		
+		  }
+		else
+		  /* if we are not trying to save memory the space required to store an inner likelihood array 
+		     is the number of sites in the partition times the number of states of the data type in the partition 
+		     times the number of discrete GAMMA rates (1 for CAT essentially) times 8 bytes */
+		  requiredLength  =  width * rateHet * states * sizeof(double);
+		
+		/* Initially, even when not using memory saving no space is allocated for inner likelihood arrats hence 
+		   availableLength will be zero at the very first time we traverse the tree.
+		   Hence we need to allocate something here */
 #ifndef _USE_OMP
-	      if(requiredLength != availableLength)
-		{
-		  /* if there is a vector of incorrect length assigned here i.e., x3 != NULL we must free
-		     it first */
-		  if(x3_start)
-		    free(x3_start);
-
-		  /* allocate memory: note that here we use a byte-boundary aligned malloc, because we need the vectors
-		     to be aligned at 16 BYTE (SSE3) or 32 BYTE (AVX) boundaries! */
-
-		  x3_start = (double*)malloc_aligned(requiredLength);
-
-		  /* update the data structures for consistent bookkeeping */
-		  tr->partitionData[model].xVector[tInfo->pNumber - tr->mxtips - 1] = x3_start;
-		  tr->partitionData[model].xSpaceVector[(tInfo->pNumber - tr->mxtips - 1)] = requiredLength;
-		}
+		if(requiredLength != availableLength)
+		  {
+		    /* if there is a vector of incorrect length assigned here i.e., x3 != NULL we must free
+		       it first */
+		    if(x3_start)
+		      free(x3_start);
+		    
+		    /* allocate memory: note that here we use a byte-boundary aligned malloc, because we need the vectors
+		       to be aligned at 16 BYTE (SSE3) or 32 BYTE (AVX) boundaries! */
+		    
+		    x3_start = (double*)malloc_aligned(requiredLength);
+		    
+		    /* update the data structures for consistent bookkeeping */
+		    tr->partitionData[model].xVector[tInfo->pNumber - tr->mxtips - 1] = x3_start;
+		    tr->partitionData[model].xSpaceVector[(tInfo->pNumber - tr->mxtips - 1)] = requiredLength;
+		  }
 #endif
 
-	      /* now just set the pointers for data accesses in the newview() implementations above to the corresponding values 
-		 according to the tip case */
-
-	      switch(tInfo->tipCase)
-		{
-		case TIP_TIP:		  
-		  tipX1    = tr->partitionData[model].yVector[tInfo->qNumber] + offset;
-		  tipX2    = tr->partitionData[model].yVector[tInfo->rNumber] + offset;
-
-		  if(tr->saveMemory)
-		    {
-		      x1_gapColumn   = &(tr->partitionData[model].tipVector[gapOffset]);
-		      x2_gapColumn   = &(tr->partitionData[model].tipVector[gapOffset]);		    
-		      x3_gapColumn   = &tr->partitionData[model].gapColumn[(tInfo->pNumber - tr->mxtips - 1) * states * rateHet];		    
-		    }
-	      
-		  break;
-		case TIP_INNER:		 
-		  tipX1    =  tr->partitionData[model].yVector[tInfo->qNumber] + offset;
-		  x2_start = tr->partitionData[model].xVector[tInfo->rNumber - tr->mxtips - 1] + x_offset;
-
-		  if(tr->saveMemory)
-		    {	
-		      x1_gapColumn   = &(tr->partitionData[model].tipVector[gapOffset]);	     
-		      x2_gapColumn   = &tr->partitionData[model].gapColumn[(tInfo->rNumber - tr->mxtips - 1) * states * rateHet];
-		      x3_gapColumn   = &tr->partitionData[model].gapColumn[(tInfo->pNumber - tr->mxtips - 1) * states * rateHet];
-		    }
-	      		     
-		  break;
-		case INNER_INNER:		 		 
-		  x1_start       = tr->partitionData[model].xVector[tInfo->qNumber - tr->mxtips - 1] + x_offset;
-		  x2_start       = tr->partitionData[model].xVector[tInfo->rNumber - tr->mxtips - 1] + x_offset;
-
-		  if(tr->saveMemory)
-		    {
-		      x1_gapColumn   = &tr->partitionData[model].gapColumn[(tInfo->qNumber - tr->mxtips - 1) * states * rateHet];
-		      x2_gapColumn   = &tr->partitionData[model].gapColumn[(tInfo->rNumber - tr->mxtips - 1) * states * rateHet];
-		      x3_gapColumn   = &tr->partitionData[model].gapColumn[(tInfo->pNumber - tr->mxtips - 1) * states * rateHet];
-		    }
-	  		     
-		  break;
-		default:
-		  assert(0);
-		}
-
+		/* now just set the pointers for data accesses in the newview() implementations above to the corresponding values 
+		   according to the tip case */
+		
+		switch(tInfo->tipCase)
+		  {
+		  case TIP_TIP:		  
+		    tipX1    = tr->partitionData[model].yVector[tInfo->qNumber] + offset;
+		    tipX2    = tr->partitionData[model].yVector[tInfo->rNumber] + offset;
+		    
+		    if(tr->saveMemory)
+		      {
+			x1_gapColumn   = &(tr->partitionData[model].tipVector[gapOffset]);
+			x2_gapColumn   = &(tr->partitionData[model].tipVector[gapOffset]);		    
+			x3_gapColumn   = &tr->partitionData[model].gapColumn[(tInfo->pNumber - tr->mxtips - 1) * states * rateHet];		    
+		      }
+		    
+		    break;
+		  case TIP_INNER:		 
+		    tipX1    =  tr->partitionData[model].yVector[tInfo->qNumber] + offset;
+		    x2_start = tr->partitionData[model].xVector[tInfo->rNumber - tr->mxtips - 1] + x_offset;
+		    
+		    if(tr->saveMemory)
+		      {	
+			x1_gapColumn   = &(tr->partitionData[model].tipVector[gapOffset]);	     
+			x2_gapColumn   = &tr->partitionData[model].gapColumn[(tInfo->rNumber - tr->mxtips - 1) * states * rateHet];
+			x3_gapColumn   = &tr->partitionData[model].gapColumn[(tInfo->pNumber - tr->mxtips - 1) * states * rateHet];
+		      }
+		    
+		    break;
+		  case INNER_INNER:		 		 
+		    x1_start       = tr->partitionData[model].xVector[tInfo->qNumber - tr->mxtips - 1] + x_offset;
+		    x2_start       = tr->partitionData[model].xVector[tInfo->rNumber - tr->mxtips - 1] + x_offset;
+		    
+		    if(tr->saveMemory)
+		      {
+			x1_gapColumn   = &tr->partitionData[model].gapColumn[(tInfo->qNumber - tr->mxtips - 1) * states * rateHet];
+			x2_gapColumn   = &tr->partitionData[model].gapColumn[(tInfo->rNumber - tr->mxtips - 1) * states * rateHet];
+			x3_gapColumn   = &tr->partitionData[model].gapColumn[(tInfo->pNumber - tr->mxtips - 1) * states * rateHet];
+		      }
+		    
+		    break;
+		  default:
+		    assert(0);
+		  }
+		
 #ifndef _OPTIMIZED_FUNCTIONS
 
 	      /* memory saving not implemented */
@@ -1282,6 +1299,24 @@ void newviewIterative (tree *tr, int startIndex)
 
 	      switch(states)
 		{		
+		case 2:
+#ifdef __MIC_NATIVE
+ 	      assert(0 && "Binary data model is not implemented on Intel MIC");
+#else
+		  assert(!tr->saveMemory);
+		  if(tr->rateHetModel == CAT)
+		    newviewGTRCAT_BINARY(tInfo->tipCase,  tr->partitionData[model].EV,  tr->partitionData[model].rateCategory,
+					 x1_start,  x2_start,  x3_start, tr->partitionData[model].tipVector,
+					 (int*)NULL, tipX1, tipX2,
+					 width, left, right, wgt, &scalerIncrement, TRUE);
+		  else
+		    newviewGTRGAMMA_BINARY(tInfo->tipCase,
+					   x1_start, x2_start, x3_start,
+					   tr->partitionData[model].EV, tr->partitionData[model].tipVector,
+					   (int *)NULL, tipX1, tipX2,
+					   width, left, right, wgt, &scalerIncrement, TRUE);		 
+#endif
+		  break;
 		case 4:	/* DNA */
 		  if(tr->rateHetModel == CAT)
 		    {		    		     
@@ -1422,7 +1457,7 @@ void newviewIterative (tree *tr, int startIndex)
 			}
 		      else
 			{
-			  if(tr->partitionData[model].protModels == LG4)
+			  if(tr->partitionData[model].protModels == LG4M || tr->partitionData[model].protModels == LG4X)
 			    {
 #ifdef __MIC_NATIVE
 			      newviewGTRGAMMAPROT_LG4_MIC(tInfo->tipCase,
@@ -5840,6 +5875,356 @@ static void newviewGTRGAMMAPROT_LG4(int tipCase,
     *scalerIncrement = addScale;
 
 }
+
+#endif
+
+#ifdef _OPTIMIZED_FUNCTIONS
+
+/*** BINARY DATA functions *****/
+
+static void newviewGTRCAT_BINARY( int tipCase,  double *EV,  int *cptr,
+                                  double *x1_start,  double *x2_start,  double *x3_start,  double *tipVector,
+                                  int *ex3, unsigned char *tipX1, unsigned char *tipX2,
+                                  int n,  double *left, double *right, int *wgt, int *scalerIncrement, const boolean useFastScaling)
+{
+  double
+    *le,
+    *ri,
+    *x1, *x2, *x3;
+  int i, l, scale, addScale = 0;
+
+  switch(tipCase)
+    {
+    case TIP_TIP:
+      {
+        for(i = 0; i < n; i++)
+          {
+            x1 = &(tipVector[2 * tipX1[i]]);
+            x2 = &(tipVector[2 * tipX2[i]]);
+            x3 = &x3_start[2 * i];         
+
+            le =  &left[cptr[i] * 4];
+            ri =  &right[cptr[i] * 4];
+
+            _mm_store_pd(x3, _mm_setzero_pd());     
+                     
+            for(l = 0; l < 2; l++)
+              {                                                                                                                          
+                __m128d al = _mm_mul_pd(_mm_load_pd(x1), _mm_load_pd(&le[l * 2]));
+                __m128d ar = _mm_mul_pd(_mm_load_pd(x2), _mm_load_pd(&ri[l * 2]));
+                
+                al = _mm_hadd_pd(al, al);
+                ar = _mm_hadd_pd(ar, ar);
+                
+                al = _mm_mul_pd(al, ar);
+                
+                __m128d vv  = _mm_load_pd(x3);
+                __m128d EVV = _mm_load_pd(&EV[2 * l]);
+                
+                vv = _mm_add_pd(vv, _mm_mul_pd(al, EVV));
+                
+                _mm_store_pd(x3, vv);                                                     
+              }            
+          }
+      }
+      break;
+    case TIP_INNER:
+      {
+        for (i = 0; i < n; i++)
+          {
+            x1 = &(tipVector[2 * tipX1[i]]);
+            x2 = &x2_start[2 * i];
+            x3 = &x3_start[2 * i];
+            
+            le =  &left[cptr[i] * 4];
+            ri =  &right[cptr[i] * 4];
+
+            _mm_store_pd(x3, _mm_setzero_pd());     
+                     
+            for(l = 0; l < 2; l++)
+              {                                                                                                                          
+                __m128d al = _mm_mul_pd(_mm_load_pd(x1), _mm_load_pd(&le[l * 2]));
+                __m128d ar = _mm_mul_pd(_mm_load_pd(x2), _mm_load_pd(&ri[l * 2]));
+                
+                al = _mm_hadd_pd(al, al);
+                ar = _mm_hadd_pd(ar, ar);
+                
+                al = _mm_mul_pd(al, ar);
+                
+                __m128d vv  = _mm_load_pd(x3);
+                __m128d EVV = _mm_load_pd(&EV[2 * l]);
+                
+                vv = _mm_add_pd(vv, _mm_mul_pd(al, EVV));
+                
+                _mm_store_pd(x3, vv);                                                     
+              }  
+            
+            __m128d minlikelihood_sse = _mm_set1_pd(minlikelihood);
+         
+            scale = 1;
+            
+            __m128d v1 = _mm_and_pd(_mm_load_pd(x3), absMask.m);
+            v1 = _mm_cmplt_pd(v1,  minlikelihood_sse);
+            if(_mm_movemask_pd( v1 ) != 3)
+              scale = 0;                         
+            
+            if(scale)
+              {
+                __m128d twoto = _mm_set_pd(twotothe256, twotothe256);
+                
+                __m128d ex3v = _mm_load_pd(x3);           
+                _mm_store_pd(x3, _mm_mul_pd(ex3v,twoto));                                                 
+                
+                if(useFastScaling)
+                  addScale += wgt[i];
+                else
+                  ex3[i]  += 1;   
+              }                    
+          }
+      }
+      break;
+    case INNER_INNER:
+      for (i = 0; i < n; i++)
+        {
+          x1 = &x1_start[2 * i];
+          x2 = &x2_start[2 * i];
+          x3 = &x3_start[2 * i];
+
+          le = &left[cptr[i] * 4];
+          ri = &right[cptr[i] * 4];
+
+          _mm_store_pd(x3, _mm_setzero_pd());       
+          
+          for(l = 0; l < 2; l++)
+            {                                                                                                                            
+              __m128d al = _mm_mul_pd(_mm_load_pd(x1), _mm_load_pd(&le[l * 2]));
+              __m128d ar = _mm_mul_pd(_mm_load_pd(x2), _mm_load_pd(&ri[l * 2]));
+              
+              al = _mm_hadd_pd(al, al);
+              ar = _mm_hadd_pd(ar, ar);
+              
+              al = _mm_mul_pd(al, ar);
+              
+              __m128d vv  = _mm_load_pd(x3);
+              __m128d EVV = _mm_load_pd(&EV[2 * l]);
+              
+              vv = _mm_add_pd(vv, _mm_mul_pd(al, EVV));
+              
+              _mm_store_pd(x3, vv);                                                       
+            }                             
+
+          __m128d minlikelihood_sse = _mm_set1_pd(minlikelihood);
+         
+          scale = 1;
+                  
+          __m128d v1 = _mm_and_pd(_mm_load_pd(x3), absMask.m);
+          v1 = _mm_cmplt_pd(v1,  minlikelihood_sse);
+          if(_mm_movemask_pd( v1 ) != 3)
+            scale = 0;                   
+         
+          if(scale)
+            {
+              __m128d twoto = _mm_set_pd(twotothe256, twotothe256);
+                    
+              __m128d ex3v = _mm_load_pd(x3);             
+              _mm_store_pd(x3, _mm_mul_pd(ex3v,twoto));                                           
+             
+              if(useFastScaling)
+                addScale += wgt[i];
+              else
+                ex3[i]  += 1;     
+           }             
+        }
+      break;
+    default:
+      assert(0);
+    }
+
+  if(useFastScaling)
+    *scalerIncrement = addScale;
+
+}
+
+static void newviewGTRGAMMA_BINARY(int tipCase,
+				   double *x1_start, double *x2_start, double *x3_start,
+				   double *EV, double *tipVector,
+				   int *ex3, unsigned char *tipX1, unsigned char *tipX2,
+				   const int n, double *left, double *right, int *wgt, int *scalerIncrement, const boolean useFastScaling
+				   )
+{
+  double
+    *x1, *x2, *x3;
+ 
+  int i, k, l, scale, addScale = 0; 
+
+  switch(tipCase)
+    {
+    case TIP_TIP:
+      for (i = 0; i < n; i++)
+       {
+	 x1  = &(tipVector[2 * tipX1[i]]);
+	 x2  = &(tipVector[2 * tipX2[i]]);
+	 
+	 for(k = 0; k < 4; k++)
+	   {	     	     	    
+	     x3 = &(x3_start[8 * i + 2 * k]);	     
+	    	         
+	     _mm_store_pd(x3, _mm_setzero_pd());	    
+	    	     
+	     for(l = 0; l < 2; l++)
+	       {		 		 						   		  		 		 
+		 __m128d al = _mm_mul_pd(_mm_load_pd(x1), _mm_load_pd(&left[k * 4 + l * 2]));
+		 __m128d ar = _mm_mul_pd(_mm_load_pd(x2), _mm_load_pd(&right[k * 4 + l * 2]));
+		 		       
+		 al = _mm_hadd_pd(al, al);
+		 ar = _mm_hadd_pd(ar, ar);
+		   
+		 al = _mm_mul_pd(al, ar);
+		   
+		 __m128d vv  = _mm_load_pd(x3);
+		 __m128d EVV = _mm_load_pd(&EV[2 * l]);
+		 
+		 vv = _mm_add_pd(vv, _mm_mul_pd(al, EVV));
+		 
+		 _mm_store_pd(x3, vv);		     	  		   		  
+	       }	     	    
+	   }
+       }
+      break;
+    case TIP_INNER:
+      for (i = 0; i < n; i++)
+       {
+	 x1  = &(tipVector[2 * tipX1[i]]);
+	 
+	 for(k = 0; k < 4; k++)
+	   {	     	     
+	     x2 = &(x2_start[8 * i + 2 * k]);
+	     x3 = &(x3_start[8 * i + 2 * k]);	     
+	    	         
+	     _mm_store_pd(x3, _mm_setzero_pd());	    
+	    	     
+	     for(l = 0; l < 2; l++)
+	       {		 		 						   		  		 		 
+		 __m128d al = _mm_mul_pd(_mm_load_pd(x1), _mm_load_pd(&left[k * 4 + l * 2]));
+		 __m128d ar = _mm_mul_pd(_mm_load_pd(x2), _mm_load_pd(&right[k * 4 + l * 2]));
+		 		       
+		 al = _mm_hadd_pd(al, al);
+		 ar = _mm_hadd_pd(ar, ar);
+		   
+		 al = _mm_mul_pd(al, ar);
+		   
+		 __m128d vv  = _mm_load_pd(x3);
+		 __m128d EVV = _mm_load_pd(&EV[2 * l]);
+		 
+		 vv = _mm_add_pd(vv, _mm_mul_pd(al, EVV));
+		 
+		 _mm_store_pd(x3, vv);		     	  		   		  
+	       }	     	    
+	   }
+	
+	 x3 = &(x3_start[8 * i]);
+	 __m128d minlikelihood_sse = _mm_set1_pd( minlikelihood );
+	 
+	 scale = 1;
+	 for(l = 0; scale && (l < 8); l += 2)
+	   {
+	     __m128d vv = _mm_load_pd(&x3[l]);
+	     __m128d v1 = _mm_and_pd(vv, absMask.m);
+	     v1 = _mm_cmplt_pd(v1,  minlikelihood_sse);
+	     if(_mm_movemask_pd( v1 ) != 3)
+	       scale = 0;
+	   }	    	         
+	 
+	 if(scale)
+	   {
+	     __m128d twoto = _mm_set_pd(twotothe256, twotothe256);
+	     
+	     for(l = 0; l < 8; l+=2)
+	       {
+		 __m128d ex3v = _mm_load_pd(&x3[l]);		  
+		 _mm_store_pd(&x3[l], _mm_mul_pd(ex3v,twoto));	
+	       }		   		  
+	     
+	     if(useFastScaling)
+	       addScale += wgt[i];
+	     else
+	       ex3[i]  += 1;	  
+	   }	 
+       }      
+      break;
+    case INNER_INNER:
+      for (i = 0; i < n; i++)
+       {	 
+	 for(k = 0; k < 4; k++)
+	   {	     
+	     x1 = &(x1_start[8 * i + 2 * k]);
+	     x2 = &(x2_start[8 * i + 2 * k]);
+	     x3 = &(x3_start[8 * i + 2 * k]);	     
+	    	         
+	     _mm_store_pd(x3, _mm_setzero_pd());	    
+	    	     
+	     for(l = 0; l < 2; l++)
+	       {		 		 						   		  		 		 
+		 __m128d al = _mm_mul_pd(_mm_load_pd(x1), _mm_load_pd(&left[k * 4 + l * 2]));
+		 __m128d ar = _mm_mul_pd(_mm_load_pd(x2), _mm_load_pd(&right[k * 4 + l * 2]));
+		 		       
+		 al = _mm_hadd_pd(al, al);
+		 ar = _mm_hadd_pd(ar, ar);
+		   
+		 al = _mm_mul_pd(al, ar);
+		   
+		 __m128d vv  = _mm_load_pd(x3);
+		 __m128d EVV = _mm_load_pd(&EV[2 * l]);
+		 
+		 vv = _mm_add_pd(vv, _mm_mul_pd(al, EVV));
+		 
+		 _mm_store_pd(x3, vv);		     	  		   		  
+	       }	     	    
+	   }
+	
+	 x3 = &(x3_start[8 * i]);
+	 __m128d minlikelihood_sse = _mm_set1_pd( minlikelihood );
+	 
+	 scale = 1;
+	 for(l = 0; scale && (l < 8); l += 2)
+	   {
+	     __m128d vv = _mm_load_pd(&x3[l]);
+	     __m128d v1 = _mm_and_pd(vv, absMask.m);
+	     v1 = _mm_cmplt_pd(v1,  minlikelihood_sse);
+	     if(_mm_movemask_pd( v1 ) != 3)
+	       scale = 0;
+	   }	    	         
+	 
+	 if(scale)
+	   {
+	     __m128d twoto = _mm_set_pd(twotothe256, twotothe256);
+	     
+	     for(l = 0; l < 8; l+=2)
+	       {
+		 __m128d ex3v = _mm_load_pd(&x3[l]);		  
+		 _mm_store_pd(&x3[l], _mm_mul_pd(ex3v,twoto));	
+	       }		   		  
+	     
+	     if(useFastScaling)
+	       addScale += wgt[i];
+	     else
+	       ex3[i]  += 1;	  
+	   }	 
+       }
+      break;
+
+    default:
+      assert(0);
+    }
+
+  if(useFastScaling)
+    *scalerIncrement = addScale;
+
+}
+
+
+/**** BINARY DATA functions end ****/
+
 
 
 #endif

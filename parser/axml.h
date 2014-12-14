@@ -233,10 +233,11 @@ extern double exp_approx (double x);
 #define JTTDCMUT   16
 #define FLU        17 
 #define AUTO       18
-#define LG4        19
-#define GTR        20  /* GTR always needs to be the last one */
+#define LG4M       19
+#define LG4X       20
+#define GTR        21  /* GTR always needs to be the last one */
 
-#define NUM_PROT_MODELS 21
+#define NUM_PROT_MODELS 22
 
 /* bipartition stuff */
 
@@ -1014,7 +1015,7 @@ typedef struct
   boolean nonGTR;
   boolean optimizeBaseFrequencies;
 
-  int undetermined;
+  unsigned char undetermined;
 
   const char *inverseMeaning;
 
@@ -1051,7 +1052,7 @@ extern size_t discreteRateCategories(int rateHetModel);
 extern partitionLengths * getPartitionLengths(pInfo *p);
 extern boolean getSmoothFreqs(int dataType);
 extern const unsigned int *getBitVector(int dataType);
-extern int getUndetermined(int dataType);
+extern unsigned char getUndetermined(int dataType);
 extern int getStates(int dataType);
 extern char getInverseMeaning(int dataType, unsigned char state);
 extern double gettime ( void );

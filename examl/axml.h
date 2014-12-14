@@ -90,6 +90,11 @@
 #define unlikely       -1.0E300    /* low likelihood for initialization */
 
 
+#define AUTO_ML   0
+#define AUTO_BIC  1
+#define AUTO_AIC  2
+#define AUTO_AICC 3
+
 #define SUMMARIZE_LENGTH -3
 #define SUMMARIZE_LH     -2
 #define NO_BRANCHES      -1
@@ -164,6 +169,9 @@
 #define TT_MAX       1000000.0
 
 #define FREQ_MIN     0.001
+
+#define LG4X_RATE_MIN 0.0000001
+#define LG4X_RATE_MAX 1000.0
 
 /* 
    previous values between 0.001 and 0.000001
@@ -244,10 +252,11 @@
 #define JTTDCMUT   16
 #define FLU        17 
 #define AUTO       18
-#define LG4        19
-#define GTR        20  /* GTR always needs to be the last one */
+#define LG4M       19
+#define LG4X       20
+#define GTR        21  /* GTR always needs to be the last one */
 
-#define NUM_PROT_MODELS 21
+#define NUM_PROT_MODELS 22
 
 /* bipartition stuff */
 
@@ -540,7 +549,7 @@ typedef struct {
   int    *frequencyGrouping;
     
   double *sumBuffer; 
-  double *gammaRates;
+  double gammaRates[4];
   double *EIGN;
   double *EV;
   double *EI;
@@ -557,6 +566,16 @@ typedef struct {
   double *tipVector_LG4[4];
   double *substRates_LG4[4];
   
+  /* LG4X */
+
+  double weights[4];
+  double weightExponents[4];
+
+  double weightsBuffer[4];
+  double weightExponentsBuffer[4];
+
+  double weightLikelihood;
+
   /* LG4 */
 
   double *frequencies;
@@ -633,6 +652,23 @@ typedef struct List_{
 #define MOD_OPT       4
 
 typedef struct {
+  boolean useMedian;
+  int saveBestTrees;
+  boolean saveMemory;
+  boolean searchConvergenceCriterion;
+  boolean perGeneBranchLengths; //adef
+  double likelihoodEpsilon; //adef
+  int categories;
+  int mode; //adef
+  int fastTreeEvaluation;
+  boolean initialSet;//adef
+  int initial;//adef
+  int rateHetModel;
+  int autoProteinSelectionType;
+
+} commandLine;
+
+typedef struct {
  
   int state;
 
@@ -679,8 +715,10 @@ typedef struct {
   /* modOpt */
 
   int catOpt;
-  int treeIteration;
-                                                                    
+  int treeIteration; 
+                           
+  commandLine cmd;
+  
 } checkPointState;
 
 
@@ -749,6 +787,8 @@ typedef  struct  {
   
   double           *fracchanges;
 
+  double           *rawFracchanges;
+
   /* model stuff end */
 
   unsigned char             **yVector;
@@ -760,7 +800,10 @@ typedef  struct  {
 
 
   double            *partitionContributions;
+  double            *partitionWeights;
+
   double            fracchange;
+  double            rawFracchange;
   double            lhCutoff;
   double            lhAVG;
   unsigned long     lhDEC;
@@ -792,6 +835,8 @@ typedef  struct  {
   boolean          rooted;
   boolean          doCutoff;
  
+
+
   double         gapyness;
 
   char **nameList;
@@ -833,6 +878,8 @@ typedef  struct  {
   char bits_in_16bits [0x1u << 16];
   
   boolean useMedian;
+
+  int autoProteinSelectionType;
 
   int numberOfTrees;
 
@@ -1070,7 +1117,7 @@ extern double IncompleteGamma ( double x, double alpha, double ln_gamma_alpha );
 extern double PointNormal ( double prob );
 extern double PointChi2 ( double prob, double v );
 extern void makeGammaCats (double alpha, double *gammaRates, int K, boolean useMedian);
-extern void initModel ( tree *tr, double **empiricalFrequencies);
+extern void initModel ( tree *tr);
 extern void doAllInOne ( tree *tr, analdef *adef );
 
 extern void classifyML(tree *tr, analdef *adef);
@@ -1261,7 +1308,7 @@ extern void checkPerSiteRates(const tree * const tr );
 
 extern void restart(tree *tr, analdef *adef);
 
-extern void writeCheckpoint(tree *tr);
+extern void writeCheckpoint(tree *tr, analdef *adef);
 
 extern boolean isGap(unsigned int *x, int pos);
 extern boolean noGap(unsigned int *x, int pos);

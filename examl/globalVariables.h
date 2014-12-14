@@ -58,7 +58,7 @@ char run_id[128] = "",
   treeFileName[1024] = "";
 
 char *protModels[NUM_PROT_MODELS] = {"DAYHOFF", "DCMUT", "JTT", "MTREV", "WAG", "RTREV", "CPREV", "VT", "BLOSUM62", "MTMAM", "LG", "MTART", "MTZOA", "PMB", 
-				     "HIVB", "HIVW", "JTTDCMUT", "FLU", "AUTO", "LG4", "GTR"};
+				     "HIVB", "HIVW", "JTTDCMUT", "FLU", "AUTO", "LG4M", "LG4X", "GTR"};
 
 const char inverseMeaningBINARY[4] = {'_', '0', '1', '-'};
 const char inverseMeaningDNA[16]   = {'_', 'A', 'C', 'M', 'G', 'R', 'S', 'V', 'T', 'W', 'Y', 'H', 'K', 'D', 'B', '-'};
@@ -139,7 +139,9 @@ int optimizeRateCategoryInvocations = 1;
 partitionLengths pLengths[MAX_MODEL] = {
   
   /* BINARY */
-  {4,   4,   2,  4,  2, 1, 2,  8, 2, 2, FALSE, 3, inverseMeaningBINARY, 2, FALSE, bitVectorIdentity},
+  //{4,   4,   2,  4,  2, 1, 2,  8, 2, 2, FALSE, 3, inverseMeaningBINARY, 2, FALSE, bitVectorIdentity},
+  //eiLength changed from 2 -> 4
+  {4,   4,   2,  4,  4, 1, 2,  8, 2, 2, FALSE, 3, inverseMeaningBINARY, 2, FALSE, bitVectorIdentity},
   
   /* DNA */
   {16,  16,  4, 16, 16, 6, 4, 64, 6, 4, FALSE, 15, inverseMeaningDNA, 4, FALSE, bitVectorIdentity},

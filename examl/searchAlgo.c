@@ -1150,7 +1150,7 @@ static void gatherDistributedCatInfos(tree *tr, int **rateCategory_result, doubl
     added parameters patrat and rateCategory. The checkpoint writer
     has to gather this distributed information first. 
  */ 
-static void writeCheckpointInner(tree *tr, int *rateCategory, double *patrat )
+static void writeCheckpointInner(tree *tr, int *rateCategory, double *patrat, analdef *adef)
 {
   int   
     model; 
@@ -1173,9 +1173,24 @@ static void writeCheckpointInner(tree *tr, int *rateCategory, double *patrat )
   ckpCount++;
 
   f = myfopen(extendedName, "w"); 
+  
+
+  ckp.cmd.useMedian = tr->useMedian;
+  ckp.cmd.saveBestTrees = tr->saveBestTrees;
+  ckp.cmd.saveMemory = tr->saveMemory;
+  ckp.cmd.searchConvergenceCriterion = tr->searchConvergenceCriterion;
+  ckp.cmd.perGeneBranchLengths = adef->perGeneBranchLengths; //adef
+  ckp.cmd.likelihoodEpsilon = adef->likelihoodEpsilon; //adef
+  ckp.cmd.categories =  tr->categories;
+  ckp.cmd.mode = adef->mode; //adef
+  ckp.cmd.fastTreeEvaluation =  tr->fastTreeEvaluation;
+  ckp.cmd.initialSet = adef->initialSet;//adef
+  ckp.cmd.initial = adef->initial;//adef
+  ckp.cmd.rateHetModel = tr->rateHetModel;
+  ckp.cmd.autoProteinSelectionType = tr->autoProteinSelectionType;
+  
 
   /* cdta */   
-
   
   ckp.accumulatedTime = accumulatedTime + (gettime() - masterTime);
   ckp.constraintTree = tr->constraintTree;
@@ -1203,6 +1218,12 @@ static void writeCheckpointInner(tree *tr, int *rateCategory, double *patrat )
   myBinFwrite(tr->fracchanges,  sizeof(double), tr->NumberOfModels, f);
   myBinFwrite(&(tr->fracchange),   sizeof(double), 1, f);
 
+  //LG4X related stuff
+
+  myBinFwrite(tr->rawFracchanges,  sizeof(double), tr->NumberOfModels, f);
+  myBinFwrite(&(tr->rawFracchange),   sizeof(double), 1, f);
+
+  //end
 
   for(model = 0; model < tr->NumberOfModels; model++)
     {
@@ -1215,11 +1236,21 @@ static void writeCheckpointInner(tree *tr, int *rateCategory, double *patrat )
       myBinFwrite(tr->partitionData[model].EV, sizeof(double),  pLengths[dataType].evLength, f);
       myBinFwrite(tr->partitionData[model].EI, sizeof(double),  pLengths[dataType].eiLength, f);  
 
-      myBinFwrite(tr->partitionData[model].frequencies, sizeof(double),  pLengths[dataType].frequenciesLength, f);
-      myBinFwrite(tr->partitionData[model].tipVector, sizeof(double),  pLengths[dataType].tipVectorLength, f);  
+      myBinFwrite(tr->partitionData[model].freqExponents, sizeof(double),  pLengths[dataType].frequenciesLength, f);
+      myBinFwrite(tr->partitionData[model].frequencies,   sizeof(double),  pLengths[dataType].frequenciesLength, f);
+      myBinFwrite(tr->partitionData[model].tipVector,     sizeof(double),  pLengths[dataType].tipVectorLength, f);       
       myBinFwrite(tr->partitionData[model].substRates, sizeof(double),  pLengths[dataType].substRatesLength, f);
 
-      if(tr->partitionData[model].protModels == LG4)
+      //LG4X related variables 
+
+      myBinFwrite(tr->partitionData[model].weights , sizeof(double), 4, f);
+      myBinFwrite(tr->partitionData[model].weightExponents , sizeof(double), 4, f);
+      //myBinFwrite(tr->partitionData[model].weightsBuffer , sizeof(double), 4, f);
+      //myBinFwrite(tr->partitionData[model].weightExponentsBuffer , sizeof(double), 4, f);
+
+      //LG4X end 
+
+      if(tr->partitionData[model].protModels == LG4M || tr->partitionData[model].protModels == LG4X)
 	{
 	  int 
 	    k;
@@ -1236,6 +1267,8 @@ static void writeCheckpointInner(tree *tr, int *rateCategory, double *patrat )
 	}
     
       myBinFwrite(&(tr->partitionData[model].alpha), sizeof(double), 1, f);
+      myBinFwrite(&(tr->partitionData[model].gammaRates), sizeof(double), 4, f);
+      
       myBinFwrite(&(tr->partitionData[model].protModels), sizeof(int), 1, f);
       myBinFwrite(&(tr->partitionData[model].autoProtModels), sizeof(int), 1, f);
     }
@@ -1254,7 +1287,7 @@ static void writeCheckpointInner(tree *tr, int *rateCategory, double *patrat )
 }
 
 
-void writeCheckpoint(tree *tr)
+void writeCheckpoint(tree *tr, analdef *adef)
 {
   int 
     *rateCategory = (int *)NULL; 
@@ -1267,7 +1300,7 @@ void writeCheckpoint(tree *tr)
 
   if(processID == 0)
     {
-      writeCheckpointInner(tr, rateCategory, patrat); 
+      writeCheckpointInner(tr, rateCategory, patrat, adef); 
 
       if(tr->rateHetModel == CAT)
 	{
@@ -1349,8 +1382,117 @@ static void readTree(tree *tr, FILE *f)
   printBothOpen("ExaML Restart with likelihood: %1.50f\n", tr->likelihood);
 }
 
+static void genericError(void)
+{
+  printBothOpen("\nError: command lines used in initial run and re-start from checkpoint do not match!\n");
+}
 
-static void readCheckpoint(tree *tr)
+static void checkCommandLineArguments(tree *tr, analdef *adef)
+{
+  boolean
+    match = TRUE;
+
+  if(ckp.cmd.useMedian != tr->useMedian)
+    {
+      genericError();
+      printBothOpen("\nDisagreement in median for gamma option: -a\n");
+      match = FALSE;
+    }
+  
+  if(ckp.cmd.saveBestTrees != tr->saveBestTrees)
+    {
+      genericError();
+      printBothOpen("\nDisagreement in tree saving option: -B\n");
+      match = FALSE;
+    }
+  
+  if(ckp.cmd.saveMemory != tr->saveMemory)
+    {
+      genericError();
+      printBothOpen("\nDisagreement in memory saving option: -S\n");
+      match = FALSE;
+    }
+  
+  if(ckp.cmd.searchConvergenceCriterion != tr->searchConvergenceCriterion)
+    {
+      genericError();
+      printBothOpen("\nDisagreement in search convergence criterion: -D\n");
+      match = FALSE;
+    }
+  
+  if(ckp.cmd.perGeneBranchLengths != adef->perGeneBranchLengths)
+    {
+      genericError();
+      printBothOpen("\nDisagreement in using per-partition branch lengths: -M\n");
+      match = FALSE;
+    }
+  
+  if(ckp.cmd.likelihoodEpsilon != adef->likelihoodEpsilon)
+     {
+      genericError();
+      printBothOpen("\nDisagreement in likelihood epsilon value: -e\n");
+      match = FALSE;
+    }
+  
+  if(ckp.cmd.categories !=  tr->categories)
+    {
+      genericError();
+      printBothOpen("\nDisagreement in number of PSR rate categories: -c\n");
+      match = FALSE;
+    }
+
+  if(ckp.cmd.mode != adef->mode)
+    {
+      genericError();
+      printBothOpen("\nDisagreement in tree search or evaluation mode\n");
+      match = FALSE;
+    }
+  
+  if(ckp.cmd.fastTreeEvaluation !=  tr->fastTreeEvaluation)
+    {
+      genericError();
+      printBothOpen("\nDisagreement in fast tree evaluation: -e|-E\n");
+      match = FALSE;
+    }
+  
+  
+
+  if(ckp.cmd.initialSet != adef->initialSet)
+     {
+      genericError();
+      printBothOpen("\nDisagreement in rearrangement radius limitation setting: -i\n");
+      match = FALSE;
+    }
+  
+  if(ckp.cmd.initial != adef->initial)
+     {
+      genericError();
+      printBothOpen("\nDisagreement in rearrangement radius value: -i\n");
+      match = FALSE;
+    }
+  
+  if(ckp.cmd.rateHetModel != tr->rateHetModel)
+     {
+      genericError();
+      printBothOpen("\nDisagreement in rate heterogeneity model: -m\n");
+      match = FALSE;
+    }
+
+   if(ckp.cmd.autoProteinSelectionType != tr->autoProteinSelectionType)
+     {
+      genericError();
+      printBothOpen("\nDisagreement in protein model selection criterion: --auto-prot\n");
+      match = FALSE;
+    }
+
+  if(!match)
+    {
+      printBothOpen("\nExaML will exit now ...\n\n");
+      errorExit(-1);
+    }
+}
+
+static void readCheckpoint(tree *tr, analdef *adef)
 {
   int   
     model; 
@@ -1361,6 +1503,8 @@ static void readCheckpoint(tree *tr)
   /* cdta */   
 
   myBinFread(&ckp, sizeof(checkPointState), 1, f);
+
+  checkCommandLineArguments(tr, adef);
 
   tr->constraintTree = ckp.constraintTree;
 
@@ -1503,6 +1647,13 @@ static void readCheckpoint(tree *tr)
   myBinFread(tr->fracchanges,  sizeof(double), tr->NumberOfModels, f);
   myBinFread(&(tr->fracchange),   sizeof(double), 1, f);
 
+  //LG4X related stuff
+
+  myBinFread(tr->rawFracchanges,  sizeof(double), tr->NumberOfModels, f);
+  myBinFread(&(tr->rawFracchange),   sizeof(double), 1, f);
+
+  //end
+
   for(model = 0; model < tr->NumberOfModels; model++)
     {
       int 
@@ -1514,11 +1665,21 @@ static void readCheckpoint(tree *tr)
       myBinFread(tr->partitionData[model].EV, sizeof(double),  pLengths[dataType].evLength, f);
       myBinFread(tr->partitionData[model].EI, sizeof(double),  pLengths[dataType].eiLength, f);  
 
+      myBinFread(tr->partitionData[model].freqExponents, sizeof(double),  pLengths[dataType].frequenciesLength, f);
       myBinFread(tr->partitionData[model].frequencies, sizeof(double),  pLengths[dataType].frequenciesLength, f);
       myBinFread(tr->partitionData[model].tipVector, sizeof(double),  pLengths[dataType].tipVectorLength, f);  
       myBinFread(tr->partitionData[model].substRates, sizeof(double),  pLengths[dataType].substRatesLength, f);  
 
-      if(tr->partitionData[model].protModels == LG4)
+      //LG4X related variables 
+
+      myBinFread(tr->partitionData[model].weights , sizeof(double), 4, f);
+      myBinFread(tr->partitionData[model].weightExponents , sizeof(double), 4, f);
+      //myBinFread(tr->partitionData[model].weightsBuffer , sizeof(double), 4, f);
+      //myBinFread(tr->partitionData[model].weightExponentsBuffer , sizeof(double), 4, f);
+
+      //LG4X end 
+
+      if(tr->partitionData[model].protModels == LG4X || tr->partitionData[model].protModels == LG4M)
 	{
 	  int 
 	    k;
@@ -1535,10 +1696,12 @@ static void readCheckpoint(tree *tr)
 	}
 
 
-      myBinFread(&(tr->partitionData[model].alpha), sizeof(double), 1, f);
-
-      //conditional added by Andre 
-      if(tr->rateHetModel != CAT)
+      myBinFread(&(tr->partitionData[model].alpha), sizeof(double), 1, f);      
+      myBinFread(&(tr->partitionData[model].gammaRates), sizeof(double), 4, f);
+      //conditional added by Andre modified by me
+      //only overwrite values of discrete gamma cats by calling makeGammaCats if not using 
+      //LG4X!
+      if(tr->rateHetModel != CAT && !(tr->partitionData[model].protModels == LG4X))
 	makeGammaCats(tr->partitionData[model].alpha, tr->partitionData[model].gammaRates, 4, tr->useMedian); 
 
       myBinFread(&(tr->partitionData[model].protModels), sizeof(int), 1, f);
@@ -1561,7 +1724,7 @@ static void readCheckpoint(tree *tr)
 
 void restart(tree *tr, analdef *adef)
 {  
-  readCheckpoint(tr);
+  readCheckpoint(tr, adef);
 
   switch(ckp.state)
     {
@@ -1655,7 +1818,7 @@ int determineRearrangementSetting(tree *tr,  analdef *adef, bestlist *bestT, bes
 	ckp.tr_itCount  = tr->itCount;
 	  
 	  
-	writeCheckpoint(tr);    
+	writeCheckpoint(tr, adef);    
       }
 
       if (maxtrav > tr->mxtips - 3)  
@@ -1934,8 +2097,7 @@ void computeBIGRAPID (tree *tr, analdef *adef, boolean estimateModel)
 	  tr->lhCutoff = ckp.tr_lhCutoff;
 	  tr->lhAVG    = ckp.tr_lhAVG;
 	  tr->lhDEC    = ckp.tr_lhDEC;   	 
-	  tr->itCount = ckp.tr_itCount;
-	  tr->doCutoff = ckp.tr_doCutoff;
+	  tr->itCount = ckp.tr_itCount;	  
 
 	  adef->useCheckpoint = FALSE;
 	}
@@ -1982,11 +2144,10 @@ void computeBIGRAPID (tree *tr, analdef *adef, boolean estimateModel)
 	ckp.tr_lhCutoff = tr->lhCutoff;
 	ckp.tr_lhAVG    = tr->lhAVG;
 	ckp.tr_lhDEC    = tr->lhDEC;       
-	ckp.tr_itCount  = tr->itCount;
-	ckp.tr_doCutoff = tr->doCutoff;
+	ckp.tr_itCount  = tr->itCount;       
 	  
 	/* write a binary checkpoint */
-	writeCheckpoint(tr); 
+	writeCheckpoint(tr, adef); 
       }	
 
       /* this is the aforementioned convergence criterion that requires computing the RF,
@@ -2207,8 +2368,7 @@ void computeBIGRAPID (tree *tr, analdef *adef, boolean estimateModel)
 	  tr->lhCutoff = ckp.tr_lhCutoff;
 	  tr->lhAVG    = ckp.tr_lhAVG;
 	  tr->lhDEC    = ckp.tr_lhDEC;   	 
-	  tr->itCount = ckp.tr_itCount;
-	  tr->doCutoff = ckp.tr_doCutoff;
+	  tr->itCount = ckp.tr_itCount;	 
 
 	  adef->useCheckpoint = FALSE;
 	}
@@ -2253,12 +2413,11 @@ void computeBIGRAPID (tree *tr, analdef *adef, boolean estimateModel)
 	  ckp.tr_lhCutoff = tr->lhCutoff;
 	  ckp.tr_lhAVG    = tr->lhAVG;
 	  ckp.tr_lhDEC    = tr->lhDEC;     
-	  ckp.tr_itCount  = tr->itCount;
-	  ckp.tr_doCutoff = tr->doCutoff;
+	  ckp.tr_itCount  = tr->itCount;	
 	  
 	  /* write binary checkpoint to file */
 	  
-	  writeCheckpoint(tr); 
+	  writeCheckpoint(tr, adef); 
 	}
     
       if(impr)

@@ -267,11 +267,17 @@ static void initProtMat(double f[20], int proteinMatrix, double *ext_initialRate
 	    daa[19*20+17] =    0.00; daa[19*20+18] =   28.00;	    	    
 
 
-	    f[ 0] = 0.087000; f[ 1] = 0.041000; f[ 2] = 0.040000; f[ 3] = 0.047000;
+	    /*f[ 0] = 0.087000; f[ 1] = 0.041000; f[ 2] = 0.040000; f[ 3] = 0.047000;
 	    f[ 4] = 0.034000; f[ 5] = 0.038000; f[ 6] = 0.050000; f[ 7] = 0.089000;
 	    f[ 8] = 0.034000; f[ 9] = 0.037000; f[10] = 0.085000; f[11] = 0.080000;
 	    f[12] = 0.014000; f[13] = 0.040000; f[14] = 0.051000; f[15] = 0.070000;
-	    f[16] = 0.058000; f[17] = 0.011000; f[18] = 0.030000; f[19] = 0.064000;
+	    f[16] = 0.058000; f[17] = 0.011000; f[18] = 0.030000; f[19] = 0.064000;*/
+
+	    f[ 0] = 0.087127; f[ 1] = 0.040904; f[ 2] = 0.040432; f[ 3] = 0.046872;
+	    f[ 4] = 0.033474; f[ 5] = 0.038255; f[ 6] = 0.049530; f[ 7] = 0.088612;
+	    f[ 8] = 0.033618; f[ 9] = 0.036886; f[10] = 0.085357; f[11] = 0.080482;
+	    f[12] = 0.014753; f[13] = 0.039772; f[14] = 0.050680; f[15] = 0.069577;
+	    f[16] = 0.058542; f[17] = 0.010494; f[18] = 0.029916; f[19] = 0.064717;
 	  }
 	  break;
 	case DCMUT:
@@ -325,11 +331,17 @@ static void initProtMat(double f[20], int proteinMatrix, double *ext_initialRate
 	    daa[19*20+13] =   12.36060; daa[19*20+14] =   48.50260; daa[19*20+15] =   30.38360; daa[19*20+16] =  156.19970; 
 	    daa[19*20+17] =    0.00000; daa[19*20+18] =   27.93790;   	    	   
 
-	    f[ 0] = 0.08700; f[ 1] = 0.04100; f[ 2] = 0.04000; f[ 3] = 0.04700;
+	    /* f[ 0] = 0.08700; f[ 1] = 0.04100; f[ 2] = 0.04000; f[ 3] = 0.04700;
 	    f[ 4] = 0.03300; f[ 5] = 0.03800; f[ 6] = 0.04900; f[ 7] = 0.08900;
 	    f[ 8] = 0.03400; f[ 9] = 0.03700; f[10] = 0.08500; f[11] = 0.08000;
 	    f[12] = 0.01500; f[13] = 0.04000; f[14] = 0.05200; f[15] = 0.06900;
-	    f[16] = 0.05900; f[17] = 0.01000; f[18] = 0.03000; f[19] = 0.06500;
+	    f[16] = 0.05900; f[17] = 0.01000; f[18] = 0.03000; f[19] = 0.06500;*/
+
+	    f[ 0] = 0.087127; f[ 1] = 0.040904; f[ 2] = 0.040432; f[ 3] = 0.046872;
+	    f[ 4] = 0.033474; f[ 5] = 0.038255; f[ 6] = 0.049530; f[ 7] = 0.088612;
+	    f[ 8] = 0.033619; f[ 9] = 0.036886; f[10] = 0.085357; f[11] = 0.080481;
+	    f[12] = 0.014753; f[13] = 0.039772; f[14] = 0.050680; f[15] = 0.069577;
+	    f[16] = 0.058542; f[17] = 0.010494; f[18] = 0.029916; f[19] = 0.064717;
 
 	  }
 	  break;
@@ -384,11 +396,17 @@ static void initProtMat(double f[20], int proteinMatrix, double *ext_initialRate
 	    daa[19*20+13] =   62.00; daa[19*20+14] =   23.00; daa[19*20+15] =   38.00; daa[19*20+16] =  112.00;
 	    daa[19*20+17] =   25.00; daa[19*20+18] =   16.00;
 	    	    
-	    f[ 0] = 0.07700; f[ 1] = 0.05200; f[ 2] = 0.04200; f[ 3] = 0.05100;
+	    /*f[ 0] = 0.07700; f[ 1] = 0.05200; f[ 2] = 0.04200; f[ 3] = 0.05100;
 	    f[ 4] = 0.02000; f[ 5] = 0.04100; f[ 6] = 0.06200; f[ 7] = 0.07300;
 	    f[ 8] = 0.02300; f[ 9] = 0.05400; f[10] = 0.09200; f[11] = 0.05900;
 	    f[12] = 0.02400; f[13] = 0.04000; f[14] = 0.05100; f[15] = 0.06900;
-	    f[16] = 0.05800; f[17] = 0.01400; f[18] = 0.03200; f[19] = 0.06600;
+	    f[16] = 0.05800; f[17] = 0.01400; f[18] = 0.03200; f[19] = 0.06600;*/
+
+	    f[ 0] = 0.076748; f[ 1] = 0.051691; f[ 2] = 0.042645; f[ 3] = 0.051544;
+	    f[ 4] = 0.019803; f[ 5] = 0.040752; f[ 6] = 0.061830; f[ 7] = 0.073152;
+	    f[ 8] = 0.022944; f[ 9] = 0.053761; f[10] = 0.091904; f[11] = 0.058676;
+	    f[12] = 0.023826; f[13] = 0.040126; f[14] = 0.050901; f[15] = 0.068765;
+	    f[16] = 0.058565; f[17] = 0.014261; f[18] = 0.032102; f[19] = 0.066004;
 	  }
 	  break;
 	case  MTREV:
@@ -517,11 +535,18 @@ static void initProtMat(double f[20], int proteinMatrix, double *ext_initialRate
 	    daa[19*20+15] =  23.27390; daa[19*20+16] = 138.82300; daa[19*20+17] =  36.53690; 
 	    daa[19*20+18] =  31.47300; 
 	    	   
-	    f[0]  = 0.08700; f[1]  = 0.04400; f[2]  = 0.03900; f[3]  = 0.05700;
+	    /*f[0]  = 0.08700; f[1]  = 0.04400; f[2]  = 0.03900; f[3]  = 0.05700;
 	    f[4]  = 0.01900; f[5]  = 0.03700; f[6]  = 0.05800; f[7]  = 0.08300;
 	    f[8]  = 0.02400; f[9]  = 0.04900; f[10] = 0.08600; f[11] = 0.06200;
 	    f[12] = 0.02000; f[13] = 0.03800; f[14] = 0.04600; f[15] = 0.07000;
 	    f[16] = 0.06100; f[17] = 0.01400; f[18] = 0.03500; f[19] = 0.07100;   
+	    */
+
+	    f[0] = 0.0866279; f[1] =  0.043972; f[2] =  0.0390894; f[3] =  0.0570451;
+	    f[4] =  0.0193078; f[5] =  0.0367281; f[6] =  0.0580589; f[7] =  0.0832518;
+	    f[8] =  0.0244313; f[9] =  0.048466; f[10] =  0.086209; f[11] = 0.0620286;
+	    f[12] = 0.0195027; f[13] =  0.0384319; f[14] =  0.0457631; f[15] = 0.0695179;
+	    f[16] =  0.0610127; f[17] =  0.0143859; f[18] =  0.0352742; f[19] =  0.0708957;
 	  }
 	  break;
 	case RTREV:
@@ -1111,7 +1136,7 @@ static void initProtMat(double f[20], int proteinMatrix, double *ext_initialRate
 	    daa[19*20+7] = 0.076701; daa[19*20+8] = 0.119013; daa[19*20+9] = 10.649107; daa[19*20+10] = 1.702745; daa[19*20+11] = 0.185202; daa[19*20+12] = 1.898718; 
 	    daa[19*20+13] = 0.654683; daa[19*20+14] = 0.296501; daa[19*20+15] = 0.098369; daa[19*20+16] = 2.188158; daa[19*20+17] = 0.189510; daa[19*20+18] = 0.249313;
 	    
-	    f[0] = 0.07906;
+	    /*f[0] = 0.07906;
 	    f[1] = 0.05594; 
 	    f[2] = 0.04198; 
 	    f[3] = 0.05305; 
@@ -1130,10 +1155,16 @@ static void initProtMat(double f[20], int proteinMatrix, double *ext_initialRate
 	    f[16] = 0.05329; 
 	    f[17] = 0.01207; 
 	    f[18] = 0.03415; 
-	    f[19] = 0.06915; 	   
+	    f[19] = 0.06915; 	   */
+
+	    f[0] = 0.079066; f[1] = 0.055941; f[2] = 0.041977; f[3] = 0.053052;
+	    f[4] = 0.012937; f[5] = 0.040767; f[6] = 0.071586; f[7] = 0.057337;
+	    f[8] = 0.022355; f[9] = 0.062157; f[10] = 0.099081; f[11] = 0.064600;
+	    f[12] = 0.022951; f[13] = 0.042302; f[14] = 0.044040; f[15] = 0.061197;
+	    f[16] = 0.053287; f[17] = 0.012066; f[18] = 0.034155; f[19] = 0.069146;
 	  }	  
 	  break;
-	case LG4:
+	case LG4M:
 	  {
 	    double 
 	      rates[4][190] = 
@@ -1250,10 +1281,129 @@ static void initProtMat(double f[20], int proteinMatrix, double *ext_initialRate
 	    
 	  }
 	  break;
-	case MTART:
+	case LG4X:
 	  {
-	   
+	    double 
+	      rates[4][190] = 
+	      {
+		{
+		  0.295719,
+		  0.067388, 0.448317,
+		  0.253712, 0.457483, 2.358429,
+		  1.029289, 0.576016, 0.251987, 0.189008,
+		  0.107964, 1.741924, 0.216561, 0.599450, 0.029955,
+		  0.514644, 0.736017, 0.503084, 109.901504, 0.084794, 4.117654,
+		  10.868848, 0.704334, 0.435271, 1.070052, 1.862626, 0.246260, 1.202023,
+		  0.380498, 5.658311, 4.873453, 5.229858, 0.553477, 6.508329, 1.634845, 0.404968,
+		  0.084223, 0.123387, 0.090748, 0.052764, 0.151733, 0.054187, 0.060194, 0.048984, 0.204296,
+		  0.086976, 0.221777, 0.033310, 0.021407, 0.230320, 0.195703, 0.069359, 0.069963, 0.504221, 1.495537,
+		  0.188789, 93.433377, 0.746537, 0.621146, 0.096955, 1.669092, 2.448827, 0.256662, 1.991533, 0.091940, 0.122332,
+		  0.286389, 0.382175, 0.128905, 0.081091, 0.352526, 0.810168, 0.232297, 0.228519, 0.655465, 1.994320, 3.256485, 0.457430,
+		  0.155567, 0.235965, 0.127321, 0.205164, 0.590018, 0.066081, 0.064822, 0.241077, 6.799829, 0.754940, 2.261319, 0.163849, 1.559944,
+		  1.671061, 6.535048, 0.904011, 5.164456, 0.386853, 2.437439, 3.537387, 4.320442, 11.291065, 0.170343, 0.848067, 5.260446, 0.426508, 0.438856,
+		  2.132922, 0.525521, 0.939733, 0.747330, 1.559564, 0.165666, 0.435384, 3.656545, 0.961142, 0.050315, 0.064441, 0.360946, 0.132547, 0.306683, 4.586081,
+		  0.529591, 0.303537, 0.435450, 0.308078, 0.606648, 0.106333, 0.290413, 0.290216, 0.448965, 0.372166, 0.102493, 0.389413, 0.498634, 0.109129, 2.099355, 3.634276,
+		  0.115551, 0.641259, 0.046646, 0.260889, 0.587531, 0.093417, 0.280695, 0.307466, 6.227274, 0.206332, 0.459041, 0.033291, 0.559069, 18.392863, 0.411347, 0.101797, 0.034710,
+		  0.102453, 0.289466, 0.262076, 0.185083, 0.592318, 0.035149, 0.105999, 0.096556, 20.304886, 0.097050, 0.133091, 0.115301, 0.264728, 66.647302, 0.476350, 0.148995, 0.063603, 20.561407,
+		  0.916683, 0.102065, 0.043986, 0.080708, 0.885230, 0.072549, 0.206603, 0.306067, 0.205944, 5.381403, 0.561215, 0.112593, 0.693307, 0.400021, 0.584622, 0.089177, 0.755865, 0.133790, 0.154902
+		},
+		{
+		  0.066142,
+		  0.590377, 0.468325,
+		  0.069930, 0.013688, 2.851667,
+		  9.850951, 0.302287, 3.932151, 0.146882,
+		  1.101363, 1.353957, 8.159169, 0.249672, 0.582670,
+		  0.150375, 0.028386, 0.219934, 0.560142, 0.005035, 3.054085,
+		  0.568586, 0.037750, 0.421974, 0.046719, 0.275844, 0.129551, 0.037250,
+		  0.051668, 0.262130, 2.468752, 0.106259, 0.098208, 4.210126, 0.029788, 0.013513,
+		  0.127170, 0.016923, 0.344765, 0.003656, 0.445038, 0.165753, 0.008541, 0.002533, 0.031779,
+		  0.292429, 0.064289, 0.210724, 0.004200, 1.217010, 1.088704, 0.014768, 0.005848, 0.064558, 7.278994,
+		  0.071458, 0.855973, 1.172204, 0.014189, 0.033969, 1.889645, 0.125869, 0.031390, 0.065585, 0.029917, 0.042762,
+		  1.218562, 0.079621, 0.763553, 0.009876, 1.988516, 3.344809, 0.056702, 0.021612, 0.079927, 7.918203, 14.799537, 0.259400,
+		  0.075144, 0.011169, 0.082464, 0.002656, 0.681161, 0.111063, 0.004186, 0.004854, 0.095591, 0.450964, 1.506485, 0.009457, 1.375871,
+		  7.169085, 0.161937, 0.726566, 0.040244, 0.825960, 2.067758, 0.110993, 0.129497, 0.196886, 0.169797, 0.637893, 0.090576, 0.457399, 0.143327,
+		  30.139501, 0.276530, 11.149790, 0.267322, 18.762977, 3.547017, 0.201148, 0.976631, 0.408834, 0.104288, 0.123793, 0.292108, 0.598048, 0.328689, 3.478333,
+		  13.461692, 0.161053, 4.782635, 0.053740, 11.949233, 2.466507, 0.139705, 0.053397, 0.126088, 1.578530, 0.641351, 0.297913, 4.418398, 0.125011, 2.984862, 13.974326,
+		  0.021372, 0.081472, 0.058046, 0.006597, 0.286794, 0.188236, 0.009201, 0.019475, 0.037226, 0.015909, 0.154810, 0.017172, 0.239749, 0.562720, 0.061299, 0.154326, 0.060703,
+		  0.045779, 0.036742, 0.498072, 0.027639, 0.534219, 0.203493, 0.012095, 0.004964, 0.452302, 0.094365, 0.140750, 0.021976, 0.168432, 1.414883, 0.077470, 0.224675, 0.123480, 0.447011,
+		  4.270235, 0.030342, 0.258487, 0.012745, 4.336817, 0.281953, 0.043812, 0.015539, 0.016212, 16.179952, 3.416059, 0.032578, 2.950318, 0.227807, 1.050562, 0.112000, 5.294490, 0.033381, 0.045528
+		},	    
+		{
+		  0.733336,
+		  0.558955, 0.597671,
+		  0.503360, 0.058964, 5.581680,
+		  4.149599, 2.863355, 1.279881, 0.225860,
+		  1.415369, 2.872594, 1.335650, 0.434096, 1.043232,
+		  1.367574, 0.258365, 0.397108, 2.292917, 0.209978, 4.534772,
+		  1.263002, 0.366868, 1.840061, 1.024707, 0.823594, 0.377181, 0.496780,
+		  0.994098, 2.578946, 5.739035, 0.821921, 3.039380, 4.877840, 0.532488, 0.398817,
+		  0.517204, 0.358350, 0.284730, 0.027824, 1.463390, 0.370939, 0.232460, 0.008940, 0.349195,
+		  0.775054, 0.672023, 0.109781, 0.021443, 1.983693, 1.298542, 0.169219, 0.043707, 0.838324, 5.102837,
+		  0.763094, 5.349861, 1.612642, 0.088850, 0.397640, 3.509873, 0.755219, 0.436013, 0.888693, 0.561690, 0.401070,
+		  1.890137, 0.691594, 0.466979, 0.060820, 2.831098, 2.646440, 0.379926, 0.087640, 0.488389, 7.010411, 8.929538, 1.357738,
+		  0.540460, 0.063347, 0.141582, 0.018288, 4.102068, 0.087872, 0.020447, 0.064863, 1.385133, 3.054968, 5.525874, 0.043394, 3.135353,
+		  0.200122, 0.032875, 0.019509, 0.042687, 0.059723, 0.072299, 0.023282, 0.036426, 0.050226, 0.039318, 0.067505, 0.023126, 0.012695, 0.015631,
+		  4.972745, 0.821562, 4.670980, 1.199607, 5.901348, 1.139018, 0.503875, 1.673207, 0.962470, 0.204155, 0.273372, 0.567639, 0.570771, 0.458799, 0.233109,
+		  1.825593, 0.580847, 1.967383, 0.420710, 2.034980, 0.864479, 0.577513, 0.124068, 0.502294, 2.653232, 0.437116, 1.048288, 2.319555, 0.151684, 0.077004, 8.113282,
+		  0.450842, 0.661866, 0.088064, 0.037642, 2.600668, 0.390688, 0.109318, 0.218118, 1.065585, 0.564368, 1.927515, 0.120994, 1.856122, 4.154750, 0.011074, 0.377578, 0.222293,
+		  0.526135, 0.265730, 0.581928, 0.141233, 5.413080, 0.322761, 0.153776, 0.039217, 8.351808, 0.854294, 0.940458, 0.180650, 0.975427, 11.429924, 0.026268, 0.429221, 0.273138, 4.731579,
+		  3.839269, 0.395134, 0.145401, 0.090101, 4.193725, 0.625409, 0.696533, 0.104335, 0.377304, 15.559906, 2.508169, 0.449074, 3.404087, 1.457957, 0.052132, 0.260296, 2.903836, 0.564762, 0.681215
+		},
+		{
+		  0.658412,
+		  0.566269, 0.540749,
+		  0.854111, 0.058015, 3.060574,
+		  0.884454, 5.851132, 1.279257, 0.160296,
+		  1.309554, 2.294145, 1.438430, 0.482619, 0.992259,
+		  1.272639, 0.182966, 0.431464, 2.992763, 0.086318, 2.130054,
+		  1.874713, 0.684164, 2.075952, 1.296206, 2.149634, 0.571406, 0.507160,
+		  0.552007, 3.192521, 4.840271, 0.841829, 5.103188, 4.137385, 0.351381, 0.679853,
+		  0.227683, 0.528161, 0.644656, 0.031467, 3.775817, 0.437589, 0.189152, 0.025780, 0.665865,
+		  0.581512, 1.128882, 0.266076, 0.048542, 3.954021, 2.071689, 0.217780, 0.082005, 1.266791, 8.904999,
+		  0.695190, 3.010922, 2.084975, 0.132774, 0.190734, 2.498630, 0.767361, 0.326441, 0.680174, 0.652629, 0.440178,
+		  0.967985, 1.012866, 0.720060, 0.133055, 1.776095, 1.763546, 0.278392, 0.343977, 0.717301, 10.091413, 14.013035, 1.082703,
+		  0.344015, 0.227296, 0.291854, 0.056045, 4.495841, 0.116381, 0.092075, 0.195877, 4.001286, 2.671718, 5.069337, 0.091278, 4.643214,
+		  0.978992, 0.156635, 0.028961, 0.209188, 0.264277, 0.296578, 0.177263, 0.217424, 0.362942, 0.086367, 0.539010, 0.172734, 0.121821, 0.161015,
+		  3.427163, 0.878405, 4.071574, 0.925172, 7.063879, 1.033710, 0.451893, 3.057583, 1.189259, 0.359932, 0.742569, 0.693405, 0.584083, 1.531223, 1.287474,
+		  2.333253, 0.802754, 2.258357, 0.360522, 2.221150, 1.283423, 0.653836, 0.377558, 0.964545, 4.797423, 0.780580, 1.422571, 4.216178, 0.599244, 0.444362, 5.231362,
+		  0.154701, 0.830884, 0.073037, 0.094591, 3.017954, 0.312579, 0.074620, 0.401252, 1.350568, 0.336801, 1.331875, 0.068958, 1.677263, 5.832025, 0.076328, 0.548763, 0.208791,
+		  0.221089, 0.431617, 1.238426, 0.313945, 8.558815, 0.305772, 0.181992, 0.072258, 12.869737, 1.021885, 1.531589, 0.163829, 1.575754, 33.873091, 0.079916, 0.831890, 0.307846, 5.910440,
+		  2.088785, 0.456530, 0.199728, 0.118104, 4.310199, 0.681277, 0.752277, 0.241015, 0.531100, 23.029406, 4.414850, 0.481711, 5.046403, 1.914768, 0.466823, 0.382271, 3.717971, 0.282540, 0.964421
+		}
+	      };
 
+	    double
+	      freqs[4][20] = 
+	      {{0.147383 , 0.017579 , 0.058208 , 0.017707 , 0.026331 , 0.041582 , 0.017494 , 0.027859 , 0.011849 , 0.076971 , 
+		0.147823 , 0.019535 , 0.037132 , 0.029940 , 0.008059 , 0.088179 , 0.089653 , 0.006477 , 0.032308 , 0.097931},
+	       {0.063139 , 0.066357 , 0.011586 , 0.066571 , 0.010800 , 0.009276 , 0.053984 , 0.146986 , 0.034214 , 0.088822 , 
+		0.098196 , 0.032390 , 0.021263 , 0.072697 , 0.016761 , 0.020711 , 0.020797 , 0.025463 , 0.045615 , 0.094372},
+	       {0.062457 , 0.066826 , 0.049332 , 0.065270 , 0.006513 , 0.041231 , 0.058965 , 0.080852 , 0.028024 , 0.037024 , 
+		0.075925 , 0.064131 , 0.019620 , 0.028710 , 0.104579 , 0.056388 , 0.062027 , 0.008241 , 0.033124 , 0.050760},
+	       {0.106471 , 0.074171 , 0.044513 , 0.096390 , 0.002148 , 0.066733 , 0.158908 , 0.037625 , 0.020691 , 0.014608 , 
+		0.028797 , 0.105352 , 0.007864 , 0.007477 , 0.083595 , 0.055726 , 0.047711 , 0.003975 , 0.010088 , 0.027159}};
+	    
+	    int 
+	      i, 
+	      j, 
+	      r = 0;
+
+	    for(i = 1; i < 20; i++)
+	      for(j = 0; j < i; j++)
+		{
+		  daa[i * 20 + j] = rates[lg4_index][r];
+		  r++;
+		}
+	  
+	    assert(r == 190);
+	    
+	    for(i = 0; i < 20; i++)
+	      f[i] = freqs[lg4_index][i];	  
+	    
+	  }
+	  break;
+	case MTART:
+	  {	   
 	    daa[1*20+0]=   0.2;
 	    daa[2*20+0]=   0.2;
            daa[2*20+1]=   0.2;
@@ -2090,7 +2240,7 @@ static void initProtMat(double f[20], int proteinMatrix, double *ext_initialRate
            daa[19*20+17]= 0.00500000;
            daa[19*20+18]= 0.04105930;
            
-           f[0]=  0.060;
+           /*f[0]=  0.060;
            f[1]=  0.066;
            f[2]=  0.044;
            f[3]=  0.042;
@@ -2109,7 +2259,13 @@ static void initProtMat(double f[20], int proteinMatrix, double *ext_initialRate
            f[16]= 0.054;
            f[17]= 0.033;
            f[18]= 0.028;
-           f[19]= 0.062;
+           f[19]= 0.062;*/
+
+	   f[0]= 0.060490222;           f[1]= 0.066039665;           f[2]= 0.044127815;           f[3]= 0.042109048;
+           f[4]= 0.020075899;           f[5]= 0.053606488;           f[6]= 0.071567447;           f[7]= 0.072308239;
+           f[8]= 0.022293943;           f[9]= 0.069730629;           f[10]= 0.098851122;          f[11]= 0.056968211;
+           f[12]= 0.019768318;          f[13]= 0.028809447;          f[14]= 0.046025282;          f[15]= 0.05060433;
+           f[16]= 0.053636813;          f[17]= 0.033011601;          f[18]= 0.028350243;          f[19]= 0.061625237;
 	  }
 	  break;
 	case HIVW:
@@ -2305,7 +2461,7 @@ static void initProtMat(double f[20], int proteinMatrix, double *ext_initialRate
            daa[19*20+17]= 0.0050000;
            daa[19*20+18]= 1.3548200;
            
-           f[0]=  0.038;
+           /*f[0]=  0.038;
            f[1]=  0.057;
            f[2]=  0.089;
            f[3]=  0.034;
@@ -2324,7 +2480,13 @@ static void initProtMat(double f[20], int proteinMatrix, double *ext_initialRate
            f[16]= 0.081;
            f[17]= 0.020;
            f[18]= 0.021;
-           f[19]= 0.051;
+           f[19]= 0.051;*/
+	   
+	   f[0]= 0.0377494;             f[1]= 0.057321;              f[2]= 0.0891129;             f[3]= 0.0342034;
+           f[4]= 0.0240105;             f[5]= 0.0437824;             f[6]= 0.0618606;             f[7]= 0.0838496;
+           f[8]= 0.0156076;             f[9]= 0.0983641;             f[10]= 0.0577867;            f[11]= 0.0641682;
+           f[12]= 0.0158419;            f[13]= 0.0422741;            f[14]= 0.0458601;            f[15]= 0.0550846;
+           f[16]= 0.0813774;            f[17]= 0.019597;             f[18]= 0.0205847;            f[19]= 0.0515638;
 	  }
 	  break;
 	case JTTDCMUT:
@@ -2860,6 +3022,9 @@ static void updateFracChange(tree *tr)
       for(model = 0; model < tr->NumberOfModels; model++)                   
 	tr->fracchange +=  tr->partitionContributions[model] * tr->fracchanges[model];	
     }
+
+  tr->rawFracchange = tr->fracchange;
+  memcpy(tr->rawFracchanges, tr->fracchanges, sizeof(double) * tr->NumberOfModels);
 }
 
 static void mytred2(double **a, const int n, double *d, double *e)
@@ -3262,49 +3427,46 @@ static void initGeneric(const int n, const unsigned int *valueVector, int valueV
 
 void initReversibleGTR(tree *tr, int model)
 { 
- double   
-   *fracchanges      = tr->fracchanges,    
-   *ext_EIGN         = tr->partitionData[model].EIGN,
-   *EV               = tr->partitionData[model].EV,
-   *EI               = tr->partitionData[model].EI,
-   *frequencies      = tr->partitionData[model].frequencies,
-   *ext_initialRates = tr->partitionData[model].substRates,
-   *tipVector        = tr->partitionData[model].tipVector;
-
- 
+  double   
+    *fracchanges      = tr->fracchanges,    
+    *ext_EIGN         = tr->partitionData[model].EIGN,
+    *EV               = tr->partitionData[model].EV,
+    *EI               = tr->partitionData[model].EI,
+    *frequencies      = tr->partitionData[model].frequencies,
+    *ext_initialRates = tr->partitionData[model].substRates,
+    *tipVector        = tr->partitionData[model].tipVector;
   
- int states = tr->partitionData[model].states;
-
- switch(tr->partitionData[model].dataType)
-   { 
-   case GENERIC_32:
-   case GENERIC_64:
-   case SECONDARY_DATA_6:
-   case SECONDARY_DATA_7: 
-   case SECONDARY_DATA:
-   case DNA_DATA:
-   case BINARY_DATA:
-   {    
-     initGeneric(states, 
-		 getBitVector(tr->partitionData[model].dataType), 
-		 getUndetermined(tr->partitionData[model].dataType) + 1, 
-		 fracchanges,
-		 ext_EIGN, 
-		 EV, 
-		 EI, 
-		 frequencies, 
-		 ext_initialRates,
-		 tipVector, 
-		 model);
-    }    
+  int 
+    states = tr->partitionData[model].states;
+  
+  switch(tr->partitionData[model].dataType)
+    { 
+    case GENERIC_32:
+    case GENERIC_64:
+    case SECONDARY_DATA_6:
+    case SECONDARY_DATA_7: 
+    case SECONDARY_DATA:
+    case DNA_DATA:
+    case BINARY_DATA:     
+      initGeneric(states, 
+		  getBitVector(tr->partitionData[model].dataType), 
+		  getUndetermined(tr->partitionData[model].dataType) + 1, 
+		  fracchanges,
+		  ext_EIGN, 
+		  EV, 
+		  EI, 
+		  frequencies, 
+		  ext_initialRates,
+		  tipVector, 
+		  model);
      break;   
    case AA_DATA:
      if(tr->partitionData[model].protModels != GTR)           
        {
-	 double f[20];
-	 int l;
-
-	 if(tr->partitionData[model].protModels == LG4)
+	 double 
+	   f[20];
+	 
+	 if(tr->partitionData[model].protModels == LG4M || tr->partitionData[model].protModels == LG4X)
 	   {
 	     int 
 	       i;
@@ -3313,9 +3475,10 @@ void initReversibleGTR(tree *tr, int model)
 	       {		 
 		 initProtMat(f, tr->partitionData[model].protModels, &(tr->partitionData[model].substRates_LG4[i][0]), i);
 		 
-		 if(!tr->partitionData[model].protFreqs && !tr->partitionData[model].optimizeBaseFrequencies)	       	  	  
-		   for(l = 0; l < 20; l++)		
-		     tr->partitionData[model].frequencies_LG4[i][l] = f[l];
+		 if(!tr->partitionData[model].protFreqs && !tr->partitionData[model].optimizeBaseFrequencies)
+		   memcpy(tr->partitionData[model].frequencies_LG4[i], f, 20 * sizeof(double));
+		 //for(l = 0; l < 20; l++)		
+		 //   tr->partitionData[model].frequencies_LG4[i][l] = f[l];
 		 else
 		   memcpy(tr->partitionData[model].frequencies_LG4[i], frequencies, 20 * sizeof(double));
 	       }
@@ -3330,15 +3493,35 @@ void initReversibleGTR(tree *tr, int model)
 	     /*if(adef->protEmpiricalFreqs && tr->NumberOfModels == 1)
 	       assert(tr->partitionData[model].protFreqs);*/
 	     
-	     if(!tr->partitionData[model].protFreqs && !tr->partitionData[model].optimizeBaseFrequencies)	       	  
-	       {	     	    
-		 for(l = 0; l < 20; l++)		
-		   frequencies[l] = f[l];
-	       } 
+	     if(tr->partitionData[model].protModels == AUTO)
+	       {
+		 if(tr->partitionData[model].protFreqs)
+		   memcpy(frequencies, f, 20 * sizeof(double));
+		 else
+		   memcpy(frequencies, tr->partitionData[model].empiricalFrequencies, 20 * sizeof(double));		 
+	       }
+	     else
+	       {
+		 if(!tr->partitionData[model].optimizeBaseFrequencies)
+		   {
+		     if(!tr->partitionData[model].protFreqs)	       	  
+		       {
+			 memcpy(frequencies, f, 20 * sizeof(double));
+			 /*for(l = 0; l < 20; l++)		
+			   frequencies[l] = f[l];			 */
+		       } 
+		     else
+		       {			
+			 memcpy(frequencies, tr->partitionData[model].empiricalFrequencies, 20 * sizeof(double));
+			 /*for(l = 0; l < 20; l++)		
+			   frequencies[l] = tr->partitionData[model].empiricalFrequencies[l];			 */
+		       }
+		   }
+	       }
 	   }
        }  
                
-     if(tr->partitionData[model].protModels == LG4)
+     if(tr->partitionData[model].protModels == LG4M || tr->partitionData[model].protModels == LG4X)
        {
 	 int 
 	   i;
@@ -3353,7 +3536,9 @@ void initReversibleGTR(tree *tr, int model)
 	   {
 	     fracchanges_LG4[i]  = (double *)malloc(tr->NumberOfModels * sizeof(double));
 	     initGeneric(states, bitVectorAA, 23, fracchanges_LG4[i],
-			 tr->partitionData[model].EIGN_LG4[i],  tr->partitionData[model].EV_LG4[i],  tr->partitionData[model].EI_LG4[i], tr->partitionData[model].frequencies_LG4[i], tr->partitionData[model].substRates_LG4[i],
+			 tr->partitionData[model].EIGN_LG4[i],  tr->partitionData[model].EV_LG4[i],  
+			 tr->partitionData[model].EI_LG4[i], tr->partitionData[model].frequencies_LG4[i], 
+			 tr->partitionData[model].substRates_LG4[i],
 			 tr->partitionData[model].tipVector_LG4[i], 
 			 model);   
 	   }
@@ -3379,7 +3564,7 @@ void initReversibleGTR(tree *tr, int model)
   updateFracChange(tr);
 
 #ifdef __MIC_NATIVE
-  if(tr->partitionData[model].protModels == LG4)
+  if(tr->partitionData[model].protModels == LG4M || tr->partitionData[model].protModels == LG4X)
     updateModel_LG4_MIC(&tr->partitionData[model]);
   else
     updateModel_MIC(&tr->partitionData[model]);
@@ -3936,16 +4121,20 @@ static void setupSecondaryStructureSymmetries(tree *tr)
 
 }
 
-static void initializeBaseFreqs(tree *tr, double **empiricalFrequencies)
+
+/* this function is only called once at program start-up ! */
+
+static void initializeBaseFreqs(tree *tr)
 {
   size_t 
     model;
 
   for(model = 0; model < (size_t)tr->NumberOfModels; model++)
-    {
+    {      
       if(tr->partitionData[model].optimizeBaseFrequencies)
 	{
 	  //set all base frequencies to identical starting values 1.0 / numberOfDataStates
+	  //if we want to optimize base freqeuncies for the current partition
 	  
 	  int 
 	    l,
@@ -3961,14 +4150,19 @@ static void initializeBaseFreqs(tree *tr, double **empiricalFrequencies)
 	    }
 	}
       else
-	{
-	  memcpy(tr->partitionData[model].frequencies,          empiricalFrequencies[model], sizeof(double) * tr->partitionData[model].states);
-	  memcpy(tr->partitionData[model].empiricalFrequencies, empiricalFrequencies[model], sizeof(double) * tr->partitionData[model].states);
+	{	 
+	  //otherwise, at startup examl reads and stores the empirical base frequencies as determined by the
+	  //parser code in .frequencies, now we just store them in .empiricalFrequencies such that we can 
+	  //overwrite .frequencies without losing the empirical base freqs
+	 
+	  memcpy(tr->partitionData[model].empiricalFrequencies, tr->partitionData[model].frequencies, sizeof(double) * tr->partitionData[model].states);	  
 	}
     }
 }
 
-void initModel(tree *tr, double **empiricalFrequencies)
+/* this function is only called once at program start-up ! */
+
+void initModel(tree *tr)
 {  
   int 
     model;
@@ -4000,7 +4194,7 @@ void initModel(tree *tr, double **empiricalFrequencies)
   
   initRateMatrix(tr); 
 
-  initializeBaseFreqs(tr, empiricalFrequencies);
+  initializeBaseFreqs(tr);
   
   for(model = 0; model < tr->NumberOfModels; model++)
     {
@@ -4010,7 +4204,7 @@ void initModel(tree *tr, double **empiricalFrequencies)
       tr->partitionData[model].alpha = 1.0;    
       
       if(tr->partitionData[model].protModels == AUTO)
-	tr->partitionData[model].autoProtModels = WAG; /* initialize by WAG per default */
+	tr->partitionData[model].autoProtModels = WAG; /* initialize by WAG per default when AUTO is used */
                          
       initReversibleGTR(tr, model);
       makeGammaCats(tr->partitionData[model].alpha, tr->partitionData[model].gammaRates, 4, tr->useMedian);     
@@ -4018,10 +4212,16 @@ void initModel(tree *tr, double **empiricalFrequencies)
       for(k = 0; k < tr->partitionData[model].states; k++)
 	tr->partitionData[model].freqExponents[k] = 0.0;	
 
+      //LG4X inits 
+
+      for(k = 0; k < 4; k++)
+	{
+	  tr->partitionData[model].weights[k] = 0.25;
+	  tr->partitionData[model].weightExponents[k] = 0.0;
+	}
+
     }                   		       
   
-   
-
   if(tr->NumberOfModels > 1)
     {
       tr->fracchange = 0;

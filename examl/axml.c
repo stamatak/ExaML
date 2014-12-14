@@ -47,7 +47,8 @@
 #include <string.h>
 #include <stdarg.h>
 #include <limits.h>
-
+#include <unistd.h>
+#include <getopt.h>
 
 #include <mpi.h>
 
@@ -76,6 +77,15 @@
 #endif
 
 /***************** UTILITY FUNCTIONS **************************/
+
+/*pInfo *cleanPinfoInit()
+{
+  pInfo *p = (pInfo*)malloc(sizeof(pInfo));
+
+  
+  return p;
+  }*/
+
 
 void storeExecuteMaskInTraversalDescriptor(tree *tr)
 {
@@ -549,9 +559,13 @@ static boolean setupTree (tree *tr)
   tr->maxCategories = MAX(4, tr->categories);
   
   tr->partitionContributions = (double *)malloc(sizeof(double) * tr->NumberOfModels);
-  
+  tr->partitionWeights       = (double *)malloc(sizeof(double) * tr->NumberOfModels);
+
   for(i = 0; i < tr->NumberOfModels; i++)
-    tr->partitionContributions[i] = -1.0;
+    {
+      tr->partitionContributions[i] = -1.0;
+      tr->partitionWeights[i] = -1.0;
+    }
   
   tr->perPartitionLH = (double *)malloc(sizeof(double) * tr->NumberOfModels);
     
@@ -565,6 +579,7 @@ static boolean setupTree (tree *tr)
  
   
   tr->fracchanges  = (double *)malloc(tr->NumberOfModels * sizeof(double));
+  tr->rawFracchanges  = (double *)malloc(tr->NumberOfModels * sizeof(double));
   
   tr->treeStringLength = tr->mxtips * (nmlngth+128) + 256 + tr->mxtips * 2;
 
@@ -583,8 +598,13 @@ static boolean setupTree (tree *tr)
   tr->td[0].parameterValues = (double *)malloc(sizeof(double) * tr->NumberOfModels);
   
   for(i = 0; i < tr->NumberOfModels; i++)
-    tr->fracchanges[i] = -1.0;
+    {
+      tr->fracchanges[i] = -1.0;
+      tr->rawFracchanges[i] = -1.0;
+    }
+  
   tr->fracchange = -1.0;
+  tr->rawFracchange = -1.0;
   
   tr->constraintVector = (int *)malloc((2 * tr->mxtips) * sizeof(int));
 
@@ -711,73 +731,6 @@ static int modelExists(char *model, tree *tr)
 
 
 
-static int mygetopt(int argc, char **argv, char *opts, int *optind, char **optarg)
-{
-  static int sp = 1;
-  register int c;
-  register char *cp;
-
-  if(sp == 1)
-    {
-      if(*optind >= argc || argv[*optind][0] != '-' || argv[*optind][1] == '\0')
-	return -1;
-    }
-  else
-    {
-      if(strcmp(argv[*optind], "--") == 0)
-	{
-	  *optind =  *optind + 1;
-	  return -1;
-	}
-    }
-
-  c = argv[*optind][sp];
-  if(c == ':' || (cp=strchr(opts, c)) == 0)
-    {
-      printf(": illegal option -- %c \n", c);
-      if(argv[*optind][++sp] == '\0')
-	{
-	  *optind =  *optind + 1;
-	  sp = 1;
-	}
-      return('?');
-    }
-  if(*++cp == ':')
-    {
-      if(argv[*optind][sp+1] != '\0')
-	{
-	  *optarg = &argv[*optind][sp+1];
-	  *optind =  *optind + 1;
-	}
-      else
-	{
-	  *optind =  *optind + 1;
-	  if(*optind >= argc)
-	    {
-	      printf(": option requires an argument -- %c\n", c);
-	      sp = 1;
-	      return('?');
-	    }
-	  else
-	    {
-	      *optarg = argv[*optind];
-	      *optind =  *optind + 1;
-	    }
-	}
-      sp = 1;
-    }
-  else
-    {
-      if(argv[*optind][++sp] == '\0')
-	{
-	  sp = 1;
-	  *optind =  *optind + 1;
-	}
-      *optarg = 0;
-    }
-  return(c);
-  }
-
 
 
 
@@ -787,7 +740,7 @@ static int mygetopt(int argc, char **argv, char *opts, int *optind, char **optar
 static void printVersionInfo(void)
 {
   if(processID == 0)
-    printf("\n\nThis is %s version %s released by Alexandros Stamatakis on %s.\n\n",  programName, programVersion, programDate); 
+    printf("\n\nThis is %s version %s released by Alexandros Stamatakis, Andre J. Aberer, and Alexey Kozlov on %s.\n\n",  programName, programVersion, programDate); 
 }
 
 static void printMinusFUsage(void)
@@ -849,6 +802,7 @@ static void printREADME(void)
       printf("      [-S]\n");
       printf("      [-v]\n"); 
       printf("      [-w outputDirectory] \n"); 
+      printf("      [--auto-prot=ml|bic|aic|aicc]\n");
       printf("\n");  
       printf("      -a      use the median for the discrete approximation of the GAMMA model of rate heterogeneity\n");
       printf("\n");
@@ -919,6 +873,12 @@ static void printREADME(void)
       printf("      -w      FULL (!) path to the directory into which ExaML shall write its output files\n");
       printf("\n");
       printf("              DEFAULT: current directory\n");  
+      printf("\n");
+      printf("      --auto-prot=ml|bic|aic|aicc When using automatic protein model selection you can chose the criterion for selecting these models.\n");
+      printf("              RAxML will test all available prot subst. models except for LG4M, LG4X and GTR-based models, with and without empirical base frequencies.\n");
+      printf("              You can chose between ML score based selection and the BIC, AIC, and AICc criteria.\n");
+      printf("\n");
+      printf("              DEFAULT: ml\n");
       printf("\n\n\n\n");
     }
 }
@@ -958,21 +918,19 @@ static void analyzeRunId(char id[128])
 
 static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 {
-  boolean
-    bad_opt    =FALSE,
+  boolean   
     resultDirSet = FALSE;
 
   char
     resultDir[1024] = "",          
-    *optarg,
+    //*optarg,
     model[1024] = "",       
     modelChar;
 
   double 
     likelihoodEpsilon;
   
-  int     
-    optind = 1,        
+  int        
     c,
     nameSet = 0,
     treeSet = 0,   
@@ -993,6 +951,8 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
   tr->saveMemory = FALSE;
   tr->constraintTree = FALSE;
 
+  tr->fastTreeEvaluation = FALSE;
+
   /* tr->manyPartitions = FALSE; */
 
   tr->categories             = 25;
@@ -1001,137 +961,207 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
   tr->saveBestTrees          = 0;
 
   tr->useMedian = FALSE;
-
+  
+  tr->autoProteinSelectionType = AUTO_ML;
+  
   /********* tr inits end*************/
-
-
-
-
-  while(!bad_opt && ((c = mygetopt(argc,argv,"R:B:e:c:f:i:m:t:g:w:n:s:p:vhMSDa", &optind, &optarg))!=-1))
+	
+  //while(!bad_opt && ((c = mygetopt(argc,argv,"R:B:e:c:f:i:m:t:g:w:n:s:p:vhMSDa", &optind, &optarg))!=-1))
+	
+  static 
+    int flag;
+  
+  while(1)
     {
-    switch(c)
-      {    
-      case 'p':
-	sscanf(optarg,"%u", &(tr->randomSeed));
-	seedSet = 1;
-	break;
-      case 'a':
-	tr->useMedian = TRUE;
-	break;
-      case 'B':
-	sscanf(optarg,"%d", &(tr->saveBestTrees));
-	if(tr->saveBestTrees < 0)
-	  {
-	    printf("Number of best trees to save must be greater than 0!\n");
-	    errorExit(-1);	 
-	  }
-	break;       
-      case 's':		 	
-	strcpy(byteFileName, optarg);	 	
-	byteFileSet = TRUE;
-	/*printf("%s \n", byteFileName);*/
-	break;      
-      case 'S':
-	tr->saveMemory = TRUE;
-	break;
-      case 'D':
-	tr->searchConvergenceCriterion = TRUE;	
-	break;
-      case 'R':
-	adef->useCheckpoint = TRUE;
-	strcpy(binaryCheckpointInputName, optarg);
-	break;          
-      case 'M':
-	adef->perGeneBranchLengths = TRUE;
-	break;                                 
-      case 'e':
-	sscanf(optarg,"%lf", &likelihoodEpsilon);
-	adef->likelihoodEpsilon = likelihoodEpsilon;
-	break;    
+      static struct 
+	option long_options[2] =
+	{	 	 
+	  {"auto-prot",   required_argument, &flag, 1},	   	  	 
+	  {0, 0, 0, 0}
+	};
       
-      case 'v':
-	printVersionInfo();
-	errorExit(0);
+      int 
+	option_index;
       
-      case 'h':
-	printREADME();
-	errorExit(0);     
-      case 'c':
-	sscanf(optarg, "%d", &tr->categories);
-	break;     
-      case 'f':
-	sscanf(optarg, "%c", &modelChar);
-	switch(modelChar)
-	  {	 
-	  case 'e':
-	    adef->mode = TREE_EVALUATION;
-	    tr->fastTreeEvaluation = TRUE;
-	    break;
-	  case 'E':
-	    adef->mode = TREE_EVALUATION;
-	    tr->fastTreeEvaluation = FALSE;
-	    break;
-	  case 'd':
-	    adef->mode = BIG_RAPID_MODE;
-	    tr->doCutoff = TRUE;
-	    break;	  
-	  case 'o':
-	    adef->mode = BIG_RAPID_MODE;
-	    tr->doCutoff = FALSE;
-	    break;	    	  	  	     
-	  default:
+      flag = 0;        
+
+      c = getopt_long(argc, argv, "R:B:e:c:f:i:m:t:g:w:n:s:p:vhMSDa", long_options, &option_index);    
+    
+      if(c == -1)
+	break;
+      
+      if(flag > 0)
+	{
+	  switch(option_index)
 	    {
-	      if(processID == 0)
-		{
-		  printf("Error select one of the following algorithms via -f :\n");
-		  printMinusFUsage();
-		}
-	      errorExit(-1);
-	    }
-	  }
-	break;
-      case 'i':
-	sscanf(optarg, "%d", &adef->initial);
-	adef->initialSet = TRUE;
-	break;
-      case 'n':
-        strcpy(run_id,optarg);
-	analyzeRunId(run_id);
-	nameSet = 1;
-        break;
-      case 'w':
-        strcpy(resultDir, optarg);
-	resultDirSet = TRUE;
-        break;
-      case 't':
-	strcpy(tree_file, optarg);       
-	treeSet = 1;       
-	break;
-      case 'g':
-	strcpy(tree_file, optarg);       
-	treeSet = 1;       
-	tr->constraintTree = TRUE;
-	break;	
-      case 'm':
-	strcpy(model,optarg);
-	if(modelExists(model, tr) == 0)
-	  {
-	    if(processID == 0)
+	    case 0:
 	      {
-		printf("Rate heterogeneity Model %s does not exist\n\n", model);               
-		printf("For per site rates (called CAT in previous versions) use: PSR\n");	
-		printf("For GAMMA use: GAMMA\n");		
+		char 
+		  *autoModels[4] = {"ml", "bic", "aic", "aicc"};
+
+		int 
+		  k;
+
+		for(k = 0; k < 4; k++)		  
+		  if(strcmp(optarg, autoModels[k]) == 0)
+		    break;
+
+		if(k == 4)
+		  {
+		    printf("\nError, unknown protein model selection type, you can specify one of the following selection criteria:\n\n");
+		    for(k = 0; k < 4; k++)
+		      printf("--auto-prot=%s\n", autoModels[k]);
+		    printf("\n");
+		    errorExit(-1);
+		  }
+		else
+		  {
+		    switch(k)
+		      {
+		      case 0:
+			tr->autoProteinSelectionType = AUTO_ML;
+			break;
+		      case 1:
+			tr->autoProteinSelectionType = AUTO_BIC;
+			break;
+		      case 2:
+			tr->autoProteinSelectionType = AUTO_AIC;
+			break;
+		      case 3:
+			tr->autoProteinSelectionType = AUTO_AICC;
+			break;
+		      default:
+			assert(0);
+		      }
+		  }
 	      }
+	      break;
+	    default:
+	      assert(0);
+	    }
+	}
+      else	
+	switch(c)
+	  {    
+	  case 'p':
+	    sscanf(optarg,"%u", &(tr->randomSeed));
+	    seedSet = 1;
+	    break;
+	  case 'a':
+	    tr->useMedian = TRUE;	
+	    break;
+	  case 'B':
+	    sscanf(optarg,"%d", &(tr->saveBestTrees));
+	    if(tr->saveBestTrees < 0)
+	      {
+		printf("Number of best trees to save must be greater than 0!\n");
+		errorExit(-1);	 
+	      }
+	    break;       
+	  case 's':	    
+	    strcpy(byteFileName, optarg);	 	
+	    byteFileSet = TRUE;
+	    /*printf("%s \n", byteFileName);*/
+	    break;      
+	  case 'S':
+	    tr->saveMemory = TRUE;
+	    break;
+	  case 'D':
+	    tr->searchConvergenceCriterion = TRUE;	
+	    break;
+	  case 'R':
+	    adef->useCheckpoint = TRUE;
+	    strcpy(binaryCheckpointInputName, optarg);
+	    break;          
+	  case 'M':
+	    adef->perGeneBranchLengths = TRUE;
+	    break;                                 
+	  case 'e':
+	    sscanf(optarg,"%lf", &likelihoodEpsilon);
+	    adef->likelihoodEpsilon = likelihoodEpsilon;
+	    break;    	    
+	  case 'v':
+	    printVersionInfo();
+	    errorExit(0);	    
+	  case 'h':
+	    printREADME();
+	    errorExit(0);     
+	  case 'c':
+	    sscanf(optarg, "%d", &tr->categories);
+	    break;     
+	  case 'f':
+	    sscanf(optarg, "%c", &modelChar);
+	    switch(modelChar)
+	      {	 
+	      case 'e':
+		adef->mode = TREE_EVALUATION;
+		tr->fastTreeEvaluation = TRUE;
+		break;
+	      case 'E':
+		adef->mode = TREE_EVALUATION;
+		tr->fastTreeEvaluation = FALSE;
+		break;
+	      case 'd':
+		adef->mode = BIG_RAPID_MODE;
+		tr->doCutoff = TRUE;
+		break;	  
+	      case 'o':
+		adef->mode = BIG_RAPID_MODE;
+		tr->doCutoff = FALSE;
+		break;	    	  	  	     
+	      default:
+		{
+		  if(processID == 0)
+		    {
+		      printf("Error select one of the following algorithms via -f :\n");
+		      printMinusFUsage();
+		    }
+		  errorExit(-1);
+		}
+	      }
+	    break;
+	  case 'i':
+	    sscanf(optarg, "%d", &adef->initial);
+	    adef->initialSet = TRUE;
+	    break;
+	  case 'n':
+	    strcpy(run_id,optarg);
+	    analyzeRunId(run_id);
+	    nameSet = 1;
+	    break;
+	  case 'w':
+	    strcpy(resultDir, optarg);
+	    resultDirSet = TRUE;
+	    break;
+	  case 't':
+	    strcpy(tree_file, optarg);       
+	    treeSet = 1;       
+	    break;
+	  case 'g':
+	    strcpy(tree_file, optarg);       
+	    treeSet = 1;       
+	    tr->constraintTree = TRUE;
+	    break;	
+	  case 'm':
+	    strcpy(model,optarg);
+	    if(modelExists(model, tr) == 0)
+	      {
+		if(processID == 0)
+		  {
+		    printf("Rate heterogeneity Model %s does not exist\n\n", model);               
+		    printf("For per site rates (called CAT in previous versions) use: PSR\n");	
+		    printf("For GAMMA use: GAMMA\n");		
+		  }
+		errorExit(-1);
+	      }
+	    else
+	      modelSet = 1;
+	    break;     
+	  default:
 	    errorExit(-1);
 	  }
-	else
-	  modelSet = 1;
-	break;     
-      default:
-	errorExit(-1);
-      }
     }
-
+  
 
 
   if(tr->constraintTree)
@@ -1294,18 +1324,12 @@ static void printModelAndProgramInfo(tree *tr, analdef *adef, int argc, char *ar
       else
 	strcpy(modelType, "GAMMA");   
      
-      printBoth(infoFile, "\n\nThis is %s version %s released by Alexandros Stamatakis in %s.\n\n",  programName, programVersion, programDate);
-     
-      
-      
-     
+      printBoth(infoFile, "\n\nThis is %s version %s released by Alexandros Stamatakis, Andre Aberer, and Alexey Kozlov in %s.\n\n",  programName, programVersion, programDate);
+                     
       printBoth(infoFile, "\nAlignment has %zu distinct alignment patterns\n\n",  tr->originalCrunchedLength);
-      
-     
-      
+                 
       printBoth(infoFile, "Proportion of gaps and completely undetermined characters in this alignment: %3.2f%s\n", 100.0 * tr->gapyness, "%");
       
-
       switch(adef->mode)
 	{	
 	case  BIG_RAPID_MODE:	 
@@ -1317,42 +1341,21 @@ static void printModelAndProgramInfo(tree *tr, analdef *adef, int argc, char *ar
 	default:
 	  assert(0);
 	}
-
-     
-	  
+     	  
       if(adef->perGeneBranchLengths)
 	printBoth(infoFile, "Using %d distinct models/data partitions with individual per partition branch length optimization\n\n\n", tr->NumberOfModels);
       else
 	printBoth(infoFile, "Using %d distinct models/data partitions with joint branch length optimization\n\n\n", tr->NumberOfModels);	
-	
-
-      
-     
-
-
-      
-      
+	      
       printBoth(infoFile, "All free model parameters will be estimated by ExaML\n");
-      
-     
-	
+           	
       if(tr->rateHetModel == GAMMA || tr->rateHetModel == GAMMA_I)
 	printBoth(infoFile, "%s model of rate heteorgeneity, ML estimate of alpha-parameter\n\n", modelType);
       else
 	{
 	  printBoth(infoFile, "ML estimate of %d per site rate categories\n\n", tr->categories);
-	  /*
-	    if(adef->mode != CLASSIFY_ML)
-	    printBoth(infoFile, "Likelihood of final tree will be evaluated and optimized under %s\n\n", modelType);
-	  */
-	}
-      
-      /*
-	if(adef->mode != CLASSIFY_ML)
-	printBoth(infoFile, "%s Model parameters will be estimated up to an accuracy of %2.10f Log Likelihood units\n\n",
-	modelType, adef->likelihoodEpsilon);
-      */
-    
+	 
+	}               
       
       for(model = 0; model < tr->NumberOfModels; model++)
 	{
@@ -1381,38 +1384,41 @@ static void printModelAndProgramInfo(tree *tr, analdef *adef, int argc, char *ar
 	      printBoth(infoFile, "DataType: BINARY/MORPHOLOGICAL\n");	      
 	      printBoth(infoFile, "Substitution Matrix: Uncorrected\n");
 	      break;
-	    case SECONDARY_DATA:
-	      printBoth(infoFile, "DataType: SECONDARY STRUCTURE\n");	     
-	      printBoth(infoFile, "Substitution Matrix: %s\n", secondaryModelList[tr->secondaryStructureModel]);
-	      break;
-	    case SECONDARY_DATA_6:
-	      printBoth(infoFile, "DataType: SECONDARY STRUCTURE 6 STATE\n");	     
-	      printBoth(infoFile, "Substitution Matrix: %s\n", secondaryModelList[tr->secondaryStructureModel]);
-	      break;
-	    case SECONDARY_DATA_7:
-	      printBoth(infoFile, "DataType: SECONDARY STRUCTURE 7 STATE\n");	      
-	      printBoth(infoFile, "Substitution Matrix: %s\n", secondaryModelList[tr->secondaryStructureModel]);
-	      break;
-	    case GENERIC_32:
-	      printBoth(infoFile, "DataType: Multi-State with %d distinct states in use (maximum 32)\n",tr->partitionData[model].states);		  
-	      switch(tr->multiStateModel)
+	    
+	      /*
+		case SECONDARY_DATA:
+		printBoth(infoFile, "DataType: SECONDARY STRUCTURE\n");	     
+		printBoth(infoFile, "Substitution Matrix: %s\n", secondaryModelList[tr->secondaryStructureModel]);
+		break;
+		case SECONDARY_DATA_6:
+		printBoth(infoFile, "DataType: SECONDARY STRUCTURE 6 STATE\n");	     
+		printBoth(infoFile, "Substitution Matrix: %s\n", secondaryModelList[tr->secondaryStructureModel]);
+		break;
+		case SECONDARY_DATA_7:
+		printBoth(infoFile, "DataType: SECONDARY STRUCTURE 7 STATE\n");	      
+		printBoth(infoFile, "Substitution Matrix: %s\n", secondaryModelList[tr->secondaryStructureModel]);
+		break;
+		case GENERIC_32:
+		printBoth(infoFile, "DataType: Multi-State with %d distinct states in use (maximum 32)\n",tr->partitionData[model].states);		  
+		switch(tr->multiStateModel)
 		{
 		case ORDERED_MULTI_STATE:
-		  printBoth(infoFile, "Substitution Matrix: Ordered Likelihood\n");
-		  break;
+		printBoth(infoFile, "Substitution Matrix: Ordered Likelihood\n");
+		break;
 		case MK_MULTI_STATE:
-		  printBoth(infoFile, "Substitution Matrix: MK model\n");
-		  break;
+		printBoth(infoFile, "Substitution Matrix: MK model\n");
+		break;
 		case GTR_MULTI_STATE:
-		  printBoth(infoFile, "Substitution Matrix: GTR\n");
-		  break;
+		printBoth(infoFile, "Substitution Matrix: GTR\n");
+		break;
 		default:
-		  assert(0);
+		assert(0);
 		}
-	      break;
-	    case GENERIC_64:
-	      printBoth(infoFile, "DataType: Codon\n");		  
-	      break;		
+		break;
+		case GENERIC_64:
+		printBoth(infoFile, "DataType: Codon\n");		  
+		break;	
+	      */
 	    default:
 	      assert(0);
 	    }
@@ -1717,7 +1723,7 @@ static void printModelParams(tree *tr, analdef *adef, int treeIteration)
 				   "H", "I", "L", "K", "M", "F", "P", "S",
 				   "T", "W", "Y", "V"};
 
-	     if(tr->partitionData[model].protModels == LG4)
+	     if(tr->partitionData[model].protModels == LG4M || tr->partitionData[model].protModels == LG4X)
 	      {
 		int 
 		  k;
@@ -1847,8 +1853,14 @@ static void clean_MPI_Exit(void)
 {
   MPI_Barrier(MPI_COMM_WORLD);
   MPI_Finalize();
+}
 
-  return;
+static void error_MPI_Exit(void)
+{
+  MPI_Barrier(MPI_COMM_WORLD);
+  MPI_Finalize();
+
+  exit(1);
 }
 
 
@@ -1873,6 +1885,12 @@ static void initializePartitions(tree *tr)
       const partitionLengths 
 	*pl = getPartitionLengths(&(tr->partitionData[model])); 
 
+      //must already be set as a consequence of alloc in function readPartitions
+      //and the subsequent copy of bf->partitions into tr->partitions!
+      assert(tr->partitionData[model].partitionName != (char*)NULL);
+
+      //printf("Partition name %s\n", tr->partitionData[model].partitionName);
+
       width = tr->partitionData[model].width;
 	
       /* 
@@ -1889,7 +1907,9 @@ static void initializePartitions(tree *tr)
       tr->partitionData[model].reductionBuffer 	  = (double*) calloc(tr->nThreads, sizeof(double));
       tr->partitionData[model].reductionBuffer2   = (double*) calloc(tr->nThreads, sizeof(double));
 
-      int t;
+      int 
+	t;
+      
       for (t = 0; t < tr->maxThreadsPerModel; ++t)
 	{
 	  Assign*
@@ -1912,13 +1932,21 @@ static void initializePartitions(tree *tr)
       tr->partitionData[model].EI                = (double*)malloc(pl->eiLength * sizeof(double));
       
       tr->partitionData[model].substRates        = (double *)malloc(pl->substRatesLength * sizeof(double));
-      tr->partitionData[model].frequencies       = (double*)malloc(pl->frequenciesLength * sizeof(double));
+
+
+      //must already be set as a consequence of alloc in function readPartitions
+      //and the subsequent copy of bf->partitions into tr->partitions!
+      assert(tr->partitionData[model].frequencies != (double*)NULL);
+      //tr->partitionData[model].frequencies       = (double*)malloc(pl->frequenciesLength * sizeof(double));
+
+     
+
       tr->partitionData[model].freqExponents     = (double*)malloc(pl->frequenciesLength * sizeof(double));
       tr->partitionData[model].empiricalFrequencies       = (double*)malloc(pl->frequenciesLength * sizeof(double));
       tr->partitionData[model].tipVector         = (double *)malloc_aligned(pl->tipVectorLength * sizeof(double));
 
 
-      if(tr->partitionData[model].protModels == LG4)      
+      if(tr->partitionData[model].protModels == LG4M || tr->partitionData[model].protModels == LG4X)      
 	{	  	  
 	  int 
 	    k;
@@ -1944,7 +1972,7 @@ static void initializePartitions(tree *tr)
       //      tr->partitionData[model].optimizeBaseFrequencies = FALSE; 
       
 
-      tr->partitionData[model].gammaRates = (double*)malloc(sizeof(double) * 4);
+      //tr->partitionData[model].gammaRates = (double*)malloc(sizeof(double) * 4);
 
       tr->partitionData[model].xVector = (double **)malloc(sizeof(double*) * tr->mxtips);   
       	
@@ -2008,41 +2036,48 @@ static void initializePartitions(tree *tr)
 
   /* set up the averaged frac changes per partition such that no further reading accesses to aliaswgt are necessary
      and we can free the array for the GAMMA model */
-
-  if(tr->NumberOfModels > 1)
-    {      
-      /* definitions: 
-	 sizeof(short) <= sizeof(int) <= sizeof(long)
-	 size_t defined by address space (here: 64 bit). 
-	 
-	 size_t + MPI is a bad idea: in the mpi2.2 standard, they do
+ 
+  {      
+    /* definitions: 
+       sizeof(short) <= sizeof(int) <= sizeof(long)
+       size_t defined by address space (here: 64 bit). 
+       
+       size_t + MPI is a bad idea: in the mpi2.2 standard, they do
 	 not mention it once.
-       */
-      unsigned long 
-	*modelWeights = (unsigned long*) calloc(tr->NumberOfModels, sizeof(unsigned long)); 
-      size_t
-	wgtsum = 0;  
+    */
 
-      /* determine my weights per partition    */
-      for(model = 0; model < tr->NumberOfModels; model++)      
-	 {
-	   const pInfo partition =  tr->partitionData[ model] ; 
-	   size_t i = 0; 
-	   for(i = 0; i < partition.width; ++i)
-	     modelWeights[model] += (long) partition.wgt[i]; 
+    unsigned long 
+      *modelWeights = (unsigned long*) calloc(tr->NumberOfModels, sizeof(unsigned long)); 
+    
+    size_t
+      wgtsum = 0;  
 
-	 }
-      MPI_Allreduce(MPI_IN_PLACE, modelWeights, tr->NumberOfModels, MPI_UNSIGNED_LONG, MPI_SUM, MPI_COMM_WORLD); 
+    /* determine my weights per partition    */
+    for(model = 0; model < tr->NumberOfModels; model++)      
+      {
+	const pInfo 
+	  partition =  tr->partitionData[model] ; 
+	   
+	size_t 
+	  i = 0; 
+	   
+	for(i = 0; i < partition.width; ++i)
+	  modelWeights[model] += (long) partition.wgt[i]; 
+      }
+    MPI_Allreduce(MPI_IN_PLACE, modelWeights, tr->NumberOfModels, MPI_UNSIGNED_LONG, MPI_SUM, MPI_COMM_WORLD); 
        
-      /* determine sum */
-      for(model = 0; model < tr->NumberOfModels; ++model)
-	wgtsum += modelWeights[model]; 
+    /* determine sum */
+    for(model = 0; model < tr->NumberOfModels; ++model)
+      wgtsum += modelWeights[model]; 
 
-      for(model = 0; model < tr->NumberOfModels; model++)      	
+    for(model = 0; model < tr->NumberOfModels; model++)      	
+      {
+	tr->partitionWeights[model]       = (double)modelWeights[model];
 	tr->partitionContributions[model] = ((double)modelWeights[model]) / ((double)wgtsum); 
+      }
        
-       free(modelWeights);
-    }
+    free(modelWeights);
+  }
 
   /* initialize gap bit vectors at tips when memory saving option is enabled */
   
@@ -2073,15 +2108,6 @@ static void initializeTree(tree *tr, analdef *adef)
   size_t 
     i ;
 
-  int 
-    model; 
-
-  double 
-    **empiricalFrequencies;	 
-
-
-  empiricalFrequencies = (double **)malloc(sizeof(double *) * tr->NumberOfModels);
-  
   if(adef->perGeneBranchLengths)
     tr->numBranches = tr->NumberOfModels;
   else
@@ -2094,7 +2120,7 @@ static void initializeTree(tree *tr, analdef *adef)
 	printf("You have specified per-partition branch lengths (-M option) with %d  models. \n\
 Please set #define NUM_BRANCHES in axml.h to %d (or higher) and recompile %s\n", 
 	       tr->NumberOfModels,tr->NumberOfModels, programName );
-      clean_MPI_Exit();
+      error_MPI_Exit();
     }
 
 
@@ -2116,24 +2142,10 @@ Please set #define NUM_BRANCHES in axml.h to %d (or higher) and recompile %s\n",
   
   for(i = 1; i <= (size_t)tr->mxtips; i++)
     addword(tr->nameList[i], tr->nameHash, i);
-
-
-  /* we have read the empirical frequencies variable, let's fix that
-     here; ownership of the data is shifted to empiricalFrequencies */
-  for(model = 0; model < tr->NumberOfModels; ++model)
-    {
-      empiricalFrequencies[model] = tr->partitionData[model].frequencies; 
-      tr->partitionData[model].frequencies = NULL; 
-    }
-  
+   
   initializePartitions(tr);
 
-  initModel(tr, empiricalFrequencies); 
-  
-  for(model = 0; model < tr->NumberOfModels; model++)
-    free(empiricalFrequencies[model]);
-
-  free(empiricalFrequencies);
+  initModel(tr);
 }
 
 
@@ -2240,7 +2252,7 @@ static void optimizeTrees(tree *tr, analdef *adef)
 
 	  ckp.treeIteration = i;
 	  
-	  writeCheckpoint(tr);
+	  writeCheckpoint(tr, adef);
 
 	  treeEvaluate(tr, 2);
 	}
@@ -2285,14 +2297,18 @@ static void optimizeTrees(tree *tr, analdef *adef)
 static void readByteFile (tree *tr, int commRank, int commSize )
 {
   /* read stuff that is cheap; do not change the order! */
-  ByteFile *bFile = NULL; 
+  ByteFile 
+    *bFile = NULL; 
+  
   initializeByteFile(&bFile, byteFileName); 
   readHeader(bFile);
   readTaxa(bFile);
   readPartitions(bFile); 
 
   /* calculate optimal distribution of data */
-  PartitionAssignment *pAss = NULL; 
+  PartitionAssignment 
+    *pAss = NULL; 
+  
   initializePartitionAssignment(&pAss, bFile->partitions, bFile->numPartitions, commSize); 
   assign(pAss);
 
@@ -2540,30 +2556,64 @@ int main (int argc, char *argv[])
 	printBothOpen("Memory Saving Option: %s\n", (tr->saveMemory == TRUE)?"ENABLED":"DISABLED");   	             
       }
 	
-    /* do some error checks for the LG4 model */
+    /* do some error checks for the LG4 model and the binary models and the MIC and exit gracefully */
 
     {
       int 
+	countBinary = 0,
 	countLG4 = 0,
 	model;
 	
+#ifdef __MIC_NATIVE
+      if(tr->saveMemory)
+	{
+	  printBothOpen("Error: There is no MIC support yet for the memory saving option \"-S\"!\n\n");	  
+	  error_MPI_Exit();  	      
+	}
+      
+      if(tr->rateHetModel == CAT)
+	{
+	  printBothOpen("Error: There is no MIC support yet for the PSR model!\n\n");	  
+	  error_MPI_Exit(); 
+	}
+#endif
+
+
       for(model = 0; model < tr->NumberOfModels; model++)
-	if(tr->partitionData[model].protModels == LG4)
-	  countLG4++;
+	{
+	  if(tr->partitionData[model].protModels == LG4M ||  tr->partitionData[model].protModels == LG4X)
+	    countLG4++;
+	  if(tr->partitionData[model].states == 2)
+	    countBinary++;
+	}
 
       if(countLG4 > 0)
 	{
 	  if(tr->saveMemory == TRUE)
 	    {
-	      printBothOpen("Error: the LG4 substitution model does not work in combination with the \"-U\" memory saving flag!\n\n");	  
-	      clean_MPI_Exit();
+	      printBothOpen("Error: the LG4 substitution model does not work in combination with the \"-S\" memory saving flag!\n\n");	  
+	      error_MPI_Exit();
 	    }
 
 	  if(tr->rateHetModel == CAT)
 	    {
 	      printBothOpen("Error: the LG4 substitution model does not work for proportion of invariavble sites estimates!\n\n");
-	      clean_MPI_Exit();
+	      error_MPI_Exit();
 	    }
+	}
+
+      if(countBinary > 0)
+	{
+	  if(tr->saveMemory == TRUE)
+	    {
+	      printBothOpen("Error: Binary data partitions can not be used in combination with the \"-S\" memory saving flag!\n\n");	  
+	      error_MPI_Exit();
+	    }
+	  
+#ifdef __MIC_NATIVE
+	  printBothOpen("Error: There is no MIC support yet for binary data partitions!\n\n");	  
+	  error_MPI_Exit();  	      
+#endif
 	}
     }
 	             
@@ -2578,9 +2628,6 @@ int main (int argc, char *argv[])
 	optimizeTrees(tr, adef);	
 	break;
       case BIG_RAPID_MODE:
-       
-
-
 	if(adef->useCheckpoint)
 	  {      
 	    /* read checkpoint file */

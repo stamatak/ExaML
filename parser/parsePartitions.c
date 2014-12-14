@@ -155,6 +155,19 @@ static void analyzeIdentifier(char **ch, int modelNumber, tree *tr)
 	      tr->initialPartitionData[modelNumber].protFreqs  = 1;
 	      tr->initialPartitionData[modelNumber].dataType   = AA_DATA;
 	      found = TRUE;
+
+	      if(tr->initialPartitionData[modelNumber].protModels == AUTO)
+		{
+		  printf("\nError: Option AUTOF has been deprecated, exiting\n\n");
+		  errorExit(-1);
+		}
+	      
+	      if(tr->initialPartitionData[modelNumber].protModels == LG4M || tr->initialPartitionData[modelNumber].protModels == LG4X)
+		{
+		  printf("\nError: Options LG4MF and LG4XF have been deprecated.\n");
+		  printf("They shall only be used with the given base frequencies of the model, exiting\n\n");
+		  errorExit(-1);
+		}
 	    }	
 
 	  strcpy(thisModel, protModels[i]);
@@ -167,6 +180,20 @@ static void analyzeIdentifier(char **ch, int modelNumber, tree *tr)
 	      tr->initialPartitionData[modelNumber].optimizeBaseFrequencies = TRUE;
 	      tr->initialPartitionData[modelNumber].dataType   = AA_DATA;
 	      found = TRUE;
+
+	      if(tr->initialPartitionData[modelNumber].protModels == AUTO)
+		{
+		  printf("\nError: Option AUTOX has been deprecated, exiting\n\n");
+		  errorExit(-1);
+		}
+	      
+	      if(tr->initialPartitionData[modelNumber].protModels == LG4M || tr->initialPartitionData[modelNumber].protModels == LG4X)
+		{
+		  printf("\nError: Options LG4MX and LG4XX have been deprecated.\n");
+		  printf("They shall only be used with the given base frequencies of the model, exiting\n\n");
+		  errorExit(-1);
+		}
+
 	    }	
 
 	  /*if(found)
@@ -200,28 +227,39 @@ static void analyzeIdentifier(char **ch, int modelNumber, tree *tr)
 		      tr->initialPartitionData[modelNumber].protModels = -1;		  
 		      tr->initialPartitionData[modelNumber].protFreqs  = -1;
 		      tr->initialPartitionData[modelNumber].dataType   = BINARY_DATA;
-		      
+		      tr->initialPartitionData[modelNumber].optimizeBaseFrequencies = FALSE;
 		      found = TRUE;
 		    }
 		  else
 		    {
-		      if(strcasecmp(model, "MULTI") == 0)
-			{	     	      
+		      if(strcasecmp(model, "BINX") == 0)
+			{
 			  tr->initialPartitionData[modelNumber].protModels = -1;		  
 			  tr->initialPartitionData[modelNumber].protFreqs  = -1;
-			  tr->initialPartitionData[modelNumber].dataType   = GENERIC_32;
-			  
+			  tr->initialPartitionData[modelNumber].dataType   = BINARY_DATA;
+			  tr->initialPartitionData[modelNumber].optimizeBaseFrequencies = TRUE;
 			  found = TRUE;
 			}
 		      else
 			{
-			  if(strcasecmp(model, "CODON") == 0)
+			  if(strcasecmp(model, "MULTI") == 0)
 			    {	     	      
 			      tr->initialPartitionData[modelNumber].protModels = -1;		  
 			      tr->initialPartitionData[modelNumber].protFreqs  = -1;
-			      tr->initialPartitionData[modelNumber].dataType   = GENERIC_64;
+			      tr->initialPartitionData[modelNumber].dataType   = GENERIC_32;
 			      
 			      found = TRUE;
+			    }
+			  else
+			    {
+			      if(strcasecmp(model, "CODON") == 0)
+				{	     	      
+				  tr->initialPartitionData[modelNumber].protModels = -1;		  
+				  tr->initialPartitionData[modelNumber].protFreqs  = -1;
+				  tr->initialPartitionData[modelNumber].dataType   = GENERIC_64;
+				  
+				  found = TRUE;
+				}
 			    }
 			}
 		    }
@@ -499,13 +537,20 @@ void parsePartitions(analdef *adef, rawdata *rdta, tree *tr)
       if(*ch == '\\')
 	{
 	  ch++;
-	  skipWhites(&ch);
-	  
+	  skipWhites(&ch);	 	
+
 	  if(!isNum(*ch))
 	    {
 	      printf("%c Number expected in %s\n", *ch, p_names[i]);
 	      exit(-1);
-	    }     
+	    }   
+
+	  if(adef->compressPatterns == FALSE)
+	    {
+	      printf("\nError: You are not allowed to use interleaved partitions, that is, assign non-contiguous sites\n");
+	      printf("to the same partition model, when pattern compression is disabled via the -c flag!\n\n");
+	      exit(-1);
+	    }
 	  
 	  l = 0;
 	  while(isNum(*ch))
@@ -530,6 +575,8 @@ void parsePartitions(analdef *adef, rawdata *rdta, tree *tr)
 	    }
 	}  
       
+      
+      printf("\nError: You may be using \"/\" for specifying interleaved partitions in the model file, while it should be \"\\\" !\n\n");
       assert(0);
        
     parsed:

@@ -148,7 +148,7 @@ void gatherDistributedArray(tree *tr, void **destinationPtr, void *src, MPI_Data
     corresponds to what previously was tr->lhs). This strongly couples
     the respective distributed array to tr->partAssigns.
    */ 
-  if( processID == 0 )
+  if(processID == 0)
     {
       int
 	i, 
@@ -175,6 +175,8 @@ void gatherDistributedArray(tree *tr, void **destinationPtr, void *src, MPI_Data
       /* check, if everything has been reordered */
       for(i = 0; i < processes; ++i)
       	assert(seenPerProcesses[i] == countPerProc[i]);
+
       free(seenPerProcesses); 
+      free(destinationUnordered);
     }
 }
