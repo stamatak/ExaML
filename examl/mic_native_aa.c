@@ -1031,8 +1031,17 @@ void newviewGTRGAMMAPROT_LG4_MIC(int tipCase,
 
 
 double evaluateGAMMAPROT_LG4_MIC(int *wgt, double *x1_start, double *x2_start, double *tipVector,
-                 unsigned char *tipX1, const int n, double *diagptable)
+                 unsigned char *tipX1, const int n, double *diagptable, double *weights)
 {
+    double wtable[span] __attribute__((align(BYTE_ALIGNMENT)));
+
+    /* pre-multiply diagptable entries with the corresponding weights */
+    for(int j = 0; j < 4; j++)
+      for(int k = 0; k < states; k++)
+	{
+	  wtable[j * states + k] = diagptable[j * states + k] * weights[j];
+	}
+
     double sum = 0.0;
 
     /* the left node is a tip */
@@ -1063,10 +1072,10 @@ double evaluateGAMMAPROT_LG4_MIC(int *wgt, double *x1_start, double *x2_start, d
 	  #pragma noprefetch x2
 	  for(int j = 0; j < span; j++)
 	    {
-	      term += x1[j] * x2[j] * diagptable[j];
+	      term += x1[j] * x2[j] * wtable[j];
 	    }
 
-	  term = log(0.25 * fabs(term));
+	  term = log(fabs(term));
 
 	  sum += wgt[i] * term;
         }
@@ -1094,9 +1103,9 @@ double evaluateGAMMAPROT_LG4_MIC(int *wgt, double *x1_start, double *x2_start, d
 	  #pragma vector aligned
 	  #pragma noprefetch x1 x2
 	  for(int j = 0; j < span; j++)
-	    term += x1[j] * x2[j] * diagptable[j];
+	    term += x1[j] * x2[j] * wtable[j];
 
-	  term = log(0.25 * fabs(term));
+	  term = log(fabs(term));
 
 	  sum += wgt[i] * term;
 	}
@@ -1183,7 +1192,8 @@ void sumGAMMAPROT_LG4_MIC(int tipCase, double *sumtable, double *x1_start, doubl
 }
 
 void coreGTRGAMMAPROT_LG4_MIC(const int upper, double *sumtable,
-    volatile double *ext_dlnLdlz,  volatile double *ext_d2lnLdlz2, double *EIGN[4], double *gammaRates, double lz, int *wgt)
+    volatile double *ext_dlnLdlz,  volatile double *ext_d2lnLdlz2, double *EIGN[4], double *gammaRates,
+    double lz, int *wgt, double *weights)
 {
     double diagptable0[span] __attribute__((align(BYTE_ALIGNMENT)));
     double diagptable1[span] __attribute__((align(BYTE_ALIGNMENT)));
@@ -1198,13 +1208,13 @@ void coreGTRGAMMAPROT_LG4_MIC(const int upper, double *sumtable,
         const double ki = gammaRates[i];
         const double kisqr = ki * ki;
 
-        diagptable0[i*states] = 1.;
+        diagptable0[i*states] = 1. * weights[i];
         diagptable1[i*states] = 0.;
         diagptable2[i*states] = 0.;
 
         for(int l = 1; l < states; l++)
         {
-          diagptable0[i * states + l]  = exp(EIGN[i][l] * ki * lz);
+          diagptable0[i * states + l]  = exp(EIGN[i][l] * ki * lz) * weights[i];
           diagptable1[i * states + l] = EIGN[i][l] * ki;
           diagptable2[i * states + l] = EIGN[i][l] * EIGN[i][l] * kisqr;
         }

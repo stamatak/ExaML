@@ -702,6 +702,9 @@ void evaluateIterative(tree *tr)
 	  switch(states)
 	    { 	  
 	    case 2:
+#ifdef __MIC_NATIVE
+ 	      assert(0 && "Binary data model is not implemented on Intel MIC");
+#else
 	      assert(!tr->saveMemory);
 	      if(tr->rateHetModel == CAT)
 		partitionLikelihood = evaluateGTRCAT_BINARY((int *)NULL, (int *)NULL, tr->partitionData[model].rateCategory, wgt,
@@ -712,6 +715,7 @@ void evaluateIterative(tree *tr)
 							     x1_start, x2_start, 
 							     tr->partitionData[model].tipVector,
 							     tip, width, diagptable, TRUE);	      	      
+#endif
 	      break;
 	    case 4: /* DNA */
 	      {
@@ -794,10 +798,9 @@ void evaluateIterative(tree *tr)
 		      {
 			if(tr->partitionData[model].protModels == LG4M || tr->partitionData[model].protModels == LG4X)
 #ifdef __MIC_NATIVE
-			  //TODO alexey
 			 partitionLikelihood = evaluateGAMMAPROT_LG4_MIC(wgt,
                                x1_start, x2_start, tr->partitionData[model].mic_tipVector,
-                               tip, width, diagptable);
+                               tip, width, diagptable, weights);
 #else
 			  partitionLikelihood =  evaluateGTRGAMMAPROT_LG4((int *)NULL, (int *)NULL, wgt,
 									  x1_start, x2_start, tr->partitionData[model].tipVector_LG4,

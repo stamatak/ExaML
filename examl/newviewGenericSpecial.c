@@ -987,7 +987,7 @@ void newviewIterative (tree *tr, int startIndex)
 	  switch (tr->partitionData[model].states)
 	    {
 	    case 2: /* BINARY data */
-	      assert(0); //TODO Alexey?
+	      assert(0 && "Binary data model is not implemented on Intel MIC");
 	      break;
 	    case 4: /* DNA data */
 	      {
@@ -1003,8 +1003,7 @@ void newviewIterative (tree *tr, int startIndex)
 	      break;
 	    case 20: /* AA data */
 	      {
-		//TODO alexey
-		if(tr->partitionData[model].protModels == LG4)
+		if(tr->partitionData[model].protModels == LG4M || tr->partitionData[model].protModels == LG4X)
 		  {
 		    makeP_PROT_LG4_MIC(qz, rz, tr->partitionData[model].gammaRates,
 				       tr->partitionData[model].EI_LG4, tr->partitionData[model].EIGN_LG4,
@@ -1301,6 +1300,9 @@ void newviewIterative (tree *tr, int startIndex)
 	      switch(states)
 		{		
 		case 2:
+#ifdef __MIC_NATIVE
+ 	      assert(0 && "Binary data model is not implemented on Intel MIC");
+#else
 		  assert(!tr->saveMemory);
 		  if(tr->rateHetModel == CAT)
 		    newviewGTRCAT_BINARY(tInfo->tipCase,  tr->partitionData[model].EV,  tr->partitionData[model].rateCategory,
@@ -1313,8 +1315,8 @@ void newviewIterative (tree *tr, int startIndex)
 					   tr->partitionData[model].EV, tr->partitionData[model].tipVector,
 					   (int *)NULL, tipX1, tipX2,
 					   width, left, right, wgt, &scalerIncrement, TRUE);		 
+#endif
 		  break;
-
 		case 4:	/* DNA */
 		  if(tr->rateHetModel == CAT)
 		    {		    		     
@@ -1458,7 +1460,6 @@ void newviewIterative (tree *tr, int startIndex)
 			  if(tr->partitionData[model].protModels == LG4M || tr->partitionData[model].protModels == LG4X)
 			    {
 #ifdef __MIC_NATIVE
-			      //todo alexey
 			      newviewGTRGAMMAPROT_LG4_MIC(tInfo->tipCase,
 							x1_start, x2_start, x3_start, tr->partitionData[model].mic_EV, tr->partitionData[model].mic_tipVector,
 							tipX1, tipX2,

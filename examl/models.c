@@ -3564,8 +3564,7 @@ void initReversibleGTR(tree *tr, int model)
   updateFracChange(tr);
 
 #ifdef __MIC_NATIVE
-  //TODO alexey
-  if(tr->partitionData[model].protModels == LG4M)
+  if(tr->partitionData[model].protModels == LG4M || tr->partitionData[model].protModels == LG4X)
     updateModel_LG4_MIC(&tr->partitionData[model]);
   else
     updateModel_MIC(&tr->partitionData[model]);

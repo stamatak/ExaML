@@ -727,7 +727,10 @@ void makenewzIterative(tree *tr)
 #else
 	  switch(states)
 	    {
-	    case 2:	      
+	    case 2:
+#ifdef __MIC_NATIVE
+ 	      assert(0 && "Binary data model is not implemented on Intel MIC");
+#else
 	      assert(!tr->saveMemory);
 	      if(tr->rateHetModel == CAT)
 		sumCAT_BINARY(tipCase, sumBuffer, x1_start, x2_start, tr->partitionData[model].tipVector,
@@ -735,6 +738,7 @@ void makenewzIterative(tree *tr)
 	      else
 		sumGAMMA_BINARY(tipCase, sumBuffer, x1_start, x2_start, tr->partitionData[model].tipVector,
 				tipX1, tipX2, width);
+#endif
 	      break;
 	    case 4: /* DNA */
 	      if(tr->rateHetModel == CAT)
@@ -804,7 +808,6 @@ void makenewzIterative(tree *tr)
 		    {
 		      if(tr->partitionData[model].protModels == LG4M || tr->partitionData[model].protModels == LG4X)		      			   		
 #ifdef __MIC_NATIVE
-			//todo alexey?
 			sumGAMMAPROT_LG4_MIC(tipCase, sumBuffer, x1_start, x2_start, tr->partitionData[model].mic_tipVector, tipX1, tipX2,
 					     width);
 #else
@@ -982,6 +985,9 @@ void execCore(tree *tr, volatile double *_dlnLdlz, volatile double *_d2lnLdlz2)
 	    switch(states)
 	      {
 	      case 2:
+#ifdef __MIC_NATIVE
+ 	      assert(0 && "Binary data model is not implemented on Intel MIC");
+#else
 		assert(!tr->saveMemory);
 		if(tr->rateHetModel == CAT)
 		  coreGTRCAT_BINARY(width, tr->partitionData[model].numberOfCategories, sumBuffer,
@@ -993,6 +999,7 @@ void execCore(tree *tr, volatile double *_dlnLdlz, volatile double *_d2lnLdlz2)
 				       &dlnLdlz, &d2lnLdlz2, 
 				       tr->partitionData[model].EIGN, 
 				       tr->partitionData[model].gammaRates, lz, wgt);
+#endif
 		break;
 	      case 4: /* DNA */
 		if(tr->rateHetModel == CAT)
@@ -1028,9 +1035,9 @@ void execCore(tree *tr, volatile double *_dlnLdlz, volatile double *_d2lnLdlz2)
 		{
 		  if(tr->partitionData[model].protModels == LG4M || tr->partitionData[model].protModels == LG4X)
 #ifdef __MIC_NATIVE
-		    //todo alexey
 		    coreGTRGAMMAPROT_LG4_MIC(width, sumBuffer,
-					     &dlnLdlz, &d2lnLdlz2, tr->partitionData[model].EIGN_LG4, tr->partitionData[model].gammaRates, lz, wgt);
+					     &dlnLdlz, &d2lnLdlz2, tr->partitionData[model].EIGN_LG4, tr->partitionData[model].gammaRates,
+					     lz, wgt, weights);
 #else
 		  {
 		    //printf("model %d weights %f %f %f %f\n", model, weights[0], weights[1], weights[2], weights[3]);
