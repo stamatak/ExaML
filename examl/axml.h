@@ -251,12 +251,13 @@
 #define HIVW       15
 #define JTTDCMUT   16
 #define FLU        17 
-#define AUTO       18
-#define LG4M       19
-#define LG4X       20
-#define GTR        21  /* GTR always needs to be the last one */
+#define STMTREV    18
+#define AUTO       19
+#define LG4M       20
+#define LG4X       21
+#define GTR        22  /* GTR always needs to be the last one */
 
-#define NUM_PROT_MODELS 22
+#define NUM_PROT_MODELS 23
 
 /* bipartition stuff */
 

@@ -1,4 +1,4 @@
 #define programName        "ExaML"
-#define programVersion     "3.0.8"
-#define programVersionInt  308
-#define programDate        "December 19 2014"
+#define programVersion     "3.0.9"
+#define programVersionInt  309
+#define programDate        "December 25 2014"
