@@ -1683,11 +1683,16 @@ static void printModelParams(tree *tr, analdef *adef, int treeIteration)
   char 
     fileName[2048],
     buf[64];
-
+  
+  
   strcpy(fileName, modelFileName);
-  strcat(fileName, ".");
-  sprintf(buf, "%d", treeIteration);
-  strcat(fileName, buf);
+
+  if(treeIteration >= 0)
+    {
+      strcat(fileName, ".");
+      sprintf(buf, "%d", treeIteration);
+      strcat(fileName, buf);
+    }
 
   for(model = 0; model < tr->NumberOfModels; model++)
     {
@@ -1787,6 +1792,7 @@ static void finalizeInfoFile(tree *tr, analdef *adef)
 	  printBothOpen("\nOverall accumulated Time (in case of restarts): %f\n\n", accumulatedTime);
 	  printBothOpen("Likelihood   : %f\n", tr->likelihood);
 	  printBothOpen("\n\n");	  	  
+	  printBothOpen("Model parameters written to:           %s\n", modelFileName);
 	  printBothOpen("Final tree written to:                 %s\n", resultFileName);
 	  printBothOpen("Execution Log File written to:         %s\n", logFileName);
 	  printBothOpen("Execution information file written to: %s\n",infoFileName);	
@@ -2668,6 +2674,11 @@ int main (int argc, char *argv[])
 	    /* now start the ML search algorithm */
 	    
 	    computeBIGRAPID(tr, adef, TRUE); 			     
+
+	    /* now print the model parameters to file */
+	    if(processID == 0)
+	      printModelParams(tr, adef, -1);
+	    
 	  }         
 	break;
       default:
