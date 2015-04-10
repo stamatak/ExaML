@@ -576,11 +576,13 @@ void evaluateIterative(tree *tr)
 	    states = tr->partitionData[model].states,
 
 	    /* span for single alignment site (in doubles!) */
-	    span = rateHet * states,
+	    span = rateHet * states;
 
+	  size_t
 	    /* offset for current thread's data in global xVector (in doubles!) */
-	    x_offset = offset * span,
+	    x_offset = offset * (size_t)span;
 
+	  int
 	    /* integer weight vector with pattern compression weights */
 	    *wgt = tr->partitionData[model].wgt + offset,
 

@@ -1149,7 +1149,7 @@ void newviewIterative (tree *tr, int startIndex)
 		  
 		  /* span for single alignment site (in doubles!) */
 		  span = rateHet * states,
-		  x_offset = offset * span,
+		  x_offset = offset * (size_t)span,
 		  
 		  
 		  /* get the length of the current likelihood array stored at node p. This is 
