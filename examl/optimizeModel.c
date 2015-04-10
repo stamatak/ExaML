@@ -1881,18 +1881,62 @@ static void categorizePartition(tree *tr, rateCategorize *rc, int model, int low
 
 static void optRateCatPthreads(tree *tr, double lower_spacing, double upper_spacing)
 {
-  int 
-    model;
+#ifdef _USE_OMP
+#pragma omp parallel
+#endif
+  {
+    int
+      m,
+      model,
+      maxModel;
 
-  size_t
-    i;
+#ifdef _USE_OMP
+    maxModel = tr->maxModelsPerThread;
+#else
+    maxModel = tr->NumberOfModels;
+#endif
 
-  for(model = 0; model < tr->NumberOfModels; model++)
-    {   
+  for(m = 0; m < maxModel; m++)
+    {
+      /* just defaults -> if partion wasn't assigned to this thread, it will be ignored later on */
+      size_t
+	width = 0,
+	offset = 0;
+
+#ifdef _USE_OMP
+    	  int
+    	    tid = omp_get_thread_num();
+
+    	  /* check if this thread should process this partition */
+    	  Assign*
+	    pAss = tr->threadPartAssigns[tid * tr->maxModelsPerThread + m];
+
+    	  if(pAss)
+	    {
+	      model  = pAss->partitionId;
+	      width  = pAss->width;
+	      offset = pAss->offset;
+
+	      assert(model < tr->NumberOfModels);
+	    }
+    	  else
+    	    break;
+
+#else
+    	  model = m;
+
+    	  /* number of sites in this partition */
+	  width  = (size_t)tr->partitionData[model].width;
+	  offset = 0;
+#endif
+
+      size_t
+	i;
+
       pInfo 
 	*partition = &(tr->partitionData[model]); 
       
-      for( i = 0; i < partition->width; ++i)
+      for( i = offset; i < offset + width; ++i)
 	{
 	  double 
 	    initialRate, 
@@ -1964,6 +2008,7 @@ static void optRateCatPthreads(tree *tr, double lower_spacing, double upper_spac
 	    partition->lhs[i] = initialLikelihood;	    
 	}
     }
+  }
 }
 
 

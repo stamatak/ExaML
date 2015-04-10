@@ -2547,6 +2547,14 @@ int main (int argc, char *argv[])
     
     makeFileNames();
 
+#ifdef _USE_OMP
+    if(tr->saveMemory)
+      {
+	printBothOpen("\nError: Memory saving option \"-S\" is not supported by the OpenMP version of ExaML!\n\n");
+	error_MPI_Exit();
+      }
+#endif
+
     readByteFile(tr, processID, processes );
 
 #ifdef _USE_OMP

@@ -41,11 +41,16 @@
 
 #ifdef __MIC_NATIVE
 #define BYTE_ALIGNMENT 64
+#define VECTOR_PADDING 8
 #elif defined __AVX
 #define BYTE_ALIGNMENT 32
+#define VECTOR_PADDING 1
 #else
 #define BYTE_ALIGNMENT 16
+#define VECTOR_PADDING 1
 #endif
+
+#define GET_PADDED_WIDTH(w) w % VECTOR_PADDING == 0 ? w : w + (VECTOR_PADDING - (w % VECTOR_PADDING))
 
 #include <mpi.h>
 
@@ -1394,3 +1399,5 @@ void gatherDistributedArray(tree *tr, void **destination, void *src, MPI_Datatyp
 #endif
 
 
+
+#
