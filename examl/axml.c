@@ -931,6 +931,7 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
     likelihoodEpsilon;
   
   int        
+    fOptionCount = 0,
     c,
     nameSet = 0,
     treeSet = 0,   
@@ -1091,6 +1092,13 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	    break;     
 	  case 'f':
 	    sscanf(optarg, "%c", &modelChar);
+	    fOptionCount++;
+	    if(fOptionCount > 1) 
+	      {
+		printf("\nError: only one of the various \"-f \" options can be used per ExaML run!\n");
+		printf("They are mutually exclusive! exiting ...\n\n");
+		errorExit(-1);
+	      }
 	    switch(modelChar)
 	      {	 
 	      case 'e':
