@@ -2503,8 +2503,8 @@ static void genericBaseFrequencies(tree *tr, const int numFreqs, rawdata *rdta, 
 		}
 	      break;	       
 	    case 20:
-	      if(yptr[i] > 0 && yptr[i] < 20)
-		statesPresent[yptr[i]] = 1;
+	      if(yptr[j] >= 0 && yptr[j] < 20)
+		statesPresent[yptr[j]] = 1;
 	      break;
 	    default:
 	      assert(0);
