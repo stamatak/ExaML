@@ -576,10 +576,7 @@ static boolean setupTree (tree *tr)
   inter = tr->mxtips - 1;
 
   /* printf("%d tips\t%d inner\n", tips, inter); */
- 
-  
-  tr->fracchanges  = (double *)malloc(tr->NumberOfModels * sizeof(double));
-  tr->rawFracchanges  = (double *)malloc(tr->NumberOfModels * sizeof(double));
+   
   
   tr->treeStringLength = tr->mxtips * (nmlngth+128) + 256 + tr->mxtips * 2;
 
@@ -595,16 +592,7 @@ static boolean setupTree (tree *tr)
   tr->td[0].count = 0;
   tr->td[0].ti    = (traversalInfo *)malloc(sizeof(traversalInfo) * tr->mxtips);
   tr->td[0].executeModel = (boolean *)malloc(sizeof(boolean) * tr->NumberOfModels);
-  tr->td[0].parameterValues = (double *)malloc(sizeof(double) * tr->NumberOfModels);
-  
-  for(i = 0; i < tr->NumberOfModels; i++)
-    {
-      tr->fracchanges[i] = -1.0;
-      tr->rawFracchanges[i] = -1.0;
-    }
-  
-  tr->fracchange = -1.0;
-  tr->rawFracchange = -1.0;
+  tr->td[0].parameterValues = (double *)malloc(sizeof(double) * tr->NumberOfModels);  
   
   tr->constraintVector = (int *)malloc((2 * tr->mxtips) * sizeof(int));
 
@@ -1632,13 +1620,9 @@ static double branchLength(int model, double *z, tree *tr)
  
   assert(x <= zmax);
   
-  if(tr->numBranches == 1)             
-    x = -log(x) * tr->fracchange;       
-  else
-    x = -log(x) * tr->fracchanges[model];
-
+  x = -log(x);
+  
   return x;
-
 }
 
 
@@ -1967,6 +1951,7 @@ static void initializePartitions(tree *tr)
 	  
 	  for(k = 0; k < 4; k++)
 	    {	    
+	      tr->partitionData[model].rawEIGN_LG4[k]              = (double*)malloc(pl->eignLength * sizeof(double));
 	      tr->partitionData[model].EIGN_LG4[k]              = (double*)malloc(pl->eignLength * sizeof(double));
 	      tr->partitionData[model].EV_LG4[k]                = (double*)malloc_aligned(pl->evLength * sizeof(double));
 	      tr->partitionData[model].EI_LG4[k]                = (double*)malloc(pl->eiLength * sizeof(double));

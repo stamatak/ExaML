@@ -3063,30 +3063,7 @@ static void initProtMat(double f[20], int proteinMatrix, double *ext_initialRate
 }
 
           
-static void updateFracChange(tree *tr)
-{   
-  if(tr->NumberOfModels == 1)    
-    {   
-      assert(tr->fracchanges[0] != -1.0);
-      tr->fracchange = tr->fracchanges[0];      
-      tr->fracchanges[0] = -1.0;
-    }      
-  else
-    {
-      int 
-	model;      
-     
-      assert(tr->NumberOfModels > 1);
 
-      tr->fracchange = 0.0;	                     
- 	        
-      for(model = 0; model < tr->NumberOfModels; model++)                   
-	tr->fracchange +=  tr->partitionContributions[model] * tr->fracchanges[model];	
-    }
-
-  tr->rawFracchange = tr->fracchange;
-  memcpy(tr->rawFracchanges, tr->fracchanges, sizeof(double) * tr->NumberOfModels);
-}
 
 static void mytred2(double **a, const int n, double *d, double *e)
 {
@@ -3254,8 +3231,7 @@ static void makeEigen(double **_a, const int n, double *d, double *e)
   mytqli(d, e, n, _a);
 }
 
-static void initGeneric(const int n, const unsigned int *valueVector, int valueVectorLength,
-			double *fracchanges,
+static void initGeneric(const int n, const unsigned int *valueVector, int valueVectorLength,		      
 			double *ext_EIGN,
 			double *EV,
 			double *EI,
@@ -3265,6 +3241,7 @@ static void initGeneric(const int n, const unsigned int *valueVector, int valueV
 			int model)
 {
   double 
+    fracchange = 0.0,
     **r, 
     **a, 
     **EIGV,
@@ -3319,15 +3296,11 @@ static void initGeneric(const int n, const unsigned int *valueVector, int valueV
       r[j][j] = 0.0;
       for (k = 0; k < j; k++)
 	r[j][k] = r[k][j];
-    }                         
-  
-  
-
-  fracchanges[model] = 0.0;         
+    }                            
   
   for (j = 0; j< n; j++)
     for (k = 0; k< n; k++)
-      fracchanges[model] += f[j] * r[j][k] * f[k];             
+      fracchange += f[j] * r[j][k] * f[k];             
   
   m = 0;
   
@@ -3392,7 +3365,7 @@ static void initGeneric(const int n, const unsigned int *valueVector, int valueV
 
   for(l = 1; l < n; l++)
     {
-      ext_EIGN[l] = EIGN[l]; 
+      ext_EIGN[l] = EIGN[l] * (1.0 / fracchange); 
       assert(ext_EIGN[l] > 0.0);
     }
   
@@ -3488,8 +3461,7 @@ static void initGeneric(const int n, const unsigned int *valueVector, int valueV
 
 void initReversibleGTR(tree *tr, int model)
 { 
-  double   
-    *fracchanges      = tr->fracchanges,    
+  double      
     *ext_EIGN         = tr->partitionData[model].EIGN,
     *EV               = tr->partitionData[model].EV,
     *EI               = tr->partitionData[model].EI,
@@ -3511,8 +3483,7 @@ void initReversibleGTR(tree *tr, int model)
     case BINARY_DATA:     
       initGeneric(states, 
 		  getBitVector(tr->partitionData[model].dataType), 
-		  getUndetermined(tr->partitionData[model].dataType) + 1, 
-		  fracchanges,
+		  getUndetermined(tr->partitionData[model].dataType) + 1, 	       
 		  ext_EIGN, 
 		  EV, 
 		  EI, 
@@ -3585,35 +3556,20 @@ void initReversibleGTR(tree *tr, int model)
      if(tr->partitionData[model].protModels == LG4M || tr->partitionData[model].protModels == LG4X)
        {
 	 int 
-	   i;
+	   i;	 
 
-	 double 
-	   *fracchanges_LG4[4],
-	   acc = 0.0;
+	 for(i = 0; i < 4; i++)	   	     
+	   initGeneric(states, bitVectorAA, 23, 
+		       tr->partitionData[model].rawEIGN_LG4[i],  tr->partitionData[model].EV_LG4[i],  
+		       tr->partitionData[model].EI_LG4[i], tr->partitionData[model].frequencies_LG4[i], 
+		       tr->partitionData[model].substRates_LG4[i],
+		       tr->partitionData[model].tipVector_LG4[i], 
+		       model);   	 	 
 
-	 /* TODO frac change !*/
-
-	 for(i = 0; i < 4; i++)
-	   {
-	     fracchanges_LG4[i]  = (double *)malloc(tr->NumberOfModels * sizeof(double));
-	     initGeneric(states, bitVectorAA, 23, fracchanges_LG4[i],
-			 tr->partitionData[model].EIGN_LG4[i],  tr->partitionData[model].EV_LG4[i],  
-			 tr->partitionData[model].EI_LG4[i], tr->partitionData[model].frequencies_LG4[i], 
-			 tr->partitionData[model].substRates_LG4[i],
-			 tr->partitionData[model].tipVector_LG4[i], 
-			 model);   
-	   }
-
-	 for(i = 0; i < 4; i++)
-	   {	    
-	     acc += fracchanges_LG4[i][model];
-	     free(fracchanges_LG4[i]);
-	   }
-
-	 tr->fracchanges[model] = acc / 4;
+	 scaleLG4X_EIGN(tr, model);
        }
      else
-       initGeneric(states, bitVectorAA, 23, fracchanges,
+       initGeneric(states, bitVectorAA, 23,
 		   ext_EIGN, EV, EI, frequencies, ext_initialRates,
 		   tipVector, 
 		   model);                   
@@ -3621,8 +3577,6 @@ void initReversibleGTR(tree *tr, int model)
    default:
      assert(0);
    } 
-
-  updateFracChange(tr);
 
 #ifdef __MIC_NATIVE
   if(tr->partitionData[model].protModels == LG4M || tr->partitionData[model].protModels == LG4X)
@@ -4266,8 +4220,7 @@ void initModel(tree *tr)
       
       if(tr->partitionData[model].protModels == AUTO)
 	tr->partitionData[model].autoProtModels = WAG; /* initialize by WAG per default when AUTO is used */
-                         
-      initReversibleGTR(tr, model);
+                              
       makeGammaCats(tr->partitionData[model].alpha, tr->partitionData[model].gammaRates, 4, tr->useMedian);     
 
       for(k = 0; k < tr->partitionData[model].states; k++)
@@ -4281,15 +4234,8 @@ void initModel(tree *tr)
 	  tr->partitionData[model].weightExponents[k] = 0.0;
 	}
 
-    }                   		       
-  
-  if(tr->NumberOfModels > 1)
-    {
-      tr->fracchange = 0;
-      for(model = 0; model < tr->NumberOfModels; model++)	
-	tr->fracchange += tr->fracchanges[model];      
-      tr->fracchange /= ((double)tr->NumberOfModels);
-    }  
+      initReversibleGTR(tr, model);
+    }                   		           
 }
 
 

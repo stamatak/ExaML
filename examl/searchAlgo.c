@@ -1210,18 +1210,7 @@ static void writeCheckpointInner(tree *tr, int *rateCategory, double *patrat, an
     {
       myBinFwrite(rateCategory, sizeof(int), tr->originalCrunchedLength, f);
       myBinFwrite(patrat, sizeof(double), tr->originalCrunchedLength, f);
-    }
-
-  /* need to store this as well in checkpoints, otherwise the branch lengths 
-     in the output tree files will be wrong, not the internal branch lengths though */
-  
-  myBinFwrite(tr->fracchanges,  sizeof(double), tr->NumberOfModels, f);
-  myBinFwrite(&(tr->fracchange),   sizeof(double), 1, f);
-
-  //LG4X related stuff
-
-  myBinFwrite(tr->rawFracchanges,  sizeof(double), tr->NumberOfModels, f);
-  myBinFwrite(&(tr->rawFracchange),   sizeof(double), 1, f);
+    }  
 
   //end
 
@@ -1257,6 +1246,7 @@ static void writeCheckpointInner(tree *tr, int *rateCategory, double *patrat, an
 	  
 	  for(k = 0; k < 4; k++)
 	    {
+	      myBinFwrite(tr->partitionData[model].rawEIGN_LG4[k], sizeof(double), pLengths[dataType].eignLength, f);
 	      myBinFwrite(tr->partitionData[model].EIGN_LG4[k], sizeof(double), pLengths[dataType].eignLength, f);
 	      myBinFwrite(tr->partitionData[model].EV_LG4[k], sizeof(double),  pLengths[dataType].evLength, f);
 	      myBinFwrite(tr->partitionData[model].EI_LG4[k], sizeof(double),  pLengths[dataType].eiLength, f);    
@@ -1641,16 +1631,9 @@ static void readCheckpoint(tree *tr, analdef *adef)
     }
 
 
-  /* need to read this as well in checkpoints, otherwise the branch lengths 
-     in the output tree files will be wrong, not the internal branch lengths though */
   
-  myBinFread(tr->fracchanges,  sizeof(double), tr->NumberOfModels, f);
-  myBinFread(&(tr->fracchange),   sizeof(double), 1, f);
-
-  //LG4X related stuff
-
-  myBinFread(tr->rawFracchanges,  sizeof(double), tr->NumberOfModels, f);
-  myBinFread(&(tr->rawFracchange),   sizeof(double), 1, f);
+  
+ 
 
   //end
 
@@ -1686,6 +1669,7 @@ static void readCheckpoint(tree *tr, analdef *adef)
 	  
 	  for(k = 0; k < 4; k++)
 	    {
+	       myBinFread(tr->partitionData[model].rawEIGN_LG4[k], sizeof(double), pLengths[dataType].eignLength, f);
 	      myBinFread(tr->partitionData[model].EIGN_LG4[k], sizeof(double), pLengths[dataType].eignLength, f);
 	      myBinFread(tr->partitionData[model].EV_LG4[k], sizeof(double),  pLengths[dataType].evLength, f);
 	      myBinFread(tr->partitionData[model].EI_LG4[k], sizeof(double),  pLengths[dataType].eiLength, f);    

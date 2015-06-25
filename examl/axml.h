@@ -564,6 +564,7 @@ typedef struct {
 
    /* LG4 */
 
+  double *rawEIGN_LG4[4];
   double *EIGN_LG4[4];
   double *EV_LG4[4];
   double *EI_LG4[4];   
@@ -735,7 +736,6 @@ typedef struct {
   double substRates[190];        
   double frequencies[20] ;      
   double tipVector[460] __attribute__ ((aligned (BYTE_ALIGNMENT)));
-  double fracchange[1];
   double left[1600] __attribute__ ((aligned (BYTE_ALIGNMENT)));
   double right[1600] __attribute__ ((aligned (BYTE_ALIGNMENT)));
 } siteAAModels;
@@ -790,11 +790,6 @@ typedef  struct  {
   /* the stuff below is shared among DNA and AA, span does
      not change depending on datatype */
 
-  
-  double           *fracchanges;
-
-  double           *rawFracchanges;
-
   /* model stuff end */
 
   unsigned char             **yVector;
@@ -808,8 +803,6 @@ typedef  struct  {
   double            *partitionContributions;
   double            *partitionWeights;
 
-  double            fracchange;
-  double            rawFracchange;
   double            lhCutoff;
   double            lhAVG;
   unsigned long     lhDEC;
@@ -1319,8 +1312,10 @@ extern void writeCheckpoint(tree *tr, analdef *adef);
 extern boolean isGap(unsigned int *x, int pos);
 extern boolean noGap(unsigned int *x, int pos);
 
-void myBinFwrite(void *ptr, size_t size, size_t nmemb, FILE *byteFile);
-void myBinFread(void *ptr, size_t size, size_t nmemb, FILE *byteFile);
+extern void scaleLG4X_EIGN(tree *tr, int model);
+
+extern void myBinFwrite(void *ptr, size_t size, size_t nmemb, FILE *byteFile);
+extern void myBinFread(void *ptr, size_t size, size_t nmemb, FILE *byteFile);
 
 #ifdef __AVX
 

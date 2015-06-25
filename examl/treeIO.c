@@ -182,15 +182,12 @@ static double getBranchLength(tree *tr, int perGene, nodeptr p)
   assert(perGene != NO_BRANCHES);
 	      
   if(tr->numBranches == 1)
-    {
-      assert(tr->fracchange != -1.0);
-    
+    {          
       z = p->z[0];
       if (z < zmin) 
 	z = zmin;      	 
       
-      x = -log(z) * tr->fracchange;  
-      /* printf("%f %f %f\n", tr->fracchange, x, z);           */
+      x = -log(z);    
     }
   else
     {
@@ -203,21 +200,18 @@ static double getBranchLength(tree *tr, int perGene, nodeptr p)
 	    avgX = 0.0;
 		      
 	  for(i = 0; i < tr->numBranches; i++)
-	    {
-	      assert(tr->partitionContributions[i] != -1.0);
-	      assert(tr->fracchanges[i] != -1.0);
+	    {	  
 	      z = p->z[i];
 	      if(z < zmin) 
 		z = zmin;      	 
-	      x = -log(z) * tr->fracchanges[i];
+	      x = -log(z);
 	      avgX += x * tr->partitionContributions[i];
 	    }
 
 	  x = avgX;
 	}
       else
-	{	
-	  assert(tr->fracchanges[perGene] != -1.0);
+	{		  
 	  assert(perGene >= 0 && perGene < tr->numBranches);
 	  
 	  z = p->z[perGene];
@@ -225,7 +219,7 @@ static double getBranchLength(tree *tr, int perGene, nodeptr p)
 	  if(z < zmin) 
 	    z = zmin;      	 
 	  
-	  x = -log(z) * tr->fracchanges[perGene];	  
+	  x = -log(z);	  
 	}
     }
 
