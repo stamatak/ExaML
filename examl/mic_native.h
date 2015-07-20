@@ -83,13 +83,13 @@ void newviewGTRGAMMAPROT_LG4_MIC(int tipCase,
 double evaluateGAMMAPROT_LG4_MIC(int *wptr,
                  double *x1_start, double *x2_start,
                  double *tipVector,
-                 unsigned char *tipX1, const int n, double *diagptable);
+                 unsigned char *tipX1, const int n, double *diagptable, double* weights);
 
 void sumGAMMAPROT_LG4_MIC(int tipCase, double *sumtable, double *x1_start, double *x2_start, double *tipVector,
     unsigned char *tipX1, unsigned char *tipX2, int n);
 
 void coreGTRGAMMAPROT_LG4_MIC(const int upper, double *sumtable,
-    volatile double *ext_dlnLdlz,  volatile double *ext_d2lnLdlz2, double *EIGN[4], double *gammaRates, double lz, int *wrptr);
+    volatile double *ext_dlnLdlz,  volatile double *ext_d2lnLdlz2, double *EIGN[4], double *gammaRates, double lz, int *wrptr, double* weights);
 
 
 
