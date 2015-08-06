@@ -467,9 +467,6 @@ static void evaluateChange(tree *tr, int rateNumber, double *value, double *resu
     i, 
     k, 
     pos;
-
-  boolean
-    atLeastOnePartition = FALSE;
    
   for(i = 0, pos = 0; i < ll->entries; i++)
     {
@@ -484,9 +481,7 @@ static void evaluateChange(tree *tr, int rateNumber, double *value, double *resu
 		tr->executeModel[ll->ld[i].partitionList[k]] = FALSE;
 	    }
 	  else
-	    {
-	      atLeastOnePartition = TRUE;
-
+	    {	      
 	      for(k = 0; k < ll->ld[i].partitions; k++)
 		{
 		  int 
@@ -540,35 +535,7 @@ static void evaluateChange(tree *tr, int rateNumber, double *value, double *resu
       break;
     default:
       assert(0);
-    }
-
-   //nested optimization for LX4 model, now optimize the weights!
-
-  if(whichFunction == LXRATE_F && atLeastOnePartition)
-    {
-      boolean 
-	*buffer = (boolean*)malloc(tr->NumberOfModels * sizeof(boolean));
-	    
-      memcpy(buffer, tr->executeModel, sizeof(boolean) * tr->NumberOfModels);
-	    
-      for(i = 0; i < tr->NumberOfModels; i++)
-	tr->executeModel[i] = FALSE;
-	    
-      for(i = 0, pos = 0; i < ll->entries; i++)	
-	{  
-	  int 
-	    index = ll->ld[i].partitionList[0];	    	      
-	    
-	  if(ll->ld[i].valid)		  	    	      		   	    
-	    tr->executeModel[index] = TRUE;	    
-	}
-
-      optimizeWeights(tr, modelEpsilon, ll, numberOfModels);      
-	    
-      memcpy(tr->executeModel, buffer, sizeof(boolean) * tr->NumberOfModels);
-	    
-      free(buffer);
-    }
+    }   
     
 
   //LIBRARY: need to switch over parallel regions here either call 
@@ -1152,7 +1119,10 @@ static void optLG4X(tree *tr, double modelEpsilon, linkageList *ll, int numberOf
     i;
 
   for(i = 0; i < 4; i++)
-    optParamGeneric(tr, modelEpsilon, ll, numberOfModels, i, LG4X_RATE_MIN, LG4X_RATE_MAX, LXRATE_F); 
+    {
+      optParamGeneric(tr, modelEpsilon, ll, numberOfModels, i, LG4X_RATE_MIN, LG4X_RATE_MAX, LXRATE_F); 
+      optimizeWeights(tr, modelEpsilon, ll, numberOfModels); 
+    }
 }
 
 
@@ -1339,13 +1309,7 @@ static void optParamGeneric(tree *tr, double modelEpsilon, linkageList *ll, int 
   
   evaluateGeneric(tr, tr->start, TRUE);
 
-  if(whichParameterType == LXRATE_F)
-    {
-      int j;
-      
-      for(j = 0; j < tr->NumberOfModels; j++)
-	tr->partitionData[j].weightLikelihood = tr->perPartitionLH[j];
-    }
+  
   
 #ifdef  _DEBUG_MOD_OPT
   double
@@ -1462,14 +1426,7 @@ static void optParamGeneric(tree *tr, double modelEpsilon, linkageList *ll, int 
 	      for(j = 0; j < ll->ld[k].partitions; j++)
 		{
 		  int 
-		    index = ll->ld[k].partitionList[j];
-		  
-		  if(whichParameterType == LXRATE_F)
-		    {
-		      memcpy(tr->partitionData[index].weights,         &startWeights[pos * 4], sizeof(double) * 4);
-		      memcpy(tr->partitionData[index].gammaRates,      &startRates[pos * 4], sizeof(double) * 4);
-		      memcpy(tr->partitionData[index].weightExponents, &startExponents[pos * 4], 4 * sizeof(double));
-		    }
+		    index = ll->ld[k].partitionList[j];		  		 
 		  
 		  changeModelParameters(index, rateNumber, startValues[pos], whichParameterType, tr);		 
 		}
@@ -1485,26 +1442,7 @@ static void optParamGeneric(tree *tr, double modelEpsilon, linkageList *ll, int 
 		  int 
 		    index = ll->ld[k].partitionList[j];
 
-		  changeModelParameters(index, rateNumber, _x[pos], whichParameterType, tr);
-
-		  if(whichParameterType == LXWEIGHT_F)
-		    {
-		      if(endLH[pos] > tr->partitionData[index].weightLikelihood)
-			{
-			  memcpy(tr->partitionData[index].weightsBuffer,         tr->partitionData[index].weights, sizeof(double) * 4);
-			  memcpy(tr->partitionData[index].weightExponentsBuffer, tr->partitionData[index].weightExponents, sizeof(double) * 4);
-			  tr->partitionData[index].weightLikelihood = endLH[pos];
-			}
-		    }
-
-		  if(whichParameterType == LXRATE_F)
-		    {
-		      memcpy(tr->partitionData[index].weights,         tr->partitionData[index].weightsBuffer, sizeof(double) * 4);		 
-		      memcpy(tr->partitionData[index].weightExponents, tr->partitionData[index].weightExponentsBuffer, sizeof(double) * 4);
-		    }
-
-		  if(whichParameterType == LXRATE_F || whichParameterType == LXWEIGHT_F)
-		    scaleLG4X_EIGN(tr, index);
+		  changeModelParameters(index, rateNumber, _x[pos], whichParameterType, tr);		  
 		}
 	    }
 	  pos++;
