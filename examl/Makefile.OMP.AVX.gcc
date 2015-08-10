@@ -16,11 +16,11 @@ RM = rm -f
 
 objs    = axml.o optimizeModel.o trash.o searchAlgo.o topologies.o treeIO.o models.o evaluatePartialGenericSpecial.o evaluateGenericSpecial.o newviewGenericSpecial.o makenewzGenericSpecial.o bipartitionList.o restartHashTable.o avxLikelihood.o byteFile.o partitionAssignment.o communication.o
 
-all : examl-OMP
+all : clean examl-OMP-AVX
 
 GLOBAL_DEPS = axml.h globalVariables.h ../versionHeader/version.h
 
-examl-OMP : $(objs)
+examl-OMP-AVX : $(objs)
 	$(CC) -o examl-OMP-AVX $(objs) $(LIBRARIES) 
 
 avxLikelihood.o : avxLikelihood.c $(GLOBAL_DEPS)
@@ -50,3 +50,5 @@ communication.o : communication.c $(GLOBAL_DEPS)
 
 clean : 
 	$(RM) *.o examl-OMP-AVX
+
+dev : examl-OMP-AVX

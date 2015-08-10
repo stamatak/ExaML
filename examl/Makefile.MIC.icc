@@ -17,7 +17,7 @@ RM = rm -f
 
 objs    = axml.o optimizeModel.o trash.o searchAlgo.o topologies.o treeIO.o models.o evaluatePartialGenericSpecial.o evaluateGenericSpecial.o newviewGenericSpecial.o makenewzGenericSpecial.o bipartitionList.o restartHashTable.o byteFile.o partitionAssignment.o communication.o mic_native_dna.o mic_native_aa.o
 
-all : examl-MIC
+all : clean examl-MIC
 
 GLOBAL_DEPS = axml.h globalVariables.h
 
@@ -49,3 +49,5 @@ mic_native_aa.o : mic_native_aa.c $(GLOBAL_DEPS)
 
 clean : 
 	$(RM) *.o examl-MIC
+
+dev : examl-MIC

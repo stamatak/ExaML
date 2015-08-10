@@ -16,7 +16,7 @@ RM = rm -f
 
 objs    = axml.o optimizeModel.o trash.o searchAlgo.o topologies.o  treeIO.o models.o evaluatePartialGenericSpecial.o evaluateGenericSpecial.o newviewGenericSpecial.o makenewzGenericSpecial.o bipartitionList.o restartHashTable.o  byteFile.o partitionAssignment.o communication.o
 
-all : examl-OMP
+all : clean examl-OMP
 
 GLOBAL_DEPS = axml.h globalVariables.h ../versionHeader/version.h
 
@@ -46,3 +46,5 @@ communication.o : communication.c $(GLOBAL_DEPS)
 
 clean : 
 	$(RM) *.o examl-OMP
+
+dev : examl-OMP
