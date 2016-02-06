@@ -2642,6 +2642,10 @@ int main (int argc, char *argv[])
 	    
 	    /* continue tree search where we left it off */
 	    computeBIGRAPID(tr, adef, TRUE); 
+
+	    /* now print the model parameters to file */
+	    if(processID == 0)
+	      printModelParams(tr, adef, -1);
 	  }
 	else
 	  {
