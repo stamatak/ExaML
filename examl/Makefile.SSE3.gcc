@@ -15,7 +15,7 @@ LIBRARIES = -lm
 
 RM = rm -f
 
-objs    = axml.o optimizeModel.o trash.o searchAlgo.o topologies.o  treeIO.o models.o evaluatePartialGenericSpecial.o evaluateGenericSpecial.o newviewGenericSpecial.o makenewzGenericSpecial.o bipartitionList.o restartHashTable.o  byteFile.o partitionAssignment.o communication.o
+objs    = axml.o optimizeModel.o trash.o searchAlgo.o topologies.o  treeIO.o models.o evaluatePartialGenericSpecial.o evaluateGenericSpecial.o newviewGenericSpecial.o makenewzGenericSpecial.o bipartitionList.o restartHashTable.o  byteFile.o partitionAssignment.o communication.o quartets.o
 
 all : clean examl
 
@@ -44,6 +44,7 @@ restartHashTable.o : restartHashTable.c $(GLOBAL_DEPS)
 byteFile.o : byteFile.c
 partitionAssignment.o : partitionAssignment.c  $(GLOBAL_DEPS) 
 communication.o : communication.c $(GLOBAL_DEPS) 
+quartets.o : quartets.c $(GLOBAL_DEPS)
 
 clean : 
 	$(RM) *.o examl

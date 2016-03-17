@@ -216,7 +216,7 @@ boolean smooth (tree *tr, nodeptr p)
   return TRUE;
 } 
 
-static boolean allSmoothed(tree *tr)
+boolean allSmoothed(tree *tr)
 {
   int i;
   boolean result = TRUE;

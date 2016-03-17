@@ -15,7 +15,7 @@ LIBRARIES = -lm -mmic -openmp
 
 RM = rm -f
 
-objs    = axml.o optimizeModel.o trash.o searchAlgo.o topologies.o treeIO.o models.o evaluatePartialGenericSpecial.o evaluateGenericSpecial.o newviewGenericSpecial.o makenewzGenericSpecial.o bipartitionList.o restartHashTable.o byteFile.o partitionAssignment.o communication.o mic_native_dna.o mic_native_aa.o
+objs    = axml.o optimizeModel.o trash.o searchAlgo.o topologies.o treeIO.o models.o evaluatePartialGenericSpecial.o evaluateGenericSpecial.o newviewGenericSpecial.o makenewzGenericSpecial.o bipartitionList.o restartHashTable.o byteFile.o partitionAssignment.o communication.o mic_native_dna.o mic_native_aa.o quartets.o
 
 all : clean examl-MIC
 
@@ -46,6 +46,7 @@ partitionAssignment.o : partitionAssignment.c  $(GLOBAL_DEPS)
 communication.o : communication.c $(GLOBAL_DEPS) 
 mic_native_dna.o : mic_native_dna.c $(GLOBAL_DEPS)
 mic_native_aa.o : mic_native_aa.c $(GLOBAL_DEPS)
+quartets.o : quartets.c $(GLOBAL_DEPS)
 
 clean : 
 	$(RM) *.o examl-MIC

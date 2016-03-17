@@ -224,6 +224,7 @@
 
 #define  TREE_EVALUATION            0
 #define  BIG_RAPID_MODE             1
+#define  QUARTET_CALCULATION        2
 
 
 #define M_GTRCAT         1
@@ -1021,6 +1022,8 @@ typedef  struct {
   boolean        compressPatterns;
   double         likelihoodEpsilon;
   boolean        useCheckpoint;
+  boolean        useQuartetGrouping;
+  unsigned long int numberRandomQuartets;
  
 #ifdef _BAYESIAN 
   boolean       bayesian;
@@ -1066,6 +1069,9 @@ extern void mcmc(tree *tr, analdef *adef);
 
 boolean isThisMyPartition(tree *localTree, int tid, int model);
 
+extern boolean allSmoothed(tree *tr);
+
+extern int treeFindTipName(FILE *fp, tree *tr, boolean check);
 
 extern void computePlacementBias(tree *tr, analdef *adef);
 
@@ -1128,7 +1134,7 @@ extern void computeBOOTRAPID (tree *tr, analdef *adef, long *radiusSeed);
 extern void optimizeRAPID ( tree *tr, analdef *adef );
 extern void thoroughOptimization ( tree *tr, analdef *adef, topolRELL_LIST *rl, int index );
 extern int treeOptimizeThorough ( tree *tr, int mintrav, int maxtrav);
-
+extern void computeQuartets(tree *tr, analdef *adef);
 
 extern void makeRandomTree ( tree *tr);
 extern void nodeRectifier ( tree *tr );
