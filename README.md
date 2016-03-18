@@ -5,8 +5,13 @@ Exascale Maximum Likelihood (ExaML) code for phylogenetic inference using MPI.
 
 This code implements the popular RAxML search algorithm for maximum likelihood based inference 
 of phylogenetic trees.
+
 It uses a radically new MPI parallelization approach that yields improved parallel efficiency, 
 in particular on partitioned multi-gene or whole-genome datasets.
+
+When using ExaML please cite the following paper: 
+
+Alexey M. Kozlov, Andre J. Aberer, Alexandros Stamatakis: "ExaML Version 3: A Tool for Phylogenomic Analyses on Supercomputers." Bioinformatics (2015) 31 (15): 2577-2579.
 
 It is up to 4 times faster than RAxML-Light [1].
 
