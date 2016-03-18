@@ -801,7 +801,7 @@ static void printREADME(void)
       printf("      [-S]\n");
       printf("      [-v]\n"); 
       printf("      [-w outputDirectory] \n"); 
-      printf("      [-Y quartetGroupingFileName]");
+      printf("      [-Y quartetGroupingFileName]\n");
       printf("      [--auto-prot=ml|bic|aic|aicc]\n");
       printf("\n");  
       printf("      -a      use the median for the discrete approximation of the GAMMA model of rate heterogeneity\n");
