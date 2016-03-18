@@ -694,6 +694,8 @@ static void initAdef(analdef *adef)
   adef->useQuartetGrouping        = FALSE;
   adef->numberRandomQuartets      = 0;
 
+  adef->quartetCkpInterval        = 1000;
+
 #ifdef _BAYESIAN 
   adef->bayesian               = FALSE;
 #endif
@@ -793,6 +795,7 @@ static void printREADME(void)
       printf("      [-f d|e|E|o|q]\n");    
       printf("      [-h] \n");
       printf("      [-i initialRearrangementSetting] \n");
+      printf("      [-I quartetCheckpointInterval] \n");
       printf("      [-M]\n");
       printf("      [-r randomQuartetNumber] \n");
       printf("      [-S]\n");
@@ -839,6 +842,10 @@ static void printREADME(void)
       printf("\n");  
       printf("      -i      Initial rearrangement setting for the subsequent application of topological \n");
       printf("              changes phase\n");
+      printf("\n");
+      printf("      -I      Set after how many quartet evaluations a new checkpoint will be printed.\n");
+      printf("\n");
+      printf("              DEFAULT: 1000\n");
       printf("\n");
       printf("      -m      Model of rate heterogeneity\n");
       printf("\n"); 
@@ -984,7 +991,7 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
       static struct 
 	option long_options[2] =
 	{	 	 
-	  {"auto-prot",   required_argument, &flag, 1},	   	  	 
+	  {"auto-prot",   required_argument, &flag, 1},	   	  	 	 
 	  {0, 0, 0, 0}
 	};
       
@@ -993,7 +1000,7 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
       
       flag = 0;        
 
-      c = getopt_long(argc, argv, "R:B:Y:e:c:f:i:m:t:g:w:n:s:p:r:vhMSDa", long_options, &option_index);    
+      c = getopt_long(argc, argv, "R:B:Y:I:e:c:f:i:m:t:g:w:n:s:p:r:vhMSDa", long_options, &option_index);    
     
       if(c == -1)
 	break;
@@ -1089,6 +1096,9 @@ static void get_args(int argc, char *argv[], analdef *adef, tree *tr)
 	    adef->useCheckpoint = TRUE;
 	    strcpy(binaryCheckpointInputName, optarg);
 	    break;          
+	  case 'I':
+	    sscanf(optarg, "%lu", &(adef->quartetCkpInterval));
+	    break;
 	  case 'M':
 	    adef->perGeneBranchLengths = TRUE;
 	    break;                                 

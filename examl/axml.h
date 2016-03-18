@@ -656,6 +656,7 @@ typedef struct List_{
 #define FAST_SPRS     2
 #define SLOW_SPRS     3
 #define MOD_OPT       4
+#define QUARTETS      5
 
 typedef struct {
   boolean useMedian;
@@ -671,6 +672,10 @@ typedef struct {
   int initial;//adef
   int rateHetModel;
   int autoProteinSelectionType;
+  
+  //quartets 
+  boolean useQuartetGrouping;//adef
+  unsigned long int numberRandomQuartets;//adef
 
 } commandLine;
 
@@ -722,7 +727,17 @@ typedef struct {
 
   int catOpt;
   int treeIteration; 
-                           
+  /* quartets */
+
+  long seed;
+  int flavor;   
+  uint64_t quartetCounter;  
+  long filePosition;
+  char quartetFileName[1024];
+  //FILE NAME???
+
+  /* command line settings */
+
   commandLine cmd;
   
 } checkPointState;
@@ -1024,6 +1039,7 @@ typedef  struct {
   boolean        useCheckpoint;
   boolean        useQuartetGrouping;
   unsigned long int numberRandomQuartets;
+  unsigned long int quartetCkpInterval; 
  
 #ifdef _BAYESIAN 
   boolean       bayesian;

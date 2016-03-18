@@ -42,6 +42,8 @@
 #include <string.h>
 #include <stdint.h>
 #include <inttypes.h>
+#include <unistd.h>
+#include <sys/types.h>
 #include "axml.h"
 
 extern double masterTime;
@@ -49,6 +51,8 @@ extern char workdir[1024];
 extern char run_id[128];
 extern char quartetGroupingFileName[1024];
 extern char quartetFileName[1024];
+extern checkPointState ckp;
+extern int processID;
 
 /* a parser error function */
 
@@ -289,11 +293,6 @@ static void computeAllThreeQuartets(tree *tr, nodeptr q1, nodeptr q2, int t1, in
   
   double 
     l;
-
-#ifdef _QUARTET_MPI
-  quartetResult 
-    *qr = (quartetResult *)malloc(sizeof(quartetResult));
-#endif
   
   /* first quartet */	    
   
@@ -301,54 +300,43 @@ static void computeAllThreeQuartets(tree *tr, nodeptr q1, nodeptr q2, int t1, in
   
   l = quartetLikelihood(tr, p1, p2, p3, p4, q1, q2, adef, TRUE);
  
-#ifndef _QUARTET_MPI
-  fprintf(f, "%d %d | %d %d: %f\n", p1->number, p2->number, p3->number, p4->number, l);
-#else
-  qr->a1 = p1->number;
-  qr->b1 = p2->number;
-  qr->c1 = p3->number;
-  qr->d1 = p4->number;
-  qr->l1 = l;
-#endif
+  if(processID == 0)
+    fprintf(f, "%d %d | %d %d: %f\n", p1->number, p2->number, p3->number, p4->number, l);
+
   /* second quartet */	    
   
   /* compute the likelihood of tree ((p1, p3), (p2, p4)) */
   
   l = quartetLikelihood(tr, p1, p3, p2, p4, q1, q2, adef, FALSE);
 
-#ifndef _QUARTET_MPI  
-  fprintf(f, "%d %d | %d %d: %f\n", p1->number, p3->number, p2->number, p4->number, l);
-#else
-  qr->a2 = p1->number;
-  qr->b2 = p3->number;
-  qr->c2 = p2->number;
-  qr->d2 = p4->number;
-  qr->l2 = l;
-#endif
+  if(processID == 0)
+    fprintf(f, "%d %d | %d %d: %f\n", p1->number, p3->number, p2->number, p4->number, l);
+
   /* third quartet */	    
   
   /* compute the likelihood of tree ((p1, p4), (p2, p3)) */
   
   l = quartetLikelihood(tr, p1, p4, p2, p3, q1, q2, adef, FALSE);
-  
-#ifndef _QUARTET_MPI
-  fprintf(f, "%d %d | %d %d: %f\n", p1->number, p4->number, p2->number, p3->number, l);	    	   
-#else
-  qr->a3 = p1->number;
-  qr->b3 = p4->number;
-  qr->c3 = p2->number;
-  qr->d3 = p3->number;
-  qr->l3 = l;
 
-  MPI_Send((void *)qr, QUARTET_MESSAGE_SIZE, MPI_BYTE, 0, QUARTET_MESSAGE, MPI_COMM_WORLD);
-
-  assert(processID > 0);
-  free(qr);
-#endif
+  if(processID == 0)
+    fprintf(f, "%d %d | %d %d: %f\n", p1->number, p4->number, p2->number, p3->number, l);	    	   
 }
 
 /* the three quartet options: all quartets, randomly sub-sample a certain number n of quartets, 
    subsample all quartets from 4 pre-defined groups of quartets */
+
+
+static void writeQuartetCheckpoint(uint64_t quartetCounter, FILE *f, tree *tr, analdef *adef)
+{
+  if(quartetCounter % adef->quartetCkpInterval == 0)
+    {     
+      ckp.quartetCounter = quartetCounter;
+      ckp.filePosition = ftell(f);
+      printBothOpen("\nPrinting checkpoint after %f seconds of run-time\n", gettime() - masterTime);      
+      writeCheckpoint(tr, adef);      
+    }
+}
+
 
 #define ALL_QUARTETS 0
 #define RANDOM_QUARTETS 1
@@ -383,48 +371,45 @@ void computeQuartets(tree *tr, analdef *adef)
     q1 = tr->nodep[tr->mxtips + 1],
     q2 = tr->nodep[tr->mxtips + 2];
 
- 
-
   FILE 
     *f;
 
   long
     seed = (long)(tr->randomSeed);
        
-  /***********************************/
-  /* open output file */
-
-#ifdef _QUARTET_MPI
-  if(processID == 0)
-#endif
-    f = myfopen(quartetFileName, "w");
-
-  /* initialize model parameters */
-
-  //initModel(tr, rdta, cdta, adef);
+  /***********************************/  
 
   /* get a starting tree on which we optimize the likelihood model parameters: either reads in a tree or computes a randomized stepwise addition parsimony tree */
+  if(adef->useCheckpoint)
+    { 
+      /* read checkpoint file */
+      restart(tr, adef);
+      strncpy(quartetFileName, ckp.quartetFileName, 1024);
+      printBothOpen("Time for reading checkpoint file: %f\n\n", gettime() - masterTime); 
 
-  getStartingTree(tr);
-  evaluateGeneric(tr, tr->start, TRUE);
-  treeEvaluate(tr, 1);
-
-  /* optimize model parameters on that comprehensive tree that can subsequently be used for evaluation of quartet likelihoods */
-
-
-  modOpt(tr, adef->likelihoodEpsilon, adef, 0);
-
-  printBothOpen("Time for parsing input tree or building parsimony tree and optimizing model parameters: %f\n\n", gettime() - masterTime); 
-  printBothOpen("Tree likelihood: %f\n\n", tr->likelihood);
-  /*  }
+      seed = ckp.seed;
+      
+      f = myfopen(quartetFileName, "r+");
+            
+      fseek(f, ckp.filePosition, SEEK_SET);  
+      if(ftruncate(fileno(f),  ckp.filePosition) != 0)
+	assert(0);
+    }
   else
     {
-      //if a binary model parameter file has been specified, we just read the model parameters from there 
-      readBinaryModel(tr, adef);
+      getStartingTree(tr);
+      evaluateGeneric(tr, tr->start, TRUE);
+      treeEvaluate(tr, 1);
 
-      printBothOpen("Time for reading model parameters: %f\n\n", gettime() - masterTime); 
-      }*/
+      /* optimize model parameters on that comprehensive tree that can subsequently be used for evaluation of quartet likelihoods */
 
+      modOpt(tr, adef->likelihoodEpsilon, adef, 0);
+
+      printBothOpen("Time for parsing input tree or building parsimony tree and optimizing model parameters: %f\n\n", gettime() - masterTime); 
+      printBothOpen("Tree likelihood: %f\n\n", tr->likelihood);  
+
+      f = myfopen(quartetFileName, "w");
+    }
 
   /* figure out which flavor of quartets we want to compute */
 
@@ -437,19 +422,6 @@ void computeQuartets(tree *tr, analdef *adef)
       
       //parse the four disjoint sets of taxon names specified by the user from file      
       groupingParser(quartetGroupingFileName, groups, groupSize, tr);
-
-#ifdef __BLACKRIM     
-      //special implementation where we only sub-sample randomly from the quartets 
-      //defined by the four user-specified taxon sets 
-      numberOfQuartets =  (uint64_t)groupSize[0] * (uint64_t)groupSize[1] * (uint64_t)groupSize[2] * (uint64_t)groupSize[3];
-
-      if(randomQuartets > numberOfQuartets)
-	randomQuartets = 1;
-
-      fraction = (double)randomQuartets / (double)numberOfQuartets;     
-
-      //printf("%d %d %f\n", numberOfQuartets, randomQuartets, fraction);
-#endif
     }
   else
     {
@@ -469,6 +441,10 @@ void computeQuartets(tree *tr, analdef *adef)
 	}
     }
 
+  ckp.state = QUARTETS;
+  ckp.seed = seed; 
+  strncpy(ckp.quartetFileName, quartetFileName, 1024);
+
   /* print some output on what we are doing*/
 
   switch(flavor)
@@ -481,34 +457,31 @@ void computeQuartets(tree *tr, analdef *adef)
 		    numberOfQuartets, randomQuartets, 100 * fraction, randomQuartets * 3);
       break;
     case GROUPED_QUARTETS:  
-#ifdef __BLACKRIM          
-      printBothOpen("There are 4 quartet groups from which RAxML will evaluate the three alternatives for %u out of all possible %u quartet trees\n", 
-		    (unsigned int)randomQuartets, 
-		    (unsigned int)groupSize[0] * (unsigned int)groupSize[1] * (unsigned int)groupSize[2] * (unsigned int)groupSize[3]);
-#else
       printBothOpen("There are 4 quartet groups from which RAxML will evaluate all %u quartet trees\n", 
 		    (unsigned int)groupSize[0] * (unsigned int)groupSize[1] * (unsigned int)groupSize[2] * (unsigned int)groupSize[3] * 3);
-#endif
       break;
     default:
       assert(0);
     }
 
   /* print taxon name to taxon number correspondance table to output file */
-#ifdef _QUARTET_MPI
-  if(processID == 0)   
-#endif
-    {
-      fprintf(f, "Taxon names and indices:\n\n");
 
+  if(!adef->useCheckpoint)
+    {
+      if(processID == 0)
+	fprintf(f, "Taxon names and indices:\n\n");
+      
       for(i = 1; i <= tr->mxtips; i++)
 	{
-	  fprintf(f, "%s %d\n", tr->nameList[i], i);
+	  if(processID == 0)
+	    fprintf(f, "%s %d\n", tr->nameList[i], i);
 	  assert(tr->nodep[i]->number == i);
 	}
       
-      fprintf(f, "\n\n");
+      if(processID == 0)
+	fprintf(f, "\n\n");
     }
+  
   
   /* do a loop to generate some quartets to test.
      note that tip nodes/sequences in RAxML are indexed from 1,...,n
@@ -519,149 +492,111 @@ void computeQuartets(tree *tr, analdef *adef)
 
 
   //now do the respective quartet evaluations by switching over the three distinct flavors 
-
-#ifdef _QUARTET_MPI
-  if(processID > 0)   
-#endif
+     
+  switch(flavor)
     {
-      switch(flavor)
-	{
-	case ALL_QUARTETS:
-	  {		    
-	    /* compute all possible quartets */
-	    
+    case ALL_QUARTETS:
+      {		    
+	/* compute all possible quartets */	   	   
+	
+	for(t1 = 1; t1 <= tr->mxtips; t1++)
+	  for(t2 = t1 + 1; t2 <= tr->mxtips; t2++)
+	    for(t3 = t2 + 1; t3 <= tr->mxtips; t3++)
+	      for(t4 = t3 + 1; t4 <= tr->mxtips; t4++)
+		{		      
+		  if((adef->useCheckpoint && quartetCounter >= ckp.quartetCounter) || !adef->useCheckpoint)
+		    {
+		      writeQuartetCheckpoint(quartetCounter, f, tr, adef);		      
+		      
+		      computeAllThreeQuartets(tr, q1, q2, t1, t2, t3, t4, f, adef);
+		    }
+		  quartetCounter++;
+		}
+	
+	assert(quartetCounter == numberOfQuartets);
+      }
+      break;
+    case RANDOM_QUARTETS:
+      {	 
+	
+	//endless loop ta make sure we randomly sub-sample exactly as many quartets as the user specified
+	
+	//This is not very elegant, but it works, note however, that especially when the number of 
+	//random quartets to be sampled is large, that is, close to the total number of quartets 
+	//some quartets may be sampled twice by pure chance. To randomly sample unique quartets 
+	//using hashes or bitmaps to store which quartets have already been sampled is not memory efficient.
+	//Insetad, we need to use a random number generator that can generate a unique series of random numbers 
+	//and then have a function f() that maps those random numbers to the corresponding index quartet (t1, t2, t3, t4).
+	
+	do
+	  {	      
+	    //loop over all quartets 
 	    for(t1 = 1; t1 <= tr->mxtips; t1++)
 	      for(t2 = t1 + 1; t2 <= tr->mxtips; t2++)
 		for(t3 = t2 + 1; t3 <= tr->mxtips; t3++)
 		  for(t4 = t3 + 1; t4 <= tr->mxtips; t4++)
 		    {
-#ifdef _QUARTET_MPI
-		      if((quartetCounter % (uint64_t)(processes - 1)) == (uint64_t)(processID - 1))
-#endif
-			computeAllThreeQuartets(tr, q1, q2, t1, t2, t3, t4, f, adef);
-		      quartetCounter++;
-		    }
-	    
-	    assert(quartetCounter == numberOfQuartets);
-	  }
-	  break;
-	case RANDOM_QUARTETS:
-	  {	 
-
-	    //endless loop ta make sure we randomly sub-sample exactly as many quartets as the user specified
-
-	    //This is not very elegant, but it works, note however, that especially when the number of 
-	    //random quartets to be sampled is large, that is, close to the total number of quartets 
-	    //some quartets may be sampled twice by pure chance. To randomly sample unique quartets 
-	    //using hashes or bitmaps to store which quartets have already been sampled is not memory efficient.
-	    //Insetad, we need to use a random number generator that can generate a unique series of random numbers 
-	    //and then have a function f() that maps those random numbers to the corresponding index quartet (t1, t2, t3, t4).
-
-	    do
-	      {	      
-		//loop over all quartets 
-		for(t1 = 1; t1 <= tr->mxtips; t1++)
-		  for(t2 = t1 + 1; t2 <= tr->mxtips; t2++)
-		    for(t3 = t2 + 1; t3 <= tr->mxtips; t3++)
-		      for(t4 = t3 + 1; t4 <= tr->mxtips; t4++)
-			{
-			  //chose a random number
-			  double
-			    r = randum(&seed);
-			  			  
-			  //if the random number is smaller than the fraction of quartets to subsample
-			  //evaluate the likelihood of the current quartet
-			  if(r < fraction)
-			    {
-#ifdef _QUARTET_MPI
-			      //MPI version very simple and naive way to determine which processor 
-			      //is goingt to do the likelihood calculations for this quartet
-			      if((quartetCounter % (uint64_t)(processes - 1)) == (uint64_t)(processID - 1))
-#endif
-				//function that computes the likelihood for all three possible unrooted trees 
-				//defined by the given quartet of taxa 
-				computeAllThreeQuartets(tr, q1, q2, t1, t2, t3, t4, f, adef);
-			      //increment quartet counter that counts how many quartets we have evaluated
-			      quartetCounter++;
-			    }
-			  
-			  //exit endless loop if we have randomly sub-sampled as many quartets as the user specified
-			  if(quartetCounter == randomQuartets)
-			    goto DONE;
-			}
-	      }
-	    while(1);
-	    	  
-	  DONE:
-	    assert(quartetCounter == randomQuartets);	  
-	  }
-	  break;
-	case GROUPED_QUARTETS:
-	  {
-	    /* compute all quartets that can be built out of the four pre-defined groups */
-	    
-	    for(t1 = 0; t1 < groupSize[0]; t1++)
-	      for(t2 = 0; t2 < groupSize[1]; t2++)
-		for(t3 = 0; t3 < groupSize[2]; t3++)
-		  for(t4 = 0; t4 < groupSize[3]; t4++)
-		    {
-		      int
-			i1 = groups[0][t1],
-			i2 = groups[1][t2],
-			i3 = groups[2][t3],
-			i4 = groups[3][t4];
-		      
-#ifdef __BLACKRIM
+		      //chose a random number
 		      double
 			r = randum(&seed);
-		      
+			  			  
+		      //if the random number is smaller than the fraction of quartets to subsample
+		      //evaluate the likelihood of the current quartet
 		      if(r < fraction)
 			{
-#endif
-			  
-#ifdef _QUARTET_MPI
-			  if((quartetCounter % (uint64_t)(processes - 1)) == (uint64_t)(processID - 1))
-#endif
-			    computeAllThreeQuartets(tr, q1, q2, i1, i2, i3, i4, f, adef);
+			  if((adef->useCheckpoint && quartetCounter >= ckp.quartetCounter) || !adef->useCheckpoint)
+			    {
+			      writeQuartetCheckpoint(quartetCounter, f, tr, adef);			     			      
+			      
+			      //function that computes the likelihood for all three possible unrooted trees 
+			      //defined by the given quartet of taxa 
+			      computeAllThreeQuartets(tr, q1, q2, t1, t2, t3, t4, f, adef);
+			    }
+			  //increment quartet counter that counts how many quartets we have evaluated
 			  quartetCounter++;
-#ifdef __BLACKRIM
 			}
+		      
+		      //exit endless loop if we have randomly sub-sampled as many quartets as the user specified
 		      if(quartetCounter == randomQuartets)
-			goto DONE_GROUPED;
-#endif
+			goto DONE;
 		    }
-#ifdef __BLACKRIM   
-	  DONE_GROUPED:
-	    printBothOpen("\nComputed %" PRIu64 " random quartets for grouping\n", quartetCounter);
-	    assert(quartetCounter == randomQuartets);
-#else
-	    printBothOpen("\nComputed all %" PRIu64 " possible grouped quartets\n", quartetCounter);
-#endif	    
-	    
 	  }
-	  break;
-	default:
-	  assert(0);
-	}
+	while(1);
+	
+      DONE:
+	assert(quartetCounter == randomQuartets);	  
+      }
+      break;
+    case GROUPED_QUARTETS:
+      {
+	/* compute all quartets that can be built out of the four pre-defined groups */
+	
+	for(t1 = 0; t1 < groupSize[0]; t1++)
+	  for(t2 = 0; t2 < groupSize[1]; t2++)
+	    for(t3 = 0; t3 < groupSize[2]; t3++)
+	      for(t4 = 0; t4 < groupSize[3]; t4++)
+		{
+		  int
+		    i1 = groups[0][t1],
+		    i2 = groups[1][t2],
+		    i3 = groups[2][t3],
+		    i4 = groups[3][t4];
+		  
+		  if((adef->useCheckpoint && quartetCounter >= ckp.quartetCounter) || !adef->useCheckpoint)
+		    {
+		      writeQuartetCheckpoint(quartetCounter, f, tr, adef);
+		      		     
+		      computeAllThreeQuartets(tr, q1, q2, i1, i2, i3, i4, f, adef);
+		    }
+		  quartetCounter++;
+		}
+	
+	printBothOpen("\nComputed all %" PRIu64 " possible grouped quartets\n", quartetCounter); 	    
+      }
+      break;
+    default:
+      assert(0);
     }
-#ifdef _QUARTET_MPI
-  if(processID == 0)
-    startQuartetMaster(tr, f);
-  else
-    {
-      int 
-	dummy;
-      
-      MPI_Send(&dummy, 1, MPI_INT, 0, I_AM_DONE, MPI_COMM_WORLD);
-    }
-#endif
   
-  
-
-  
-
-#ifdef _QUARTET_MPI
-  if(processID == 0)
-#endif
-    fclose(f);
+  fclose(f);
 }

@@ -1188,8 +1188,10 @@ static void writeCheckpointInner(tree *tr, int *rateCategory, double *patrat, an
   ckp.cmd.initial = adef->initial;//adef
   ckp.cmd.rateHetModel = tr->rateHetModel;
   ckp.cmd.autoProteinSelectionType = tr->autoProteinSelectionType;
-  
 
+  ckp.cmd.useQuartetGrouping = adef->useQuartetGrouping;
+  ckp.cmd.numberRandomQuartets = adef->numberRandomQuartets;
+  
   /* cdta */   
   
   ckp.accumulatedTime = accumulatedTime + (gettime() - masterTime);
@@ -1368,8 +1370,9 @@ static void readTree(tree *tr, FILE *f)
   }
   
   evaluateGeneric(tr, tr->start, TRUE);  
-
-  printBothOpen("ExaML Restart with likelihood: %1.50f\n", tr->likelihood);
+  
+  if(ckp.state != QUARTETS)
+    printBothOpen("ExaML Restart with likelihood: %1.50f\n", tr->likelihood);
 }
 
 static void genericError(void)
@@ -1474,6 +1477,20 @@ static void checkCommandLineArguments(tree *tr, analdef *adef)
       printBothOpen("\nDisagreement in protein model selection criterion: --auto-prot\n");
       match = FALSE;
     }
+
+   if(ckp.cmd.useQuartetGrouping != adef->useQuartetGrouping)
+     {
+       genericError();
+       printBothOpen("\nDisagreement in quartet grouping option: -Y\n");
+       match = FALSE;
+     }
+
+   if(ckp.cmd.numberRandomQuartets != adef->numberRandomQuartets)
+     { 
+       genericError();
+       printBothOpen("\nDisagreement in number of random quartet subsamples: -r\n");
+       match = FALSE;
+     }
 
   if(!match)
     {
@@ -1723,6 +1740,9 @@ void restart(tree *tr, analdef *adef)
       break;
     case MOD_OPT:
       assert(adef->mode == TREE_EVALUATION);
+      break;
+    case QUARTETS:
+      assert(adef->mode == QUARTET_CALCULATION);
       break;
     default:
       assert(0);
