@@ -1855,7 +1855,7 @@ static void finalizeInfoFile(tree *tr, analdef *adef)
 	  printBothOpen("Execution information file written to: %s\n",infoFileName);	
 	  break;
 	case TREE_EVALUATION:	
-	  printBothOpen("\n\nOverall Time for evaluating the likelihhod of %d trees: %f secs\n\n", tr->numberOfTrees, t); 
+	  printBothOpen("\n\nOverall Time for evaluating the likelihood of %d trees: %f secs\n\n", tr->numberOfTrees, t); 
 	  printBothOpen("\n\nThe model parameters of the trees have been written to files called %s.i\n", modelFileName);
 	  printBothOpen("where i is the number of the tree\n\n");
 	  printBothOpen("Note that, in case of a restart from a checkpoint, some tree model files will have been produced by previous runs!\n\n");
