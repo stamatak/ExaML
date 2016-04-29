@@ -25,7 +25,10 @@ examl-MIC : $(objs)
 	$(CC) -o examl-MIC $(objs) $(LIBRARIES)
 
 models.o : models.c $(GLOBAL_DEPS)
-	 $(CC) $(COMMON_FLAGS) $(OPT_FLAG_1) -c -o models.o models.c
+	$(CC) $(COMMON_FLAGS) $(OPT_FLAG_1) -c -o models.o models.c
+
+partitionAssignment.o: partitionAssignment.o $(GLOBAL_DEPS)
+	$(CC) $(COMMON_FLAGS) $(OPT_FLAG_1) -c -o partitionAssignment.o partitionAssignment.c
 
 bipartitionList.o : bipartitionList.c $(GLOBAL_DEPS)
 evaluatePartialSpecialGeneric.o : evaluatePartialSpecialGeneric.c $(GLOBAL_DEPS)
@@ -42,7 +45,6 @@ newviewGenericSpecial.o : newviewGenericSpecial.c $(GLOBAL_DEPS)
 makenewzGenericSpecial.o : makenewzGenericSpecial.c $(GLOBAL_DEPS)
 restartHashTable.o : restartHashTable.c $(GLOBAL_DEPS)
 byteFile.o : byteFile.c
-partitionAssignment.o : partitionAssignment.c  $(GLOBAL_DEPS) 
 communication.o : communication.c $(GLOBAL_DEPS) 
 mic_native_dna.o : mic_native_dna.c $(GLOBAL_DEPS)
 mic_native_aa.o : mic_native_aa.c $(GLOBAL_DEPS)
