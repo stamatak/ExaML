@@ -331,7 +331,11 @@ static void writeQuartetCheckpoint(uint64_t quartetCounter, FILE *f, tree *tr, a
   if(quartetCounter % adef->quartetCkpInterval == 0)
     {     
       ckp.quartetCounter = quartetCounter;
-      ckp.filePosition = ftell(f);
+      if(processID == 0)
+        { 
+          fflush(f);
+          ckp.filePosition = ftell(f);
+        }
       printBothOpen("\nPrinting checkpoint after %f seconds of run-time\n", gettime() - masterTime);      
       writeCheckpoint(tr, adef);      
     }
@@ -388,12 +392,15 @@ void computeQuartets(tree *tr, analdef *adef)
       printBothOpen("Time for reading checkpoint file: %f\n\n", gettime() - masterTime); 
 
       seed = ckp.seed;
-      
-      f = myfopen(quartetFileName, "r+");
-            
-      fseek(f, ckp.filePosition, SEEK_SET);  
-      if(ftruncate(fileno(f),  ckp.filePosition) != 0)
-	assert(0);
+   
+      if(processID == 0)
+        {   
+           f = myfopen(quartetFileName, "r+");
+        
+           fseek(f, ckp.filePosition, SEEK_SET);  
+           if(ftruncate(fileno(f),  ckp.filePosition) != 0)
+  	    assert(0);
+        }
     }
   else
     {
@@ -408,7 +415,8 @@ void computeQuartets(tree *tr, analdef *adef)
       printBothOpen("Time for parsing input tree or building parsimony tree and optimizing model parameters: %f\n\n", gettime() - masterTime); 
       printBothOpen("Tree likelihood: %f\n\n", tr->likelihood);  
 
-      f = myfopen(quartetFileName, "w");
+      if(processID == 0)
+        f = myfopen(quartetFileName, "w");
     }
 
   /* figure out which flavor of quartets we want to compute */
@@ -479,7 +487,10 @@ void computeQuartets(tree *tr, analdef *adef)
 	}
       
       if(processID == 0)
-	fprintf(f, "\n\n");
+        {
+	  fprintf(f, "\n\n");
+          fflush(f);
+        }
     }
   
   
