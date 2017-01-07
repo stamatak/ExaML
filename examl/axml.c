@@ -126,6 +126,16 @@ void myBinFread(void *ptr, size_t size, size_t nmemb, FILE *byteFile)
 }
 
 
+static void outOfMemory(void)
+{
+  printf("ExaML process %d was not able to allocate enough memory.\n", processID);
+  printf("Please check the approximate memory consumption of your dataset using\n");
+  printf("the memory calculator at http://www.exelixis-lab.org/web/software/raxml/index.html.\n");
+  printf("ExaML will exit now\n");
+
+  errorExit(-1);
+ }
+
 void *malloc_aligned(size_t size) 
 {
   void 
@@ -135,27 +145,16 @@ void *malloc_aligned(size_t size)
     res;
   
 
-#if defined (__APPLE__)
-  /* 
-     presumably malloc on MACs always returns 
-     a 16-byte aligned pointer
-  */
-
-  ptr = malloc(size);
-  
-  if(ptr == (void*)NULL) 
-   assert(0);
-  
-#ifdef __AVX
-  assert(0);
-#endif
-
-
+#ifdef WIN32
+  ptr = _aligned_malloc(size, BYTE_ALIGNMENT);;
 #else
   res = posix_memalign( &ptr, BYTE_ALIGNMENT, size );
 
-  if(res != 0) 
+  if(res != 0)
+  {
+    outOfMemory();
     assert(0);
+  }
 #endif 
    
   return ptr;
