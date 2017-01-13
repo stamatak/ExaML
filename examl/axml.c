@@ -133,7 +133,10 @@ static void outOfMemory(void)
   printf("the memory calculator at http://www.exelixis-lab.org/web/software/raxml/index.html.\n");
   printf("ExaML will exit now\n");
 
-  errorExit(-1);
+  
+  MPI_Abort(MPI_COMM_WORLD, -1);
+
+  exit(-1);
  }
 
 void *malloc_aligned(size_t size) 
