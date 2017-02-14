@@ -388,7 +388,9 @@ void computeQuartets(tree *tr, analdef *adef)
     { 
       /* read checkpoint file */
       restart(tr, adef);
-      strncpy(quartetFileName, ckp.quartetFileName, 1024);
+
+      strcpy(quartetFileName, workdir);
+      strcat(quartetFileName, basename(ckp.quartetFileName));
       printBothOpen("Time for reading checkpoint file: %f\n\n", gettime() - masterTime); 
 
       seed = ckp.seed;
