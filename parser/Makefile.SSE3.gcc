@@ -11,7 +11,7 @@ RM = rm -f
 
 objs    = axml.o parsePartitions.o
 
-all : parse-examl
+all : clean parse-examl
 
 GLOBAL_DEPS = axml.h globalVariables.h ../versionHeader/version.h 
 
@@ -24,3 +24,6 @@ parsePartitions.o : parsePartitions.c $(GLOBAL_DEPS)
 
 clean : 
 	$(RM) *.o parse-examl
+
+
+dev : parse-examl

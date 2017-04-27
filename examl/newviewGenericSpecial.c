@@ -953,6 +953,7 @@ void newviewIterative (tree *tr, int startIndex)
 	    *left = tr->partitionData[model].left,
 	    *right = tr->partitionData[model].right;
 	  
+	  /* figure out what kind of rate heterogeneity approach we are using */
 	  if(tr->rateHetModel == CAT)
 	    {
 	      rateCategories = tr->partitionData[model].perSiteRates;
@@ -1118,16 +1119,16 @@ void newviewIterative (tree *tr, int startIndex)
 		  *x3_start = (double*)NULL, //tr->partitionData[model].xVector[tInfo->pNumber - tr->mxtips - 1],
 		  *x1_gapColumn = (double*)NULL,
 		  *x2_gapColumn = (double*)NULL,
-		  *x3_gapColumn = (double*)NULL,
-		  *rateCategories = (double*)NULL;
+		  *x3_gapColumn = (double*)NULL;
 
 		int
-		  categories,
 		  scalerIncrement = 0,
 		
 		  /* integer wieght vector with pattern compression weights */
+		  *wgt = tr->partitionData[model].wgt + offset,
 
-		  *wgt = tr->partitionData[model].wgt + offset;
+		  /* integer rate category vector (for each pattern, _number_ of PSR category assigned to it, NOT actual rate!) */
+		  *rateCategory = tr->partitionData[model].rateCategory + offset;
 
 		unsigned int
 		  *x1_gap = (unsigned int*)NULL,
@@ -1148,7 +1149,7 @@ void newviewIterative (tree *tr, int startIndex)
 		  
 		  /* span for single alignment site (in doubles!) */
 		  span = rateHet * states,
-		  x_offset = offset * span,
+		  x_offset = offset * (size_t)span,
 		  
 		  
 		  /* get the length of the current likelihood array stored at node p. This is 
@@ -1165,22 +1166,7 @@ void newviewIterative (tree *tr, int startIndex)
 
 		x3_start = tr->partitionData[model].xVector[tInfo->pNumber - tr->mxtips - 1] + x_offset;
 
-		/* figure out what kind of rate heterogeneity approach we are using */
-
-		if(tr->rateHetModel == CAT)
-		  {		 
-		    rateCategories = tr->partitionData[model].perSiteRates;
-		    categories = tr->partitionData[model].numberOfCategories;
-		  }
-		else
-		  {		  		 
-		    rateCategories = tr->partitionData[model].gammaRates;
-		    categories = 4;
-		  }
-	     
-	      
 		/* memory saving stuff, not important right now, but if you are interested ask Fernando */
-
 		if(tr->saveMemory)
 		  {
 		    size_t
@@ -1283,7 +1269,7 @@ void newviewIterative (tree *tr, int startIndex)
 	      /* figure out if we need to compute the CAT or GAMMA model of rate heterogeneity */
 
 	      if(tr->rateHetModel == CAT)
-		newviewCAT_FLEX(tInfo->tipCase,  tr->partitionData[model].EV, tr->partitionData[model].rateCategory,
+		newviewCAT_FLEX(tInfo->tipCase,  tr->partitionData[model].EV, rateCategory,
 				x1_start, x2_start, x3_start, tr->partitionData[model].tipVector,
 				tipX1, tipX2,
 				width, left, right, wgt, &scalerIncrement, states);
@@ -1305,7 +1291,7 @@ void newviewIterative (tree *tr, int startIndex)
 #else
 		  assert(!tr->saveMemory);
 		  if(tr->rateHetModel == CAT)
-		    newviewGTRCAT_BINARY(tInfo->tipCase,  tr->partitionData[model].EV,  tr->partitionData[model].rateCategory,
+		    newviewGTRCAT_BINARY(tInfo->tipCase,  tr->partitionData[model].EV,  rateCategory,
 					 x1_start,  x2_start,  x3_start, tr->partitionData[model].tipVector,
 					 (int*)NULL, tipX1, tipX2,
 					 width, left, right, wgt, &scalerIncrement, TRUE);
@@ -1324,13 +1310,13 @@ void newviewIterative (tree *tr, int startIndex)
 #ifdef __MIC_NATIVE
 		     assert(0 && "Neither CAT model of rate heterogeneity nor memory saving are implemented on Intel MIC");
 #elif __AVX
-			newviewGTRCAT_AVX_GAPPED_SAVE(tInfo->tipCase,  tr->partitionData[model].EV, tr->partitionData[model].rateCategory,
+			newviewGTRCAT_AVX_GAPPED_SAVE(tInfo->tipCase,  tr->partitionData[model].EV, rateCategory,
 						      x1_start, x2_start, x3_start, tr->partitionData[model].tipVector,
 						      (int*)NULL, tipX1, tipX2,
 						      width, left, right, wgt, &scalerIncrement, TRUE, x1_gap, x2_gap, x3_gap,
 						      x1_gapColumn, x2_gapColumn, x3_gapColumn, tr->maxCategories);
 #else
-			newviewGTRCAT_SAVE(tInfo->tipCase,  tr->partitionData[model].EV, tr->partitionData[model].rateCategory,
+			newviewGTRCAT_SAVE(tInfo->tipCase,  tr->partitionData[model].EV, rateCategory,
 					   x1_start, x2_start, x3_start, tr->partitionData[model].tipVector,
 					   tipX1, tipX2,
 					   width, left, right, wgt, &scalerIncrement, x1_gap, x2_gap, x3_gap,
@@ -1340,12 +1326,12 @@ void newviewIterative (tree *tr, int startIndex)
 #ifdef __MIC_NATIVE
 		     assert(0 && "CAT model of rate heterogeneity is not implemented on Intel MIC");
 #elif __AVX
-			newviewGTRCAT_AVX(tInfo->tipCase,  tr->partitionData[model].EV, tr->partitionData[model].rateCategory,
+			newviewGTRCAT_AVX(tInfo->tipCase,  tr->partitionData[model].EV, rateCategory,
 					  x1_start, x2_start, x3_start, tr->partitionData[model].tipVector,
 					  tipX1, tipX2,
 					  width, left, right, wgt, &scalerIncrement);
 #else
-			newviewGTRCAT(tInfo->tipCase,  tr->partitionData[model].EV, tr->partitionData[model].rateCategory,
+			newviewGTRCAT(tInfo->tipCase,  tr->partitionData[model].EV, rateCategory,
 				      x1_start, x2_start, x3_start, tr->partitionData[model].tipVector,
 				      tipX1, tipX2,
 				      width, left, right, wgt, &scalerIncrement);
@@ -1403,12 +1389,12 @@ void newviewIterative (tree *tr, int startIndex)
 #ifdef __MIC_NATIVE
 		     assert(0 && "Neither CAT model of rate heterogeneity nor memory saving are implemented on Intel MIC");
 #elif __AVX
-			  newviewGTRCATPROT_AVX_GAPPED_SAVE(tInfo->tipCase,  tr->partitionData[model].EV, tr->partitionData[model].rateCategory,
+			  newviewGTRCATPROT_AVX_GAPPED_SAVE(tInfo->tipCase,  tr->partitionData[model].EV, rateCategory,
 							    x1_start, x2_start, x3_start, tr->partitionData[model].tipVector, (int*)NULL,
 							    tipX1, tipX2, width, left, right, wgt, &scalerIncrement, TRUE, x1_gap, x2_gap, x3_gap,
 							    x1_gapColumn, x2_gapColumn, x3_gapColumn, tr->maxCategories);
 #else
-			  newviewGTRCATPROT_SAVE(tInfo->tipCase,  tr->partitionData[model].EV, tr->partitionData[model].rateCategory,
+			  newviewGTRCATPROT_SAVE(tInfo->tipCase,  tr->partitionData[model].EV, rateCategory,
 						 x1_start, x2_start, x3_start, tr->partitionData[model].tipVector,
 						 tipX1, tipX2, width, left, right, wgt, &scalerIncrement, x1_gap, x2_gap, x3_gap,
 						 x1_gapColumn, x2_gapColumn, x3_gapColumn, tr->maxCategories);
@@ -1419,11 +1405,11 @@ void newviewIterative (tree *tr, int startIndex)
 #ifdef __MIC_NATIVE
 		     assert(0 && "CAT model of rate heterogeneity is not implemented on Intel MIC");
 #elif __AVX
-			  newviewGTRCATPROT_AVX(tInfo->tipCase,  tr->partitionData[model].EV, tr->partitionData[model].rateCategory,
+			  newviewGTRCATPROT_AVX(tInfo->tipCase,  tr->partitionData[model].EV, rateCategory,
 						x1_start, x2_start, x3_start, tr->partitionData[model].tipVector,
 						tipX1, tipX2, width, left, right, wgt, &scalerIncrement);
 #else
-			  newviewGTRCATPROT(tInfo->tipCase,  tr->partitionData[model].EV, tr->partitionData[model].rateCategory,
+			  newviewGTRCATPROT(tInfo->tipCase,  tr->partitionData[model].EV, rateCategory,
 					    x1_start, x2_start, x3_start, tr->partitionData[model].tipVector,
 					    tipX1, tipX2, width, left, right, wgt, &scalerIncrement);			
 #endif

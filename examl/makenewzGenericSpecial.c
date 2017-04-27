@@ -74,8 +74,12 @@ static void getVects(tree *tr, unsigned char **tipX1, unsigned char **tipX2, dou
   int    
     rateHet = (int)discreteRateCategories(tr->rateHetModel),
     states = tr->partitionData[model].states,
-    span = rateHet * states,
-    x_offset = offset * span,
+    span = rateHet * states;
+  
+  size_t
+    x_offset = offset * (size_t)span;
+
+  int
     pNumber, 
     qNumber; 
     
@@ -706,10 +710,11 @@ void makenewzIterative(tree *tr)
 	    states = tr->partitionData[model].states,
 
 	    /* span for single alignment site (in doubles!) */
-	    span = rateHet * states,
-
+	    span = rateHet * states;
+	  
+	  size_t
 	    /* offset for current thread's data in global xVector (in doubles!) */
-	    x_offset = offset * span;
+	    x_offset = offset * (size_t)span;
 	  
 	  getVects(tr, &tipX1, &tipX2, &x1_start, &x2_start, &tipCase, model, &x1_gapColumn, &x2_gapColumn, &x1_gap, &x2_gap, offset);
 
@@ -958,7 +963,10 @@ void execCore(tree *tr, volatile double *_dlnLdlz, volatile double *_d2lnLdlz2)
 	    x_offset = offset * span,
 
 	    /* integer weight vector with pattern compression weights */
-	    *wgt = tr->partitionData[model].wgt + offset;
+	    *wgt = tr->partitionData[model].wgt + offset,
+
+	    /* integer rate category vector (for each pattern, _number_ of PSR category assigned to it, NOT actual rate!) */
+	    *rateCategory = tr->partitionData[model].rateCategory + offset;
 
 	  /* set a pointer to the part of the pre-computed sumBuffer we are going to access */
 	  double 
@@ -976,7 +984,7 @@ void execCore(tree *tr, volatile double *_dlnLdlz, volatile double *_d2lnLdlz2)
 	    if(tr->rateHetModel == CAT)
 	      coreCAT_FLEX(width, tr->partitionData[model].numberOfCategories, sumBuffer,
 			   &dlnLdlz, &d2lnLdlz2, wgt,
-			   tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN,  tr->partitionData[model].rateCategory, lz, states);
+			   tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN, rateCategory, lz, states);
 	    else
 	      coreGAMMA_FLEX(width, sumBuffer,
 			     &dlnLdlz, &d2lnLdlz2, tr->partitionData[model].EIGN, tr->partitionData[model].gammaRates, lz,
@@ -992,7 +1000,7 @@ void execCore(tree *tr, volatile double *_dlnLdlz, volatile double *_d2lnLdlz2)
 		if(tr->rateHetModel == CAT)
 		  coreGTRCAT_BINARY(width, tr->partitionData[model].numberOfCategories, sumBuffer,
 				    &dlnLdlz, &d2lnLdlz2,
-				    tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN,  tr->partitionData[model].rateCategory, 
+				    tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN,  rateCategory,
 				    lz, wgt);
 		else
 		   coreGTRGAMMA_BINARY(width, sumBuffer,
@@ -1008,7 +1016,7 @@ void execCore(tree *tr, volatile double *_dlnLdlz, volatile double *_d2lnLdlz2)
   #else
 			    coreGTRCAT(width, tr->partitionData[model].numberOfCategories, sumBuffer,
 					    &dlnLdlz, &d2lnLdlz2, wgt,
-					    tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN,  tr->partitionData[model].rateCategory, lz);
+					    tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN,  rateCategory, lz);
   #endif
 		else
   #ifdef __MIC_NATIVE
@@ -1026,7 +1034,7 @@ void execCore(tree *tr, volatile double *_dlnLdlz, volatile double *_d2lnLdlz2)
 			       assert(0 && "CAT model of rate heterogeneity is not implemented on Intel MIC");
   #else
 			    coreGTRCATPROT(tr->partitionData[model].EIGN, lz, tr->partitionData[model].numberOfCategories,  tr->partitionData[model].perSiteRates,
-					    tr->partitionData[model].rateCategory, width,
+					    rateCategory, width,
 					    wgt,
 					    &dlnLdlz, &d2lnLdlz2,
 					    sumBuffer);

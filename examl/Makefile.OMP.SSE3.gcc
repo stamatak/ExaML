@@ -3,26 +3,25 @@
 
 CC = mpicc
 
-
-COMMON_FLAGS = -D_GNU_SOURCE -D__SIM_SSE3  -msse3 -fomit-frame-pointer -funroll-loops -D_OPTIMIZED_FUNCTIONS -D_USE_ALLREDUCE #-Wall -Wunused-parameter -Wredundant-decls  -Wreturn-type  -Wswitch-default -Wunused-value -Wimplicit  -Wimplicit-function-declaration  -Wimplicit-int -Wimport  -Wunused  -Wunused-function  -Wunused-label -Wno-int-to-pointer-cast -Wbad-function-cast  -Wmissing-declarations -Wmissing-prototypes  -Wnested-externs  -Wold-style-definition -Wstrict-prototypes -Wpointer-sign -Wextra -Wredundant-decls -Wunused -Wunused-function -Wunused-parameter -Wunused-value  -Wunused-variable -Wformat  -Wformat-nonliteral -Wparentheses -Wsequence-point -Wuninitialized -Wundef -Wbad-function-cast -Wno-unused-parameter
+COMMON_FLAGS = -D_USE_OMP -fopenmp -D_GNU_SOURCE -D__SIM_SSE3  -msse3 -fomit-frame-pointer -funroll-loops -D_OPTIMIZED_FUNCTIONS -D_USE_ALLREDUCE -Wall #-Wunused-parameter -Wredundant-decls  -Wreturn-type  -Wswitch-default -Wunused-value -Wimplicit  -Wimplicit-function-declaration  -Wimplicit-int -Wimport  -Wunused  -Wunused-function  -Wunused-label -Wno-int-to-pointer-cast -Wbad-function-cast  -Wmissing-declarations -Wmissing-prototypes  -Wnested-externs  -Wold-style-definition -Wstrict-prototypes -Wpointer-sign -Wextra -Wredundant-decls -Wunused -Wunused-function -Wunused-parameter -Wunused-value  -Wunused-variable -Wformat  -Wformat-nonliteral -Wparentheses -Wsequence-point -Wuninitialized -Wundef -Wbad-function-cast -Wno-unused-parameter
 
 OPT_FLAG_1 = -O1 
 OPT_FLAG_2 = -O2
 
 CFLAGS = $(COMMON_FLAGS) $(OPT_FLAG_2)
 
-LIBRARIES = -lm
+LIBRARIES = -lm -fopenmp
 
 RM = rm -f
 
 objs    = axml.o optimizeModel.o trash.o searchAlgo.o topologies.o  treeIO.o models.o evaluatePartialGenericSpecial.o evaluateGenericSpecial.o newviewGenericSpecial.o makenewzGenericSpecial.o bipartitionList.o restartHashTable.o  byteFile.o partitionAssignment.o communication.o quartets.o
 
-all : clean examl
+all : clean examl-OMP
 
 GLOBAL_DEPS = axml.h globalVariables.h ../versionHeader/version.h
 
-examl : $(objs)
-	$(CC) -o examl $(objs) $(LIBRARIES) 
+examl-OMP : $(objs)
+	$(CC) -o examl-OMP $(objs) $(LIBRARIES) 
 
 models.o : models.c $(GLOBAL_DEPS)
 	 $(CC) $(COMMON_FLAGS) $(OPT_FLAG_1) -c -o models.o models.c
@@ -47,6 +46,6 @@ communication.o : communication.c $(GLOBAL_DEPS)
 quartets.o : quartets.c $(GLOBAL_DEPS)
 
 clean : 
-	$(RM) *.o examl
+	$(RM) *.o examl-OMP
 
-dev : examl
+dev : examl-OMP

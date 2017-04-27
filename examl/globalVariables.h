@@ -55,10 +55,12 @@ char run_id[128] = "",
   binaryCheckpointInputName[1024] = "",
   byteFileName[1024] = "",
   modelFileName[1024] = "",
-  treeFileName[1024] = "";
+  treeFileName[1024] = "",
+  quartetGroupingFileName[1024],
+  quartetFileName[1024];
 
 char *protModels[NUM_PROT_MODELS] = {"DAYHOFF", "DCMUT", "JTT", "MTREV", "WAG", "RTREV", "CPREV", "VT", "BLOSUM62", "MTMAM", "LG", "MTART", "MTZOA", "PMB", 
-				     "HIVB", "HIVW", "JTTDCMUT", "FLU", "AUTO", "LG4M", "LG4X", "GTR"};
+				     "HIVB", "HIVW", "JTTDCMUT", "FLU", "STMTREV", "AUTO", "LG4M", "LG4X", "GTR"};
 
 const char inverseMeaningBINARY[4] = {'_', '0', '1', '-'};
 const char inverseMeaningDNA[16]   = {'_', 'A', 'C', 'M', 'G', 'R', 'S', 'V', 'T', 'W', 'Y', 'H', 'K', 'D', 'B', '-'};

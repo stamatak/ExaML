@@ -204,6 +204,24 @@ void putWAG(double *ext_initialRates)
 
 }
 
+static void makeAASubstMat(double *daa, double *f, double *rates, double *freqs)
+{
+  int 
+    i, j, r = 0;
+
+  for(i = 1; i < 20; i++)
+    for(j = 0; j < i; j++)
+      {
+	daa[i * 20 + j] = rates[r];
+	r++;
+      }
+  
+  assert(r == 190);
+  
+  for(i = 0; i < 20; i++)
+    f[i] = freqs[i];
+}
+
 static void initProtMat(double f[20], int proteinMatrix, double *ext_initialRates, int lg4_index)
 { 
   double q[20][20];
@@ -1262,7 +1280,10 @@ static void initProtMat(double f[20], int proteinMatrix, double *ext_initialRate
 	       {0.072639,0.051691,0.038642,0.055580,0.009829,0.031374,0.048731,0.065283,0.023791,0.086640,0.120847,0.052177,0.026728,0.032589,0.039238,0.046748,0.053361,0.008024,0.037426,0.098662},
 	       {0.104843,0.078835,0.043513,0.090498,0.002924,0.066163,0.151640,0.038843,0.022556,0.018383,0.038687,0.104462,0.010166,0.009089,0.066950,0.053667,0.049486,0.004409,0.012924,0.031963}};
 	    
-	    int 
+
+	    makeAASubstMat(daa, f, rates[lg4_index], freqs[lg4_index]);
+
+	    /*int 
 	      i, 
 	      j, 
 	      r = 0;
@@ -1277,7 +1298,7 @@ static void initProtMat(double f[20], int proteinMatrix, double *ext_initialRate
 	    assert(r == 190);
 	    
 	    for(i = 0; i < 20; i++)
-	      f[i] = freqs[lg4_index][i];	  
+	    f[i] = freqs[lg4_index][i];	  */
 	    
 	  }
 	  break;
@@ -1383,7 +1404,10 @@ static void initProtMat(double f[20], int proteinMatrix, double *ext_initialRate
 	       {0.106471 , 0.074171 , 0.044513 , 0.096390 , 0.002148 , 0.066733 , 0.158908 , 0.037625 , 0.020691 , 0.014608 , 
 		0.028797 , 0.105352 , 0.007864 , 0.007477 , 0.083595 , 0.055726 , 0.047711 , 0.003975 , 0.010088 , 0.027159}};
 	    
-	    int 
+
+	    makeAASubstMat(daa, f, rates[lg4_index], freqs[lg4_index]);
+	    
+	    /*int 
 	      i, 
 	      j, 
 	      r = 0;
@@ -1398,10 +1422,47 @@ static void initProtMat(double f[20], int proteinMatrix, double *ext_initialRate
 	    assert(r == 190);
 	    
 	    for(i = 0; i < 20; i++)
-	      f[i] = freqs[lg4_index][i];	  
+	    f[i] = freqs[lg4_index][i];	  */
 	    
 	  }
 	  break;
+	case STMTREV:
+	  {
+	    double rates[190] =
+	      {
+		0.1159435373,  
+		0.2458816714, 0.1355713516, 
+		0.9578712472, 0.0775041665, 8.4408676914, 
+		0.2327281954, 9.1379470330, 0.1137687264, 0.0582110367, 
+		0.3309250853, 5.2854173238, 0.1727184754, 0.8191776581, 0.0009722083, 
+		0.6946680829, 0.0966719296, 0.2990806606, 7.3729791633, 0.0005604799, 3.5773486727, 
+		2.8076062202, 3.0815651393, 0.5575702616, 2.2627839242, 1.1721237455, 0.0482085663, 3.3184632572,  
+		0.2275494971, 2.8251848421, 9.5228608030, 2.3191131858, 0.0483235836, 4.4138715270, 0.0343694246, 0.0948383460, 
+		0.0627691644, 0.5712158076, 0.2238609194, 0.0205779319, 0.1527276944, 0.0206129952, 0.0328079744, 0.1239000315, 0.0802374651, 
+		0.0305818840, 0.1930408758, 0.0540967250, 0.0018843293, 0.2406073246, 0.3299454620, 0.0373753435, 0.0005918940, 0.1192904610, 1.3184058362, 
+		0.2231434272, 6.0541970908, 4.3977466558, 0.1347413792, 0.0001480536, 5.2864094506, 6.8883522181, 0.5345755286, 0.3991624551, 0.2107928508, 0.1055933141, 
+		0.1874527991, 0.2427875732, 0.0433577842, 0.0000022173, 0.0927357503, 0.0109238300, 0.0663619185, 0.0128777966, 0.0722334577, 4.3016010974, 1.1493262595, 0.4773694701, 
+		0.0458112245, 0.0310030750, 0.0233493970, 0.0000080023, 0.8419347601, 0.0027817812, 0.0361207581, 0.0490593583, 0.0197089530, 0.3634155844, 2.1032860162, 0.0861057517, 0.1735660361, 
+		1.5133910481, 0.7858555362, 0.3000131148, 0.3337627573, 0.0036260499, 1.5386413234, 0.5196922389, 0.0221252552, 1.0171151697, 0.0534088166, 6.0377879080, 0.4350064365, 0.1634497017, 
+		0.3545179411, 
+		2.3008246523, 0.7625702322, 1.9431704326, 0.6961369276, 2.3726544756, 0.1837198343, 0.9087013201, 2.5477016916, 0.3081949928, 0.1713464632, 2.7297706102, 0.3416923226, 0.0730798705, 
+		4.0107845583, 8.4630191575, 
+		4.3546170435, 1.0655012755, 1.6534489471, 0.0985354973, 0.1940108923, 0.3415280861, 0.2794040892, 0.1657005971, 0.2704552047, 2.3418182855, 0.0426297282, 1.2152488582, 4.6553742047, 
+		0.0068797851, 1.1613183519, 2.2213527952, 
+		0.0565037747, 6.7852754661, 0.0000010442, 0.0000002842, 0.9529353202, 0.0009844045, 0.0002705734, 0.5068170211, 0.0000932799, 0.0050518699, 0.3163744815, 0.0000023280, 0.1010587493, 
+		0.2890102379, 0.0041564377, 0.0495269526, 0.0002026765, 
+		0.0358664532, 0.0714121777, 0.3036789915, 1.3220740967, 1.7972997876, 0.0066458178, 0.3052655031, 0.0174305437, 21.9842817264, 0.1070890246, 0.0770894218, 0.1929529483, 0.0561599188, 
+		1.6748429971, 0.0021338646, 1.8890678523, 0.2834320440, 0.3134203648, 
+		3.2116908598, 0.0108028571, 0.0860833645, 0.0426724431, 0.3652373073, 0.0287789552, 0.1484349765, 0.5158740953, 0.0059791370, 3.3648305163, 0.8763855707, 0.0776875418, 0.9145670668, 
+		0.3963331926, 0.1080226203, 0.0640951379, 0.2278998021, 0.0388755869, 0.1836950254}; 
+	    
+	    double
+	      freqs[20] = {0.0461811000, 0.0534080000, 0.0361971000, 0.0233326000, 0.0234170000, 0.0390397000, 0.0341284001, 0.0389164000, 0.0164640000, 0.0891534000, 
+			   0.1617310001, 0.0551341000, 0.0233262000, 0.0911252000, 0.0344713001, 0.0771077000, 0.0418603001, 0.0200784000, 0.0305429000, 0.0643851996};  
+	    
+	    makeAASubstMat(daa, f, rates, freqs);	    
+	  }
+	break;
 	case MTART:
 	  {	   
 	    daa[1*20+0]=   0.2;
@@ -3002,30 +3063,7 @@ static void initProtMat(double f[20], int proteinMatrix, double *ext_initialRate
 }
 
           
-static void updateFracChange(tree *tr)
-{   
-  if(tr->NumberOfModels == 1)    
-    {   
-      assert(tr->fracchanges[0] != -1.0);
-      tr->fracchange = tr->fracchanges[0];      
-      tr->fracchanges[0] = -1.0;
-    }      
-  else
-    {
-      int 
-	model;      
-     
-      assert(tr->NumberOfModels > 1);
 
-      tr->fracchange = 0.0;	                     
- 	        
-      for(model = 0; model < tr->NumberOfModels; model++)                   
-	tr->fracchange +=  tr->partitionContributions[model] * tr->fracchanges[model];	
-    }
-
-  tr->rawFracchange = tr->fracchange;
-  memcpy(tr->rawFracchanges, tr->fracchanges, sizeof(double) * tr->NumberOfModels);
-}
 
 static void mytred2(double **a, const int n, double *d, double *e)
 {
@@ -3193,8 +3231,7 @@ static void makeEigen(double **_a, const int n, double *d, double *e)
   mytqli(d, e, n, _a);
 }
 
-static void initGeneric(const int n, const unsigned int *valueVector, int valueVectorLength,
-			double *fracchanges,
+static void initGeneric(const int n, const unsigned int *valueVector, int valueVectorLength,		      
 			double *ext_EIGN,
 			double *EV,
 			double *EI,
@@ -3204,6 +3241,7 @@ static void initGeneric(const int n, const unsigned int *valueVector, int valueV
 			int model)
 {
   double 
+    fracchange = 0.0,
     **r, 
     **a, 
     **EIGV,
@@ -3258,15 +3296,11 @@ static void initGeneric(const int n, const unsigned int *valueVector, int valueV
       r[j][j] = 0.0;
       for (k = 0; k < j; k++)
 	r[j][k] = r[k][j];
-    }                         
-  
-  
-
-  fracchanges[model] = 0.0;         
+    }                            
   
   for (j = 0; j< n; j++)
     for (k = 0; k< n; k++)
-      fracchanges[model] += f[j] * r[j][k] * f[k];             
+      fracchange += f[j] * r[j][k] * f[k];             
   
   m = 0;
   
@@ -3331,7 +3365,7 @@ static void initGeneric(const int n, const unsigned int *valueVector, int valueV
 
   for(l = 1; l < n; l++)
     {
-      ext_EIGN[l] = EIGN[l]; 
+      ext_EIGN[l] = EIGN[l] * (1.0 / fracchange); 
       assert(ext_EIGN[l] > 0.0);
     }
   
@@ -3427,8 +3461,7 @@ static void initGeneric(const int n, const unsigned int *valueVector, int valueV
 
 void initReversibleGTR(tree *tr, int model)
 { 
-  double   
-    *fracchanges      = tr->fracchanges,    
+  double      
     *ext_EIGN         = tr->partitionData[model].EIGN,
     *EV               = tr->partitionData[model].EV,
     *EI               = tr->partitionData[model].EI,
@@ -3450,8 +3483,7 @@ void initReversibleGTR(tree *tr, int model)
     case BINARY_DATA:     
       initGeneric(states, 
 		  getBitVector(tr->partitionData[model].dataType), 
-		  getUndetermined(tr->partitionData[model].dataType) + 1, 
-		  fracchanges,
+		  getUndetermined(tr->partitionData[model].dataType) + 1, 	       
 		  ext_EIGN, 
 		  EV, 
 		  EI, 
@@ -3524,35 +3556,20 @@ void initReversibleGTR(tree *tr, int model)
      if(tr->partitionData[model].protModels == LG4M || tr->partitionData[model].protModels == LG4X)
        {
 	 int 
-	   i;
+	   i;	 
 
-	 double 
-	   *fracchanges_LG4[4],
-	   acc = 0.0;
+	 for(i = 0; i < 4; i++)	   	     
+	   initGeneric(states, bitVectorAA, 23, 
+		       tr->partitionData[model].rawEIGN_LG4[i],  tr->partitionData[model].EV_LG4[i],  
+		       tr->partitionData[model].EI_LG4[i], tr->partitionData[model].frequencies_LG4[i], 
+		       tr->partitionData[model].substRates_LG4[i],
+		       tr->partitionData[model].tipVector_LG4[i], 
+		       model);   	 	 
 
-	 /* TODO frac change !*/
-
-	 for(i = 0; i < 4; i++)
-	   {
-	     fracchanges_LG4[i]  = (double *)malloc(tr->NumberOfModels * sizeof(double));
-	     initGeneric(states, bitVectorAA, 23, fracchanges_LG4[i],
-			 tr->partitionData[model].EIGN_LG4[i],  tr->partitionData[model].EV_LG4[i],  
-			 tr->partitionData[model].EI_LG4[i], tr->partitionData[model].frequencies_LG4[i], 
-			 tr->partitionData[model].substRates_LG4[i],
-			 tr->partitionData[model].tipVector_LG4[i], 
-			 model);   
-	   }
-
-	 for(i = 0; i < 4; i++)
-	   {	    
-	     acc += fracchanges_LG4[i][model];
-	     free(fracchanges_LG4[i]);
-	   }
-
-	 tr->fracchanges[model] = acc / 4;
+	 scaleLG4X_EIGN(tr, model);
        }
      else
-       initGeneric(states, bitVectorAA, 23, fracchanges,
+       initGeneric(states, bitVectorAA, 23,
 		   ext_EIGN, EV, EI, frequencies, ext_initialRates,
 		   tipVector, 
 		   model);                   
@@ -3560,8 +3577,6 @@ void initReversibleGTR(tree *tr, int model)
    default:
      assert(0);
    } 
-
-  updateFracChange(tr);
 
 #ifdef __MIC_NATIVE
   if(tr->partitionData[model].protModels == LG4M || tr->partitionData[model].protModels == LG4X)
@@ -4205,8 +4220,7 @@ void initModel(tree *tr)
       
       if(tr->partitionData[model].protModels == AUTO)
 	tr->partitionData[model].autoProtModels = WAG; /* initialize by WAG per default when AUTO is used */
-                         
-      initReversibleGTR(tr, model);
+                              
       makeGammaCats(tr->partitionData[model].alpha, tr->partitionData[model].gammaRates, 4, tr->useMedian);     
 
       for(k = 0; k < tr->partitionData[model].states; k++)
@@ -4220,15 +4234,8 @@ void initModel(tree *tr)
 	  tr->partitionData[model].weightExponents[k] = 0.0;
 	}
 
-    }                   		       
-  
-  if(tr->NumberOfModels > 1)
-    {
-      tr->fracchange = 0;
-      for(model = 0; model < tr->NumberOfModels; model++)	
-	tr->fracchange += tr->fracchanges[model];      
-      tr->fracchange /= ((double)tr->NumberOfModels);
-    }  
+      initReversibleGTR(tr, model);
+    }                   		           
 }
 
 

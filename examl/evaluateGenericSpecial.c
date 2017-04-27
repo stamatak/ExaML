@@ -452,6 +452,16 @@ void evaluateIterative(tree *tr)
 	else
 	  z = pz[0];
 
+
+	  /*
+	     figure out if we are using the CAT or GAMMA model of rate heterogeneity
+	     and set pointers to the rate heterogeneity rate arrays and also set the
+	     number of distinct rate categories appropriately.
+
+	     Under GAMMA this is constant and hard-coded as 4, weheras under CAT
+	     the number of site-wise rate categories can vary in the course of computations
+	     up to a user defined maximum value of site categories (default: 25)
+	   */
 	if(tr->rateHetModel == CAT)
 	  {
 	    rateCategories = tr->partitionData[m].perSiteRates;
@@ -561,23 +571,25 @@ void evaluateIterative(tree *tr)
 	{	
 	  int 
 	    rateHet = (int)discreteRateCategories(tr->rateHetModel),
-	    categories,
 	    
 	    /* get the number of states in the partition, e.g.: 4 = DNA, 20 = Protein */
-
 	    states = tr->partitionData[model].states,
 
 	    /* span for single alignment site (in doubles!) */
-	    span = rateHet * states,
+	    span = rateHet * states;
 
+	  size_t
 	    /* offset for current thread's data in global xVector (in doubles!) */
-	    x_offset = offset * span,
+	    x_offset = offset * (size_t)span;
 
-	    /* integer wieght vector with pattern compression weights */
-	    *wgt = tr->partitionData[model].wgt + offset;
+	  int
+	    /* integer weight vector with pattern compression weights */
+	    *wgt = tr->partitionData[model].wgt + offset,
+
+	    /* integer rate category vector (for each pattern, _number_ of PSR category assigned to it, NOT actual rate!) */
+	    *rateCategory = tr->partitionData[model].rateCategory + offset;
 	  
 	  double 
-	    *rateCategories = (double*)NULL,	    
 	    partitionLikelihood = 0.0, 	 
 	    *weights = tr->partitionData[model].weights,
 	    *x1_start   = (double*)NULL, 
@@ -592,27 +604,6 @@ void evaluateIterative(tree *tr)
 	  unsigned char 
 	    *tip = (unsigned char*)NULL;	  
 
-	  /* 
-	     figure out if we are using the CAT or GAMMA model of rate heterogeneity 
-	     and set pointers to the rate heterogeneity rate arrays and also set the 
-	     number of distinct rate categories appropriately.
-	     
-	     Under GAMMA this is constant and hard-coded as 4, weheras under CAT 
-	     the number of site-wise rate categories can vary in the course of computations 
-	     up to a user defined maximum value of site categories (default: 25)
-	   */
-
-	  if(tr->rateHetModel == CAT)
-	    {	     
-	      rateCategories = tr->partitionData[model].perSiteRates;
-	      categories = tr->partitionData[model].numberOfCategories;
-	    }
-	  else
-	    {	     
-	      rateCategories = tr->partitionData[model].gammaRates;
-	      categories = 4;
-	    }
-	  
 	  /* figure out if we need to address tip vectors (a char array that indexes into a precomputed tip likelihood 
 	     value array or if we need to address inner vectors */
 
@@ -707,7 +698,7 @@ void evaluateIterative(tree *tr)
 #else
 	      assert(!tr->saveMemory);
 	      if(tr->rateHetModel == CAT)
-		partitionLikelihood = evaluateGTRCAT_BINARY((int *)NULL, (int *)NULL, tr->partitionData[model].rateCategory, wgt,
+		partitionLikelihood = evaluateGTRCAT_BINARY((int *)NULL, (int *)NULL, rateCategory, wgt,
 				      x1_start, x2_start, tr->partitionData[model].tipVector, 
 				      tip, width, diagptable, TRUE);
 	      else				  
@@ -725,7 +716,7 @@ void evaluateIterative(tree *tr)
 #ifdef __MIC_NATIVE
 		     assert(0 && "Neither CAT model of rate heterogeneity nor memory saving are implemented on Intel MIC");
 #else
-		      partitionLikelihood =  evaluateGTRCAT_SAVE(tr->partitionData[model].rateCategory, wgt,
+		      partitionLikelihood =  evaluateGTRCAT_SAVE(rateCategory, wgt,
 								 x1_start, x2_start, tr->partitionData[model].tipVector, 
 								 tip, width, diagptable, x1_gapColumn, x2_gapColumn, x1_gap, x2_gap);
 #endif
@@ -733,7 +724,7 @@ void evaluateIterative(tree *tr)
 #ifdef __MIC_NATIVE
 		     assert(0 && "CAT model of rate heterogeneity is not implemented on Intel MIC");
 #else
-		      partitionLikelihood =  evaluateGTRCAT(tr->partitionData[model].rateCategory, wgt,
+		      partitionLikelihood =  evaluateGTRCAT(rateCategory, wgt,
 							    x1_start, x2_start, tr->partitionData[model].tipVector, 
 							    tip, width, diagptable);
 #endif
@@ -770,7 +761,7 @@ void evaluateIterative(tree *tr)
 #ifdef __MIC_NATIVE
 		     assert(0 && "Neither CAT model of rate heterogeneity nor memory saving are implemented on Intel MIC");
 #else
-		      partitionLikelihood = evaluateGTRCATPROT_SAVE(tr->partitionData[model].rateCategory, wgt,
+		      partitionLikelihood = evaluateGTRCATPROT_SAVE(rateCategory, wgt,
 								    x1_start, x2_start, tr->partitionData[model].tipVector,
 								    tip, width, diagptable,  x1_gapColumn, x2_gapColumn, x1_gap, x2_gap);
 #endif
@@ -778,7 +769,7 @@ void evaluateIterative(tree *tr)
 #ifdef __MIC_NATIVE
 		     assert(0 && "CAT model of rate heterogeneity is not implemented on Intel MIC");
 #else
-		      partitionLikelihood = evaluateGTRCATPROT(tr->partitionData[model].rateCategory, wgt,
+		      partitionLikelihood = evaluateGTRCATPROT(rateCategory, wgt,
 							       x1_start, x2_start, tr->partitionData[model].tipVector,
 							       tip, width, diagptable);
 #endif

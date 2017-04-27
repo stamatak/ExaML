@@ -1561,9 +1561,14 @@ static void sitecombcrunch (rawdata *rdta, cruncheddata *cdta, tree *tr, analdef
 	      break;
 	    }
 	}
-
+      
       if(allGap)      
-	undeterminedSites++;	 
+      	undeterminedSites++;	 
+
+#ifdef _DEBUG_UNDET_REMOVAL
+      if(allGap)
+	printf("Skipping gap site %d\n", sitej);
+#endif
           
       if(!adef->compressPatterns)
 	tied = 0;
@@ -1630,6 +1635,10 @@ static void sitecombcrunch (rawdata *rdta, cruncheddata *cdta, tree *tr, analdef
   if (cdta->aliaswgt[i] > 0) 
     cdta->endsite++;
 
+#ifdef _DEBUG_UNDET_REMOVAL
+  printf("included sites: %d\n", cdta->endsite);
+#endif
+
   if(adef->mode == PER_SITE_LL)
     {
       assert(0);
@@ -1650,7 +1659,7 @@ static void sitecombcrunch (rawdata *rdta, cruncheddata *cdta, tree *tr, analdef
       for(i = 0; i <= rdta->sites; i++)
 	{
 	  tr->model[i]      = aliasModel[i];
-	  tr->dataVector[i] = aliasSuperModel[i];
+	  tr->dataVector[i] = aliasSuperModel[i];	  
 	}
     }
 
@@ -1679,7 +1688,6 @@ static boolean makeweights (analdef *adef, rawdata *rdta, cruncheddata *cdta, tr
 
   return TRUE;
 }
-
 
 
 
@@ -1723,6 +1731,13 @@ static boolean makevalues(rawdata *rdta, cruncheddata *cdta, tree *tr, analdef *
   if(!adef->useMultipleModel)
     tr->NumberOfModels = 1;
 
+#ifdef _DEBUG_UNDET_REMOVAL
+  for(i = 0; i < cdta->endsite; i++)
+    printf("%d ", tr->model[i]);
+
+  printf("\n");
+#endif
+
   if(adef->useMultipleModel)
     {
       tr->partitionData[0].lower = 0;
@@ -1743,6 +1758,14 @@ static boolean makevalues(rawdata *rdta, cruncheddata *cdta, tree *tr, analdef *
 	      modelCounter++;
 	    }
 	  i++;
+	}
+
+      if(modelCounter <  tr->NumberOfModels - 1)
+	{
+	  printf("\nYou specified %d partitions, but after parsing and pre-processing ExaML only found %d partitions\n", tr->NumberOfModels, modelCounter + 1);
+	  printf("Presumably one or more partitions vanished because they consisted entirely of undetermined characters.\n");
+	  printf("Please fix your data!\n\n");
+	  exit(-1);
 	}
 
 
@@ -2398,28 +2421,115 @@ static void genericBaseFrequencies(tree *tr, const int numFreqs, rawdata *rdta, 
     temp[64];
  
   int     
+    countStatesPresent = 0,
+    statesPresent[64],
     i, 
     j, 
     k, 
     l;
 
-  unsigned char  *yptr;  
+  unsigned char  
+    *yptr;  
 	  
   for(l = 0; l < numFreqs; l++)	    
-    pfreqs[l] = 1.0 / ((double)numFreqs);
+    {
+      pfreqs[l] = 1.0 / ((double)numFreqs);
+      statesPresent[l] = 0;
+    }
+
+#ifdef _DEBUG_UNDET_REMOVAL	  
+  printf("bounds %d %d\n", lower, upper);
+
+  for(j = lower; j < upper; j++) 
+    {
+      for(i = 0; i < rdta->numsp; i++)
+	{
+	  unsigned int 
+	    code;
+
+	  yptr = &(rdta->y0[((size_t)i) * (tr->originalCrunchedLength)]);
 	  
+	  code = yptr[j];
+
+	  printf("%c",  inverseMeaningDNA[code]);
+	}
+      printf("\n");
+    }
+  
+  printf("\n\n");
+#endif
+
+  for(i = 0; i < rdta->numsp; i++) 
+    {
+      yptr = &(rdta->y0[((size_t)i) * (tr->originalCrunchedLength)]);
+      
+      for(j = lower; j < upper; j++) 
+	{
+	  unsigned int 	      
+	    code = bitMask[yptr[j]];
+	  
+	  switch(numFreqs)
+	    {
+	    case 2:
+	      switch(code)
+		{
+		case 1:
+		  statesPresent[0] = 1;
+		  break;
+		case 2:
+		  statesPresent[1] = 1;
+		  break;
+		default:
+		  ;
+		}
+	      break;
+	    case 4:
+	      switch(code)
+		{
+		case 1:
+		  statesPresent[0] = 1;
+		  break;
+		case 2:
+		  statesPresent[1] = 1;
+		  break;
+		case 4:
+		  statesPresent[2] = 1;
+		  break;
+		case 8:
+		  statesPresent[3] = 1;
+		  break;
+		default:
+		  ;
+		}
+	      break;	       
+	    case 20:
+	      if(yptr[j] >= 0 && yptr[j] < 20)
+		statesPresent[yptr[j]] = 1;
+	      break;
+	    default:
+	      assert(0);
+	    }
+	}
+    }
+	      
+  for(i = 0, countStatesPresent = 0; i < numFreqs; i++)
+    if(statesPresent[i] == 1)
+      countStatesPresent++;
+
   for (k = 1; k <= 8; k++) 
-    {	     	   	    	      			
+    {	     	   	    	      			    
       for(l = 0; l < numFreqs; l++)
 	sumf[l] = 0.0;
 	      
-      for (i = 0; i < rdta->numsp; i++) 
+      for(i = 0; i < rdta->numsp; i++) 
 	{		 
-	  yptr =  &(rdta->y0[((size_t)i) * (tr->originalCrunchedLength)]);
+	  yptr = &(rdta->y0[((size_t)i) * (tr->originalCrunchedLength)]);
 	  
 	  for(j = lower; j < upper; j++) 
 	    {
-	      unsigned int code = bitMask[yptr[j]];
+	      unsigned int 
+		code = bitMask[yptr[j]];
+	      
 	      assert(code >= 1);
 	      
 	      for(l = 0; l < numFreqs; l++)
@@ -2456,6 +2566,13 @@ static void genericBaseFrequencies(tree *tr, const int numFreqs, rawdata *rdta, 
 	pfreqs[l] = sumf[l] / acc;	     
     }
   
+  if(countStatesPresent < numFreqs)
+    {
+      printf("Partition %s number %d has a problem, the number of expected states is %d the number of states that are present is %d.\n", 
+	     tr->partitionData[model].partitionName, model, numFreqs, countStatesPresent);
+      printf("Please go and fix your data!\n\n");
+    }
+
   if(smoothFrequencies)         
     {          
       smoothFreqs(numFreqs, pfreqs,  tr->partitionData[model].frequencies, &(tr->partitionData[model]));	   
@@ -2479,19 +2596,16 @@ static void genericBaseFrequencies(tree *tr, const int numFreqs, rawdata *rdta, 
 	      zeroFreq = TRUE;
 	    }
 	}
-
+      
       if(zeroFreq)
-	exit(-1);
+      	exit(-1);
 
       for(l = 0; l < numFreqs; l++)
 	{
 	  assert(pfreqs[l] > 0.0);
 	  tr->partitionData[model].frequencies[l] = pfreqs[l];
-	}     
+	}   
     }  
- 
-   
-
 }
 
 

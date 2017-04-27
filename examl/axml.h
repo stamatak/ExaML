@@ -41,11 +41,16 @@
 
 #ifdef __MIC_NATIVE
 #define BYTE_ALIGNMENT 64
+#define VECTOR_PADDING 8
 #elif defined __AVX
 #define BYTE_ALIGNMENT 32
+#define VECTOR_PADDING 1
 #else
 #define BYTE_ALIGNMENT 16
+#define VECTOR_PADDING 1
 #endif
+
+#define GET_PADDED_WIDTH(w) w % VECTOR_PADDING == 0 ? w : w + (VECTOR_PADDING - (w % VECTOR_PADDING))
 
 #include <mpi.h>
 
@@ -219,6 +224,7 @@
 
 #define  TREE_EVALUATION            0
 #define  BIG_RAPID_MODE             1
+#define  QUARTET_CALCULATION        2
 
 
 #define M_GTRCAT         1
@@ -251,12 +257,13 @@
 #define HIVW       15
 #define JTTDCMUT   16
 #define FLU        17 
-#define AUTO       18
-#define LG4M       19
-#define LG4X       20
-#define GTR        21  /* GTR always needs to be the last one */
+#define STMTREV    18
+#define AUTO       19
+#define LG4M       20
+#define LG4X       21
+#define GTR        22  /* GTR always needs to be the last one */
 
-#define NUM_PROT_MODELS 22
+#define NUM_PROT_MODELS 23
 
 /* bipartition stuff */
 
@@ -558,6 +565,7 @@ typedef struct {
 
    /* LG4 */
 
+  double *rawEIGN_LG4[4];
   double *EIGN_LG4[4];
   double *EV_LG4[4];
   double *EI_LG4[4];   
@@ -573,8 +581,6 @@ typedef struct {
 
   double weightsBuffer[4];
   double weightExponentsBuffer[4];
-
-  double weightLikelihood;
 
   /* LG4 */
 
@@ -650,6 +656,28 @@ typedef struct List_{
 #define FAST_SPRS     2
 #define SLOW_SPRS     3
 #define MOD_OPT       4
+#define QUARTETS      5
+
+typedef struct {
+  boolean useMedian;
+  int saveBestTrees;
+  boolean saveMemory;
+  boolean searchConvergenceCriterion;
+  boolean perGeneBranchLengths; //adef
+  double likelihoodEpsilon; //adef
+  int categories;
+  int mode; //adef
+  int fastTreeEvaluation;
+  boolean initialSet;//adef
+  int initial;//adef
+  int rateHetModel;
+  int autoProteinSelectionType;
+  
+  //quartets 
+  boolean useQuartetGrouping;//adef
+  unsigned long int numberRandomQuartets;//adef
+
+} commandLine;
 
 typedef struct {
   boolean useMedian;
@@ -716,7 +744,17 @@ typedef struct {
 
   int catOpt;
   int treeIteration; 
-                           
+  /* quartets */
+
+  long seed;
+  int flavor;   
+  uint64_t quartetCounter;  
+  long filePosition;
+  char quartetFileName[1024];
+  //FILE NAME???
+
+  /* command line settings */
+
   commandLine cmd;
   
 } checkPointState;
@@ -729,7 +767,6 @@ typedef struct {
   double substRates[190];        
   double frequencies[20] ;      
   double tipVector[460] __attribute__ ((aligned (BYTE_ALIGNMENT)));
-  double fracchange[1];
   double left[1600] __attribute__ ((aligned (BYTE_ALIGNMENT)));
   double right[1600] __attribute__ ((aligned (BYTE_ALIGNMENT)));
 } siteAAModels;
@@ -784,11 +821,6 @@ typedef  struct  {
   /* the stuff below is shared among DNA and AA, span does
      not change depending on datatype */
 
-  
-  double           *fracchanges;
-
-  double           *rawFracchanges;
-
   /* model stuff end */
 
   unsigned char             **yVector;
@@ -802,8 +834,6 @@ typedef  struct  {
   double            *partitionContributions;
   double            *partitionWeights;
 
-  double            fracchange;
-  double            rawFracchange;
   double            lhCutoff;
   double            lhAVG;
   unsigned long     lhDEC;
@@ -1024,6 +1054,9 @@ typedef  struct {
   boolean        compressPatterns;
   double         likelihoodEpsilon;
   boolean        useCheckpoint;
+  boolean        useQuartetGrouping;
+  unsigned long int numberRandomQuartets;
+  unsigned long int quartetCkpInterval; 
  
 #ifdef _BAYESIAN 
   boolean       bayesian;
@@ -1069,6 +1102,9 @@ extern void mcmc(tree *tr, analdef *adef);
 
 boolean isThisMyPartition(tree *localTree, int tid, int model);
 
+extern boolean allSmoothed(tree *tr);
+
+extern int treeFindTipName(FILE *fp, tree *tr, boolean check);
 
 extern void computePlacementBias(tree *tr, analdef *adef);
 
@@ -1131,7 +1167,7 @@ extern void computeBOOTRAPID (tree *tr, analdef *adef, long *radiusSeed);
 extern void optimizeRAPID ( tree *tr, analdef *adef );
 extern void thoroughOptimization ( tree *tr, analdef *adef, topolRELL_LIST *rl, int index );
 extern int treeOptimizeThorough ( tree *tr, int mintrav, int maxtrav);
-
+extern void computeQuartets(tree *tr, analdef *adef);
 
 extern void makeRandomTree ( tree *tr);
 extern void nodeRectifier ( tree *tr );
@@ -1313,8 +1349,10 @@ extern void writeCheckpoint(tree *tr, analdef *adef);
 extern boolean isGap(unsigned int *x, int pos);
 extern boolean noGap(unsigned int *x, int pos);
 
-void myBinFwrite(void *ptr, size_t size, size_t nmemb, FILE *byteFile);
-void myBinFread(void *ptr, size_t size, size_t nmemb, FILE *byteFile);
+extern void scaleLG4X_EIGN(tree *tr, int model);
+
+extern void myBinFwrite(void *ptr, size_t size, size_t nmemb, FILE *byteFile);
+extern void myBinFread(void *ptr, size_t size, size_t nmemb, FILE *byteFile);
 
 #ifdef __AVX
 
@@ -1393,3 +1431,5 @@ void gatherDistributedArray(tree *tr, void **destination, void *src, MPI_Datatyp
 #endif
 
 
+
+#

@@ -15,9 +15,9 @@ LIBRARIES = -lm -mmic -openmp
 
 RM = rm -f
 
-objs    = axml.o optimizeModel.o trash.o searchAlgo.o topologies.o treeIO.o models.o evaluatePartialGenericSpecial.o evaluateGenericSpecial.o newviewGenericSpecial.o makenewzGenericSpecial.o bipartitionList.o restartHashTable.o byteFile.o partitionAssignment.o communication.o mic_native_dna.o mic_native_aa.o
+objs    = axml.o optimizeModel.o trash.o searchAlgo.o topologies.o treeIO.o models.o evaluatePartialGenericSpecial.o evaluateGenericSpecial.o newviewGenericSpecial.o makenewzGenericSpecial.o bipartitionList.o restartHashTable.o byteFile.o partitionAssignment.o communication.o mic_native_dna.o mic_native_aa.o quartets.o
 
-all : examl-MIC
+all : clean examl-MIC
 
 GLOBAL_DEPS = axml.h globalVariables.h
 
@@ -25,7 +25,10 @@ examl-MIC : $(objs)
 	$(CC) -o examl-MIC $(objs) $(LIBRARIES)
 
 models.o : models.c $(GLOBAL_DEPS)
-	 $(CC) $(COMMON_FLAGS) $(OPT_FLAG_1) -c -o models.o models.c
+	$(CC) $(COMMON_FLAGS) $(OPT_FLAG_1) -c -o models.o models.c
+
+partitionAssignment.o: partitionAssignment.o $(GLOBAL_DEPS)
+	$(CC) $(COMMON_FLAGS) $(OPT_FLAG_1) -c -o partitionAssignment.o partitionAssignment.c
 
 bipartitionList.o : bipartitionList.c $(GLOBAL_DEPS)
 evaluatePartialSpecialGeneric.o : evaluatePartialSpecialGeneric.c $(GLOBAL_DEPS)
@@ -42,10 +45,12 @@ newviewGenericSpecial.o : newviewGenericSpecial.c $(GLOBAL_DEPS)
 makenewzGenericSpecial.o : makenewzGenericSpecial.c $(GLOBAL_DEPS)
 restartHashTable.o : restartHashTable.c $(GLOBAL_DEPS)
 byteFile.o : byteFile.c
-partitionAssignment.o : partitionAssignment.c  $(GLOBAL_DEPS) 
 communication.o : communication.c $(GLOBAL_DEPS) 
 mic_native_dna.o : mic_native_dna.c $(GLOBAL_DEPS)
 mic_native_aa.o : mic_native_aa.c $(GLOBAL_DEPS)
+quartets.o : quartets.c $(GLOBAL_DEPS)
 
 clean : 
 	$(RM) *.o examl-MIC
+
+dev : examl-MIC

@@ -94,7 +94,9 @@ static void skipWhites(char **ch)
 
 static void analyzeIdentifier(char **ch, int modelNumber, tree *tr)
 {
-  char ident[2048] = "";
+  char
+    *start = *ch,
+    ident[2048] = "";
   char model[128] = "";  
   char thisModel[1024];
   int i = 0, n, j;
@@ -102,6 +104,15 @@ static void analyzeIdentifier(char **ch, int modelNumber, tree *tr)
 
   while(**ch != '=')
     {
+      if(**ch == '\n' || **ch == '\r')
+	{
+	  printf("\nPartition file parsing error!\n");
+	  printf("Each line must contain a \"=\" character\n");
+	  printf("Offending line: %s\n", start);
+	  printf("ExaML will exit now.\n\n");
+	  exit(-1);
+	}
+
       if(**ch != ' ' && **ch != '\t')
 	{
 	  ident[i] = **ch;      

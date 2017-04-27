@@ -216,7 +216,7 @@ boolean smooth (tree *tr, nodeptr p)
   return TRUE;
 } 
 
-static boolean allSmoothed(tree *tr)
+boolean allSmoothed(tree *tr)
 {
   int i;
   boolean result = TRUE;
@@ -1188,8 +1188,10 @@ static void writeCheckpointInner(tree *tr, int *rateCategory, double *patrat, an
   ckp.cmd.initial = adef->initial;//adef
   ckp.cmd.rateHetModel = tr->rateHetModel;
   ckp.cmd.autoProteinSelectionType = tr->autoProteinSelectionType;
-  
 
+  ckp.cmd.useQuartetGrouping = adef->useQuartetGrouping;
+  ckp.cmd.numberRandomQuartets = adef->numberRandomQuartets;
+  
   /* cdta */   
   
   ckp.accumulatedTime = accumulatedTime + (gettime() - masterTime);
@@ -1210,18 +1212,7 @@ static void writeCheckpointInner(tree *tr, int *rateCategory, double *patrat, an
     {
       myBinFwrite(rateCategory, sizeof(int), tr->originalCrunchedLength, f);
       myBinFwrite(patrat, sizeof(double), tr->originalCrunchedLength, f);
-    }
-
-  /* need to store this as well in checkpoints, otherwise the branch lengths 
-     in the output tree files will be wrong, not the internal branch lengths though */
-  
-  myBinFwrite(tr->fracchanges,  sizeof(double), tr->NumberOfModels, f);
-  myBinFwrite(&(tr->fracchange),   sizeof(double), 1, f);
-
-  //LG4X related stuff
-
-  myBinFwrite(tr->rawFracchanges,  sizeof(double), tr->NumberOfModels, f);
-  myBinFwrite(&(tr->rawFracchange),   sizeof(double), 1, f);
+    }  
 
   //end
 
@@ -1257,6 +1248,7 @@ static void writeCheckpointInner(tree *tr, int *rateCategory, double *patrat, an
 	  
 	  for(k = 0; k < 4; k++)
 	    {
+	      myBinFwrite(tr->partitionData[model].rawEIGN_LG4[k], sizeof(double), pLengths[dataType].eignLength, f);
 	      myBinFwrite(tr->partitionData[model].EIGN_LG4[k], sizeof(double), pLengths[dataType].eignLength, f);
 	      myBinFwrite(tr->partitionData[model].EV_LG4[k], sizeof(double),  pLengths[dataType].evLength, f);
 	      myBinFwrite(tr->partitionData[model].EI_LG4[k], sizeof(double),  pLengths[dataType].eiLength, f);    
@@ -1378,8 +1370,9 @@ static void readTree(tree *tr, FILE *f)
   }
   
   evaluateGeneric(tr, tr->start, TRUE);  
-
-  printBothOpen("ExaML Restart with likelihood: %1.50f\n", tr->likelihood);
+  
+  if(ckp.state != QUARTETS)
+    printBothOpen("ExaML Restart with likelihood: %1.50f\n", tr->likelihood);
 }
 
 static void genericError(void)
@@ -1484,6 +1477,20 @@ static void checkCommandLineArguments(tree *tr, analdef *adef)
       printBothOpen("\nDisagreement in protein model selection criterion: --auto-prot\n");
       match = FALSE;
     }
+
+   if(ckp.cmd.useQuartetGrouping != adef->useQuartetGrouping)
+     {
+       genericError();
+       printBothOpen("\nDisagreement in quartet grouping option: -Y\n");
+       match = FALSE;
+     }
+
+   if(ckp.cmd.numberRandomQuartets != adef->numberRandomQuartets)
+     { 
+       genericError();
+       printBothOpen("\nDisagreement in number of random quartet subsamples: -r\n");
+       match = FALSE;
+     }
 
   if(!match)
     {
@@ -1641,16 +1648,9 @@ static void readCheckpoint(tree *tr, analdef *adef)
     }
 
 
-  /* need to read this as well in checkpoints, otherwise the branch lengths 
-     in the output tree files will be wrong, not the internal branch lengths though */
   
-  myBinFread(tr->fracchanges,  sizeof(double), tr->NumberOfModels, f);
-  myBinFread(&(tr->fracchange),   sizeof(double), 1, f);
-
-  //LG4X related stuff
-
-  myBinFread(tr->rawFracchanges,  sizeof(double), tr->NumberOfModels, f);
-  myBinFread(&(tr->rawFracchange),   sizeof(double), 1, f);
+  
+ 
 
   //end
 
@@ -1686,6 +1686,7 @@ static void readCheckpoint(tree *tr, analdef *adef)
 	  
 	  for(k = 0; k < 4; k++)
 	    {
+	       myBinFread(tr->partitionData[model].rawEIGN_LG4[k], sizeof(double), pLengths[dataType].eignLength, f);
 	      myBinFread(tr->partitionData[model].EIGN_LG4[k], sizeof(double), pLengths[dataType].eignLength, f);
 	      myBinFread(tr->partitionData[model].EV_LG4[k], sizeof(double),  pLengths[dataType].evLength, f);
 	      myBinFread(tr->partitionData[model].EI_LG4[k], sizeof(double),  pLengths[dataType].eiLength, f);    
@@ -1739,6 +1740,9 @@ void restart(tree *tr, analdef *adef)
       break;
     case MOD_OPT:
       assert(adef->mode == TREE_EVALUATION);
+      break;
+    case QUARTETS:
+      assert(adef->mode == QUARTET_CALCULATION);
       break;
     default:
       assert(0);
