@@ -1428,13 +1428,6 @@ static void optParamGeneric(tree *tr, double modelEpsilon, linkageList *ll, int 
 		  int 
 		    index = ll->ld[k].partitionList[j];		  		 
 		  
-		  if(whichParameterType == LXRATE_F)
-		    {
-		      memcpy(tr->partitionData[index].weights,         &startWeights[pos * 4], sizeof(double) * 4);
-		      memcpy(tr->partitionData[index].gammaRates,      &startRates[pos * 4], sizeof(double) * 4);
-		      memcpy(tr->partitionData[index].weightExponents, &startExponents[pos * 4], 4 * sizeof(double));
-		    }
-		  
 		  changeModelParameters(index, rateNumber, startValues[pos], whichParameterType, tr);		 
 		}
 	    }
@@ -1571,51 +1564,6 @@ static void optBaseFreqs(tree *tr, double modelEpsilon, linkageList *ll)
   if(aaPartitions > 0)      
     optFreqs(tr, modelEpsilon, ll, aaPartitions, states);
 
-
-  //then binary 
-
-  for(i = 0; i < ll->entries; i++)
-    {
-      switch(tr->partitionData[ll->ld[i].partitionList[0]].dataType)
-	{
-	case BINARY_DATA:	  
-	  states = tr->partitionData[ll->ld[i].partitionList[0]].states; 	      
-	  if(tr->partitionData[ll->ld[i].partitionList[0]].optimizeBaseFrequencies)
-	    {
-	      ll->ld[i].valid = TRUE;
-	      binaryPartitions++;		
-	    }
-	  else
-	    ll->ld[i].valid = FALSE; 
-	  break;
-	case DNA_DATA:	    
-	case AA_DATA:
-	  ll->ld[i].valid = FALSE;
-	  break;	 
-	default:
-	  assert(0);
-	}	 
-    }
-  
-  if(binaryPartitions > 0)      
-    optFreqs(tr, modelEpsilon, ll, binaryPartitions, states);
-
-  for(i = 0; i < ll->entries; i++)
-    ll->ld[i].valid = TRUE;
-}
-
-
-//new version for optimizing rates, an external loop that iterates over the rates 
-
-static void optRates(tree *tr, double modelEpsilon, linkageList *ll, int numberOfModels, int states)
-{
-  int
-    rateNumber,
-    numberOfRates = ((states * states - states) / 2) - 1;
-
-  for(rateNumber = 0; rateNumber < numberOfRates; rateNumber++)
-    optParamGeneric(tr, modelEpsilon, ll, numberOfModels, rateNumber, RATE_MIN, RATE_MAX, RATE_F);   
-}
 
   //then binary 
 

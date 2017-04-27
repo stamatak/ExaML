@@ -680,23 +680,6 @@ typedef struct {
 } commandLine;
 
 typedef struct {
-  boolean useMedian;
-  int saveBestTrees;
-  boolean saveMemory;
-  boolean searchConvergenceCriterion;
-  boolean perGeneBranchLengths; //adef
-  double likelihoodEpsilon; //adef
-  int categories;
-  int mode; //adef
-  int fastTreeEvaluation;
-  boolean initialSet;//adef
-  int initial;//adef
-  int rateHetModel;
-  int autoProteinSelectionType;
-
-} commandLine;
-
-typedef struct {
  
   int state;
 
