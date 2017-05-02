@@ -1,16 +1,10 @@
 *.o
 
 parser/parser
-parser/parser-NOZIP
 parser/parse-examl
 
+examl-KNL
 examl-MIC
 examl-AVX
-examl-AVX.debug
-examl-MIC.debug
-
-.cproject
-.project
-.settings
-
-loop_prof*
+examl-OMP-AVX
+examl-OMP
