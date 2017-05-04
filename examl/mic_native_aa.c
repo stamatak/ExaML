@@ -21,10 +21,10 @@ void makeP_PROT_MIC(double z1, double z2, double *rptr, double *EI,  double *EIG
 
   /* assign some space for pre-computing and later re-using functions */
 
-  double lz1[20] __attribute__((align(BYTE_ALIGNMENT)));
-  double lz2[20] __attribute__((align(BYTE_ALIGNMENT)));
-  double d1[20] __attribute__((align(BYTE_ALIGNMENT)));
-  double d2[20] __attribute__((align(BYTE_ALIGNMENT)));
+  double lz1[20] __attribute__((aligned(BYTE_ALIGNMENT)));
+  double lz2[20] __attribute__((aligned(BYTE_ALIGNMENT)));
+  double d1[20] __attribute__((aligned(BYTE_ALIGNMENT)));
+  double d2[20] __attribute__((aligned(BYTE_ALIGNMENT)));
 
 
   /* multiply branch lengths with eigenvalues */
@@ -200,7 +200,7 @@ void newviewGTRGAMMAPROT_MIC(int tipCase,
             const double *uX1 = &umpX1[span * tipX1[i]];
             const double *uX2 = &umpX2[span * tipX2[i]];
 
-            double uX[span] __attribute__((align(BYTE_ALIGNMENT)));
+            double uX[span] __attribute__((aligned(BYTE_ALIGNMENT)));
             double* v3 = &x3[i * span];
 
             #pragma ivdep
@@ -237,8 +237,8 @@ void newviewGTRGAMMAPROT_MIC(int tipCase,
 
             /* access pre-computed value based on the raw sequence data tipX1 that is used as an index */
             double* uX1 = &umpX1[span * tipX1[i]];
-            double uX2[span] __attribute__((align(BYTE_ALIGNMENT)));
-            double uX[span] __attribute__((align(BYTE_ALIGNMENT)));
+            double uX2[span] __attribute__((aligned(BYTE_ALIGNMENT)));
+            double uX[span] __attribute__((aligned(BYTE_ALIGNMENT)));
 
             double* v3 = &(x3[span * i]);
 
@@ -282,12 +282,12 @@ void newviewGTRGAMMAPROT_MIC(int tipCase,
 
             __m512d t1 = _mm512_load_pd(&v3[0]);
             t1 = _mm512_castsi512_pd(_mm512_and_epi64(_mm512_castpd_si512(t1), absMask_MIC));
-            double vmax = _mm512_reduce_gmax_pd(t1);
+            double vmax = _mm512_reduce_max_pd(t1);
             for (int l = 8; l < span; l += 8)
             {
                 __m512d t = _mm512_load_pd(&v3[l]);
                 t = _mm512_castsi512_pd(_mm512_and_epi64(_mm512_castpd_si512(t), absMask_MIC));
-                double vmax2 = _mm512_reduce_gmax_pd(t);
+                double vmax2 = _mm512_reduce_max_pd(t);
                 vmax = MAX(vmax, vmax2);
             }
 
@@ -321,9 +321,9 @@ void newviewGTRGAMMAPROT_MIC(int tipCase,
             }
 
 
-            double uX1[span] __attribute__((align(BYTE_ALIGNMENT)));
-            double uX2[span] __attribute__((align(BYTE_ALIGNMENT)));
-            double uX[span] __attribute__((align(BYTE_ALIGNMENT)));
+            double uX1[span] __attribute__((aligned(BYTE_ALIGNMENT)));
+            double uX2[span] __attribute__((aligned(BYTE_ALIGNMENT)));
+            double uX[span] __attribute__((aligned(BYTE_ALIGNMENT)));
 
             double* v3 = &(x3[span * i]);
 
@@ -371,12 +371,12 @@ void newviewGTRGAMMAPROT_MIC(int tipCase,
 
             __m512d t1 = _mm512_load_pd(&v3[0]);
             t1 = _mm512_castsi512_pd(_mm512_and_epi64(_mm512_castpd_si512(t1), absMask_MIC));
-            double vmax = _mm512_reduce_gmax_pd(t1);
+            double vmax = _mm512_reduce_max_pd(t1);
             for (int l = 8; l < span; l += 8)
             {
                 __m512d t = _mm512_load_pd(&v3[l]);
                 t = _mm512_castsi512_pd(_mm512_and_epi64(_mm512_castpd_si512(t), absMask_MIC));
-                double vmax2 = _mm512_reduce_gmax_pd(t);
+                double vmax2 = _mm512_reduce_max_pd(t);
                 vmax = MAX(vmax, vmax2);
             }
 
@@ -558,11 +558,11 @@ void coreGTRGAMMAPROT_MIC(const int upper, double *sumtable,
     static const int states = 20;
     static const int span = 20 * 4;
 
-    double diagptable0[span] __attribute__((align(BYTE_ALIGNMENT)));
-    double diagptable1[span] __attribute__((align(BYTE_ALIGNMENT)));
-    double diagptable2[span] __attribute__((align(BYTE_ALIGNMENT)));
-    double diagptable01[span] __attribute__((align(BYTE_ALIGNMENT)));
-    double diagptable02[span] __attribute__((align(BYTE_ALIGNMENT)));
+    double diagptable0[span] __attribute__((aligned(BYTE_ALIGNMENT)));
+    double diagptable1[span] __attribute__((aligned(BYTE_ALIGNMENT)));
+    double diagptable2[span] __attribute__((aligned(BYTE_ALIGNMENT)));
+    double diagptable01[span] __attribute__((aligned(BYTE_ALIGNMENT)));
+    double diagptable02[span] __attribute__((aligned(BYTE_ALIGNMENT)));
 
     /* pre-compute the derivatives of the P matrix for all discrete GAMMA rates */
 
@@ -594,8 +594,8 @@ void coreGTRGAMMAPROT_MIC(const int upper, double *sumtable,
 
     const int aligned_width = upper % 8 == 0 ? upper / 8 : upper / 8 + 1;
 
-    double dlnLBuf[8] __attribute__((align(BYTE_ALIGNMENT)));
-    double d2lnLBuf[8] __attribute__((align(BYTE_ALIGNMENT)));
+    double dlnLBuf[8] __attribute__((aligned(BYTE_ALIGNMENT)));
+    double d2lnLBuf[8] __attribute__((aligned(BYTE_ALIGNMENT)));
     for (int j = 0; j < 8; ++j)
     {
         dlnLBuf[j] = 0.;
@@ -611,9 +611,9 @@ void coreGTRGAMMAPROT_MIC(const int upper, double *sumtable,
 
         /* initial per-site likelihood and 1st and 2nd derivatives */
 
-        double invBuf[8] __attribute__((align(BYTE_ALIGNMENT)));
-        double d1Buf[8] __attribute__((align(BYTE_ALIGNMENT)));
-        double d2Buf[8] __attribute__((align(BYTE_ALIGNMENT)));
+        double invBuf[8] __attribute__((aligned(BYTE_ALIGNMENT)));
+        double d1Buf[8] __attribute__((aligned(BYTE_ALIGNMENT)));
+        double d2Buf[8] __attribute__((aligned(BYTE_ALIGNMENT)));
 
         __m512d invVec;
         __m512d d1Vec;
@@ -831,7 +831,7 @@ void newviewGTRGAMMAPROT_LG4_MIC(int tipCase,
             const double *uX1 = &umpX1[span * tipX1[i]];
             const double *uX2 = &umpX2[span * tipX2[i]];
 
-            double uX[span] __attribute__((align(BYTE_ALIGNMENT)));
+            double uX[span] __attribute__((aligned(BYTE_ALIGNMENT)));
             double* v3 = &x3[i * span];
 
             #pragma ivdep
@@ -868,8 +868,8 @@ void newviewGTRGAMMAPROT_LG4_MIC(int tipCase,
 
             /* access pre-computed value based on the raw sequence data tipX1 that is used as an index */
             double* uX1 = &umpX1[span * tipX1[i]];
-            double uX2[span] __attribute__((align(BYTE_ALIGNMENT)));
-            double uX[span] __attribute__((align(BYTE_ALIGNMENT)));
+            double uX2[span] __attribute__((aligned(BYTE_ALIGNMENT)));
+            double uX[span] __attribute__((aligned(BYTE_ALIGNMENT)));
 
             double* v3 = &(x3[span * i]);
 
@@ -913,12 +913,12 @@ void newviewGTRGAMMAPROT_LG4_MIC(int tipCase,
 
             __m512d t1 = _mm512_load_pd(&v3[0]);
             t1 = _mm512_castsi512_pd(_mm512_and_epi64(_mm512_castpd_si512(t1), absMask_MIC));
-            double vmax = _mm512_reduce_gmax_pd(t1);
+            double vmax = _mm512_reduce_max_pd(t1);
             for (int l = 8; l < span; l += 8)
             {
                 __m512d t = _mm512_load_pd(&v3[l]);
                 t = _mm512_castsi512_pd(_mm512_and_epi64(_mm512_castpd_si512(t), absMask_MIC));
-                double vmax2 = _mm512_reduce_gmax_pd(t);
+                double vmax2 = _mm512_reduce_max_pd(t);
                 vmax = MAX(vmax, vmax2);
             }
 
@@ -950,9 +950,9 @@ void newviewGTRGAMMAPROT_LG4_MIC(int tipCase,
             }
 
 
-            double uX1[span] __attribute__((align(BYTE_ALIGNMENT)));
-            double uX2[span] __attribute__((align(BYTE_ALIGNMENT)));
-            double uX[span] __attribute__((align(BYTE_ALIGNMENT)));
+            double uX1[span] __attribute__((aligned(BYTE_ALIGNMENT)));
+            double uX2[span] __attribute__((aligned(BYTE_ALIGNMENT)));
+            double uX[span] __attribute__((aligned(BYTE_ALIGNMENT)));
 
             double* v3 = &(x3[span * i]);
 
@@ -1000,12 +1000,13 @@ void newviewGTRGAMMAPROT_LG4_MIC(int tipCase,
 
             __m512d t1 = _mm512_load_pd(&v3[0]);
             t1 = _mm512_castsi512_pd(_mm512_and_epi64(_mm512_castpd_si512(t1), absMask_MIC));
-            double vmax = _mm512_reduce_gmax_pd(t1);
+            double vmax = _mm512_reduce_max_pd(t1);
             for (int l = 8; l < span; l += 8)
             {
                 __m512d t = _mm512_load_pd(&v3[l]);
                 t = _mm512_castsi512_pd(_mm512_and_epi64(_mm512_castpd_si512(t), absMask_MIC));
-                double vmax2 = _mm512_reduce_gmax_pd(t);
+//                double vmax2 = _mm512_reduce_max_pd(t);
+                double vmax2 = _mm512_reduce_max_pd(t);
                 vmax = MAX(vmax, vmax2);
             }
 
@@ -1033,7 +1034,7 @@ void newviewGTRGAMMAPROT_LG4_MIC(int tipCase,
 double evaluateGAMMAPROT_LG4_MIC(int *wgt, double *x1_start, double *x2_start, double *tipVector,
                  unsigned char *tipX1, const int n, double *diagptable, double *weights)
 {
-    double wtable[span] __attribute__((align(BYTE_ALIGNMENT)));
+    double wtable[span] __attribute__((aligned(BYTE_ALIGNMENT)));
 
     /* pre-multiply diagptable entries with the corresponding weights */
     for(int j = 0; j < 4; j++)
@@ -1195,11 +1196,11 @@ void coreGTRGAMMAPROT_LG4_MIC(const int upper, double *sumtable,
     volatile double *ext_dlnLdlz,  volatile double *ext_d2lnLdlz2, double *EIGN[4], double *gammaRates,
     double lz, int *wgt, double *weights)
 {
-    double diagptable0[span] __attribute__((align(BYTE_ALIGNMENT)));
-    double diagptable1[span] __attribute__((align(BYTE_ALIGNMENT)));
-    double diagptable2[span] __attribute__((align(BYTE_ALIGNMENT)));
-    double diagptable01[span] __attribute__((align(BYTE_ALIGNMENT)));
-    double diagptable02[span] __attribute__((align(BYTE_ALIGNMENT)));
+    double diagptable0[span] __attribute__((aligned(BYTE_ALIGNMENT)));
+    double diagptable1[span] __attribute__((aligned(BYTE_ALIGNMENT)));
+    double diagptable2[span] __attribute__((aligned(BYTE_ALIGNMENT)));
+    double diagptable01[span] __attribute__((aligned(BYTE_ALIGNMENT)));
+    double diagptable02[span] __attribute__((aligned(BYTE_ALIGNMENT)));
 
     /* pre-compute the derivatives of the P matrix for all discrete GAMMA rates */
 
@@ -1243,9 +1244,9 @@ void coreGTRGAMMAPROT_LG4_MIC(const int upper, double *sumtable,
 
         /* initial per-site likelihood and 1st and 2nd derivatives */
 
-        double invBuf[8] __attribute__((align(BYTE_ALIGNMENT)));
-        double d1Buf[8] __attribute__((align(BYTE_ALIGNMENT)));
-        double d2Buf[8] __attribute__((align(BYTE_ALIGNMENT)));
+        double invBuf[8] __attribute__((aligned(BYTE_ALIGNMENT)));
+        double d1Buf[8] __attribute__((aligned(BYTE_ALIGNMENT)));
+        double d2Buf[8] __attribute__((aligned(BYTE_ALIGNMENT)));
 
         __m512d invVec;
         __m512d d1Vec;

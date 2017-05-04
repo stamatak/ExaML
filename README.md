@@ -26,4 +26,8 @@ memory saving techniques.
 Intel Xeon Phi
 --------------
 
-For details on running ExaML on Intel MIC (aka Xeon Phi), please refer to README_MIC.txt.
+For details on running ExaML on Intel Xeon Phi, please refer to:
+- Knights Landing: [README_KNL.txt](README_KNL.txt)
+- Knights Corner:  [README_MIC.txt](README_MIC.txt)
+
+

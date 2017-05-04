@@ -56,10 +56,10 @@ void makeP_DNA_MIC(double z1, double z2, double *rptr, double *EI,  double *EIGN
 
   /* assign some space for pre-computing and later re-using functions */
 
-  double lz1[4] __attribute__((align(BYTE_ALIGNMENT)));
-  double lz2[4] __attribute__((align(BYTE_ALIGNMENT)));
-  double d1[4] __attribute__((align(BYTE_ALIGNMENT)));
-  double d2[4] __attribute__((align(BYTE_ALIGNMENT)));
+  double lz1[4] __attribute__((aligned(BYTE_ALIGNMENT)));
+  double lz2[4] __attribute__((aligned(BYTE_ALIGNMENT)));
+  double d1[4] __attribute__((aligned(BYTE_ALIGNMENT)));
+  double d2[4] __attribute__((aligned(BYTE_ALIGNMENT)));
 
 
   /* multiply branch lengths with eigenvalues */
@@ -228,7 +228,7 @@ void newviewGTRGAMMA_MIC(int tipCase,
             const double *uX1 = &umpX1[16 * tipX1[i]];
             const double *uX2 = &umpX2[16 * tipX2[i]];
 
-            double uX[16] __attribute__((align(64)));
+            double uX[16] __attribute__((aligned(64)));
 
             #pragma ivdep
             #pragma vector aligned
@@ -260,8 +260,8 @@ void newviewGTRGAMMA_MIC(int tipCase,
 
             /* access pre-computed value based on the raw sequence data tipX1 that is used as an index */
             double* uX1 = &umpX1[span * tipX1[i]];
-            double uX2[16] __attribute__((align(64)));
-            double uX[16] __attribute__((align(64)));
+            double uX2[16] __attribute__((aligned(64)));
+            double uX[16] __attribute__((aligned(64)));
 
             const double* v2 = &(x2[16 * i]);
 
@@ -280,10 +280,10 @@ void newviewGTRGAMMA_MIC(int tipCase,
 
             __m512d t1 = _mm512_load_pd(&v3[0]);
 	    t1 = _mm512_castsi512_pd(_mm512_and_epi64(_mm512_castpd_si512(t1), absMask_MIC));
-            double vmax1 = _mm512_reduce_gmax_pd(t1);
+            double vmax1 = _mm512_reduce_max_pd(t1);
             __m512d t2 = _mm512_load_pd(&v3[8]);
 	    t2 = _mm512_castsi512_pd(_mm512_and_epi64(_mm512_castpd_si512(t2), absMask_MIC));
-            double vmax2 = _mm512_reduce_gmax_pd(t2);
+            double vmax2 = _mm512_reduce_max_pd(t2);
 
             if(vmax1 < minlikelihood && vmax2 < minlikelihood)
             {
@@ -319,9 +319,9 @@ void newviewGTRGAMMA_MIC(int tipCase,
             _mm_prefetch((const char *) &x3[span*(i+1)], _MM_HINT_ET0);
             _mm_prefetch((const char *) &x3[span*(i+1) + 8], _MM_HINT_ET0);
 
-            double uX1[16] __attribute__((align(64)));
-            double uX2[16] __attribute__((align(64)));
-            double uX[16] __attribute__((align(64)));
+            double uX1[16] __attribute__((aligned(64)));
+            double uX2[16] __attribute__((aligned(64)));
+            double uX[16] __attribute__((aligned(64)));
 
             const double* v1 = &(x1[span * i]);
             const double* v2 = &(x2[span * i]);
@@ -342,10 +342,10 @@ void newviewGTRGAMMA_MIC(int tipCase,
 
             __m512d t1 = _mm512_load_pd(&v3[0]);
 	    t1 = _mm512_castsi512_pd(_mm512_and_epi64(_mm512_castpd_si512(t1), absMask_MIC));
-            double vmax1 = _mm512_reduce_gmax_pd(t1);
+            double vmax1 = _mm512_reduce_max_pd(t1);
             __m512d t2 = _mm512_load_pd(&v3[8]);
 	    t2 = _mm512_castsi512_pd(_mm512_and_epi64(_mm512_castpd_si512(t2), absMask_MIC));
-            double vmax2 = _mm512_reduce_gmax_pd(t2);
+            double vmax2 = _mm512_reduce_max_pd(t2);
 
             if(vmax1 < minlikelihood && vmax2 < minlikelihood)
             {
@@ -516,11 +516,11 @@ void sumGAMMA_MIC(int tipCase, double *sumtable, double *x1_start, double *x2_st
 void coreGTRGAMMA_MIC(const int upper, double *sumtable,
     volatile double *ext_dlnLdlz,  volatile double *ext_d2lnLdlz2, double *EIGN, double *gammaRates, double lz, int *wgt)
 {
-    double diagptable0[16] __attribute__((align(64)));
-    double diagptable1[16] __attribute__((align(64)));
-    double diagptable2[16] __attribute__((align(64)));
-    double diagptable01[16] __attribute__((align(64)));
-    double diagptable02[16] __attribute__((align(64)));
+    double diagptable0[16] __attribute__((aligned(64)));
+    double diagptable1[16] __attribute__((aligned(64)));
+    double diagptable2[16] __attribute__((aligned(64)));
+    double diagptable01[16] __attribute__((aligned(64)));
+    double diagptable02[16] __attribute__((aligned(64)));
 
     /* pre-compute the derivatives of the P matrix for all discrete GAMMA rates */
 
@@ -552,8 +552,8 @@ void coreGTRGAMMA_MIC(const int upper, double *sumtable,
 
     const int aligned_width = upper % 8 == 0 ? upper / 8 : upper / 8 + 1;
 
-    double dlnLBuf[8] __attribute__((align(64)));
-    double d2lnLBuf[8] __attribute__((align(64)));
+    double dlnLBuf[8] __attribute__((aligned(64)));
+    double d2lnLBuf[8] __attribute__((aligned(64)));
     for (int j = 0; j < 8; ++j)
     {
         dlnLBuf[j] = 0.;
@@ -572,9 +572,9 @@ void coreGTRGAMMA_MIC(const int upper, double *sumtable,
 
         /* initial per-site likelihood and 1st and 2nd derivatives */
 
-        double invBuf[8] __attribute__((align(64)));
-        double d1Buf[8] __attribute__((align(64)));
-        double d2Buf[8] __attribute__((align(64)));
+        double invBuf[8] __attribute__((aligned(64)));
+        double d1Buf[8] __attribute__((aligned(64)));
+        double d2Buf[8] __attribute__((aligned(64)));
 
         __m512d invVec;
         __m512d d1Vec;

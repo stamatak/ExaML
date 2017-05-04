@@ -2693,6 +2693,20 @@ int main (int argc, char *argv[])
 	  error_MPI_Exit();  	      
 #endif
 	}
+
+      if(countBinary > 0)
+	{
+	  if(tr->saveMemory == TRUE)
+	    {
+	      printBothOpen("Error: Binary data partitions can not be used in combination with the \"-S\" memory saving flag!\n\n");	  
+	      error_MPI_Exit();
+	    }
+	  
+#ifdef __MIC_NATIVE
+	  printBothOpen("Error: There is no MIC support yet for binary data partitions!\n\n");	  
+	  error_MPI_Exit();  	      
+#endif
+	}
     }
 	             
     /* 
