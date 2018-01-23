@@ -611,5 +611,6 @@ void computeQuartets(tree *tr, analdef *adef)
       assert(0);
     }
   
-  fclose(f);
+  if(processID == 0)
+    fclose(f);
 }
