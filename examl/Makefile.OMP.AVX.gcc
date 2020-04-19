@@ -8,7 +8,7 @@ COMMON_FLAGS = -D__SIM_SSE3 -D__AVX -D_USE_OMP -fopenmp -D_OPTIMIZED_FUNCTIONS -
 OPT_FLAG_1 = -O1
 OPT_FLAG_2 = -O2
 
-CFLAGS = $(COMMON_FLAGS) $(OPT_FLAG_2)
+CFLAGS += $(COMMON_FLAGS) $(OPT_FLAG_2)
 
 LIBRARIES = -lm -mavx -fopenmp
 
@@ -21,7 +21,7 @@ all : clean examl-OMP-AVX
 GLOBAL_DEPS = axml.h globalVariables.h ../versionHeader/version.h
 
 examl-OMP-AVX : $(objs)
-	$(CC) -o examl-OMP-AVX $(objs) $(LIBRARIES) 
+	$(CC) -o examl-OMP-AVX $(objs) $(LIBRARIES) $(LDFLAGS)
 
 avxLikelihood.o : avxLikelihood.c $(GLOBAL_DEPS)
 	$(CC) $(CFLAGS) -mavx -c -o avxLikelihood.o avxLikelihood.c

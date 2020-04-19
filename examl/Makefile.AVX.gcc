@@ -8,7 +8,7 @@ COMMON_FLAGS = -D__SIM_SSE3 -D__AVX -D_OPTIMIZED_FUNCTIONS -msse3 -D_GNU_SOURCE 
 OPT_FLAG_1 = -O1
 OPT_FLAG_2 = -O2
 
-CFLAGS = $(COMMON_FLAGS) $(OPT_FLAG_2)
+CFLAGS += $(COMMON_FLAGS) $(OPT_FLAG_2)
 
 LIBRARIES = -lm -mavx
 
@@ -21,13 +21,13 @@ all : clean examl-AVX
 GLOBAL_DEPS = axml.h globalVariables.h ../versionHeader/version.h
 
 examl-AVX : $(objs)
-	$(CC) -o examl-AVX $(objs) $(LIBRARIES) 
+	$(CC) -o examl-AVX $(objs) $(LIBRARIES) $(LDFLAGS)
 
 avxLikelihood.o : avxLikelihood.c $(GLOBAL_DEPS)
-	$(CC) $(CFLAGS) -mavx -c -o avxLikelihood.o avxLikelihood.c
+	$(CC) $(CFLAGS) $(CPPFLAGS) -mavx -c -o avxLikelihood.o avxLikelihood.c
 
 models.o : models.c $(GLOBAL_DEPS)
-	 $(CC) $(COMMON_FLAGS) $(OPT_FLAG_1) -c -o models.o models.c
+	$(CC) $(CFLAGS) $(COMMON_FLAGS) $(OPT_FLAG_1) $(CPPFLAGS) -c -o models.o models.c
 
 bipartitionList.o : bipartitionList.c $(GLOBAL_DEPS)
 evaluatePartialSpecialGeneric.o : evaluatePartialSpecialGeneric.c $(GLOBAL_DEPS)
