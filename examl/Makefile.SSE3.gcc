@@ -9,7 +9,7 @@ COMMON_FLAGS = -D_GNU_SOURCE -D__SIM_SSE3  -msse3 -fomit-frame-pointer -funroll-
 OPT_FLAG_1 = -O1 
 OPT_FLAG_2 = -O2
 
-CFLAGS = $(COMMON_FLAGS) $(OPT_FLAG_2)
+CFLAGS += $(COMMON_FLAGS) $(OPT_FLAG_2)
 
 LIBRARIES = -lm
 
@@ -22,7 +22,7 @@ all : clean examl
 GLOBAL_DEPS = axml.h globalVariables.h ../versionHeader/version.h
 
 examl : $(objs)
-	$(CC) -o examl $(objs) $(LIBRARIES) 
+	$(CC) -o examl $(objs) $(LIBRARIES) $(LDFLAGS)
 
 models.o : models.c $(GLOBAL_DEPS)
 	 $(CC) $(COMMON_FLAGS) $(OPT_FLAG_1) -c -o models.o models.c

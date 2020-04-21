@@ -8,7 +8,7 @@ COMMON_FLAGS = -D_USE_OMP -fopenmp -D_GNU_SOURCE -D__SIM_SSE3  -msse3 -fomit-fra
 OPT_FLAG_1 = -O1 
 OPT_FLAG_2 = -O2
 
-CFLAGS = $(COMMON_FLAGS) $(OPT_FLAG_2)
+CFLAGS += $(COMMON_FLAGS) $(OPT_FLAG_2)
 
 LIBRARIES = -lm -fopenmp
 
@@ -21,7 +21,7 @@ all : clean examl-OMP
 GLOBAL_DEPS = axml.h globalVariables.h ../versionHeader/version.h
 
 examl-OMP : $(objs)
-	$(CC) -o examl-OMP $(objs) $(LIBRARIES) 
+	$(CC) -o examl-OMP $(objs) $(LIBRARIES) $(LDFLAGS)
 
 models.o : models.c $(GLOBAL_DEPS)
 	 $(CC) $(COMMON_FLAGS) $(OPT_FLAG_1) -c -o models.o models.c
