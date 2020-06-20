@@ -40,14 +40,10 @@
 #include <string.h>
 #include "axml.h"
 
-#ifdef __SIM_SSE3
-#include <xmmintrin.h>
-#include <pmmintrin.h>
-#endif
+#define SIMDE_ENABLE_NATIVE_ALIASES
+#include "simde/x86/sse3.h"
 
-
-
-#if defined(_OPTIMIZED_FUNCTIONS) && !defined(__MIC_NATIVE)
+#if !defined(__MIC_NATIVE)
 static inline void computeVectorGTRCATPROT(double *lVector, int *eVector, double ki, int i, double qz, double rz,
 					   traversalInfo *ti, double *EIGN, double *EI, double *EV, double *tipVector, 
 					   unsigned  char **yVector, int mxtips);
@@ -85,175 +81,6 @@ static double evaluatePartialGTRCAT_BINARY(int i, double ki, int counter,  trave
 					   int w, double *EIGN, double *EI, double *EV,
 					   double *tipVector, unsigned  char **yVector, 
 					   int branchReference, int mxtips);
-
-
-#else
-
-static inline void computeVectorCAT_FLEX(double *lVector, int *eVector, double ki, int i, double qz, double rz,
-					 traversalInfo *ti, double *EIGN, double *EI, double *EV, double *tipVector, 
-					 unsigned char **yVector, int mxtips, const int states)
-{       
-  double  
-    *d1 =    (double *)malloc(sizeof(double) * states), 
-    *d2 =    (double *)malloc(sizeof(double) * states),  
-    *x1px2 = (double *)malloc(sizeof(double) * states), 
-    ump_x1, 
-    ump_x2,    
-    lz1, 
-    lz2,
-    *x1, 
-    *x2, 
-    *x3;
-  
-  int 
-    scale,
-    j, 
-    k,
-    pNumber = ti->pNumber,
-    rNumber = ti->rNumber,
-    qNumber = ti->qNumber;
- 
-  x3  = &lVector[states * (pNumber  - mxtips)];  
- 
-  switch(ti->tipCase)
-    {
-    case TIP_TIP:     
-      x1 = &(tipVector[states * yVector[qNumber][i]]);
-      x2 = &(tipVector[states * yVector[rNumber][i]]);    
-      break;
-    case TIP_INNER:     
-      x1 = &(tipVector[states * yVector[qNumber][i]]);
-      x2 = &(lVector[states * (rNumber - mxtips)]);           
-      break;
-    case INNER_INNER:            
-      x1 = &(lVector[states * (qNumber - mxtips)]);
-      x2 = &(lVector[states * (rNumber - mxtips)]);     
-      break;
-    default:
-      assert(0);
-    }
-     
-  lz1 = qz * ki;  
-  lz2 = rz * ki;
-  
-  d1[0] = x1[0];
-  d2[0] = x2[0];
-
-
-  for(j = 1; j < states; j++)
-    {
-      d1[j] = x1[j] * EXP(EIGN[j] * lz1);
-      d2[j] = x2[j] * EXP(EIGN[j] * lz2);	    
-    }
- 
- 
-  for(j = 0; j < states; j++)
-    {         
-      ump_x1 = 0.0;
-      ump_x2 = 0.0;
-
-      for(k = 0; k < states; k++)
-	{
-	  ump_x1 += d1[k] * EI[j * states + k];
-	  ump_x2 += d2[k] * EI[j * states + k];
-	}
-      
-      x1px2[j] = ump_x1 * ump_x2;
-    }
-  
-  for(j = 0; j < states; j++)
-    x3[j] = 0.0;
-
-  for(j = 0; j < states; j++)          
-    for(k = 0; k < states; k++)	
-      x3[k] +=  x1px2[j] *  EV[states * j + k];	   
-      
-  scale = 1;
-  for(j = 0; scale && (j < states); j++)
-    scale = ((x3[j] < minlikelihood) && (x3[j] > minusminlikelihood));
-  
-  if(scale)
-    {
-      for(j = 0; j < states; j++)
-	x3[j] *= twotothe256;       
-      *eVector = *eVector + 1;
-    }	              
-
-  free(d1);
-  free(d2);
-  free(x1px2);
-       
-  return;
-}
-
-
-static double evaluatePartialCAT_FLEX(int i, double ki, int counter,  traversalInfo *ti, double qz,
-				      int w, double *EIGN, double *EI, double *EV,
-				      double *tipVector, unsigned  char **yVector, 
-				      int branchReference, int mxtips, const int states)
-{
-  int 
-    scale = 0, 
-    k;
-  
-  double 
-    *lVector = (double *)malloc_aligned(sizeof(double) * states * mxtips),
-    *d = (double *)malloc_aligned(sizeof(double) * states),
-    lz, 
-    term, 
-    *x1, 
-    *x2; 
-
-  traversalInfo 
-    *trav = &ti[0];
- 
-  assert(isTip(trav->pNumber, mxtips));
-     
-  x1 = &(tipVector[states *  yVector[trav->pNumber][i]]);   
-
-  for(k = 1; k < counter; k++)    
-    {
-      double 
-	qz = ti[k].qz[branchReference],
-	rz = ti[k].rz[branchReference];
-      
-      qz = (qz > zmin) ? log(qz) : log(zmin);
-      rz = (rz > zmin) ? log(rz) : log(zmin);
-
-      computeVectorCAT_FLEX(lVector, &scale, ki, i, qz, rz, &ti[k], 
-			    EIGN, EI, EV, 
-			    tipVector, yVector, mxtips, states);       
-    }
-   
-  x2 = &lVector[states * (trav->qNumber - mxtips)]; 
-
-  assert(0 <=  (trav->qNumber - mxtips) && (trav->qNumber - mxtips) < mxtips);  
-       
-  if(qz < zmin) 
-    lz = zmin;
-  lz  = log(qz); 
-  lz *= ki;  
-  
-  d[0] = 1.0;
-
-  for(k = 1; k < states; k++)
-    d[k] = EXP (EIGN[k] * lz);
-  
-  term = 0.0;
-
-  for(k = 0; k < states; k++) 
-    term += x1[k] * x2[k] * d[k];       
-
-  term = LOG(FABS(term)) + (scale * LOG(minlikelihood));   
-
-  term = term * w;
-
-  free(lVector);  
-  free(d);
-
-  return  term;
-}
-
 #endif
 
 double evaluatePartialGeneric (tree *tr, int i, double ki, int _model)
@@ -274,25 +101,8 @@ double evaluatePartialGeneric (tree *tr, int i, double ki, int _model)
   else
     branchReference = 0;
 
-#ifndef _OPTIMIZED_FUNCTIONS
-  if(tr->rateHetModel == CAT)
-    result = evaluatePartialCAT_FLEX(index, ki, tr->td[0].count, tr->td[0].ti, tr->td[0].ti[0].qz[branchReference], 
-				     tr->partitionData[_model].wgt[index],
-				     tr->partitionData[_model].EIGN, 
-				     tr->partitionData[_model].EI, 
-				     tr->partitionData[_model].EV,
-				     tr->partitionData[_model].tipVector,
-				     tr->partitionData[_model].yVector, branchReference, tr->mxtips, states);
-  else
-    /* 
-       the per-site site likelihood function should only be called for the CAT model
-       under the GAMMA model this is required only for estimating per-site protein models 
-       which has however been removed in this version of the code
-    */
-    assert(0); 
-  
- 
-#elif defined(__MIC_NATIVE)
+
+#if defined(__MIC_NATIVE)
 if (tr->rateHetModel == CAT)
     result = evaluatePartialCAT_FLEX(index, ki, tr->td[0].count, tr->td[0].ti, tr->td[0].ti[0].qz[branchReference],
                      tr->partitionData[_model].wgt[index],
@@ -361,8 +171,6 @@ else
 
   return result;
 }
-
-#ifdef _OPTIMIZED_FUNCTIONS
 
 
 static inline void computeVectorGTRCAT_BINARY(double *lVector, int *eVector, double ki, int i, double qz, double rz,
@@ -1052,7 +860,3 @@ static double evaluatePartialGTRCAT(int i, double ki, int counter,  traversalInf
 
   return  term;
 }
-
-
-
-#endif

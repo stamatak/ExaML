@@ -60,7 +60,10 @@
 
 #endif
 
-#if ! (defined(__ppc) || defined(__powerpc__) || defined(PPC))
+#define SIMDE_ENABLE_NATIVE_ALIASES
+#include "simde/x86/sse.h"
+
+#if defined(SIMDE_SSE_NATIVE)
 #include <xmmintrin.h>
 /*
   special bug fix, enforces denormalized numbers to be flushed to zero,
@@ -116,9 +119,7 @@ void *malloc_aligned(size_t size)
   if(ptr == (void*)NULL) 
    assert(0);
   
-#ifdef __AVX
   assert(0);
-#endif
 
 
 #else

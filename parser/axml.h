@@ -34,11 +34,7 @@
 #include "../versionHeader/version.h"
 
 
-#ifdef __AVX
 #define BYTE_ALIGNMENT 32
-#else
-#define BYTE_ALIGNMENT 16
-#endif
 
 
 

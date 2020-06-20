@@ -43,11 +43,8 @@
 #include <string.h>
 #include "axml.h"
 
-#ifdef __SIM_SSE3
-#include <xmmintrin.h>
-#include <pmmintrin.h>
-/*#include <tmmintrin.h>*/
-#endif
+#define SIMDE_ENABLE_NATIVE_ALIASES
+#include "simde/x86/sse3.h"
 
 /* includes MIC-optimized functions */
 
@@ -164,166 +161,8 @@ static void getVects(tree *tr, unsigned char **tipX1, unsigned char **tipX2, dou
    So if we want to do a Newton-Rpahson optimization we only execute this function once in the beginning for each new branch we are considering !
 */
 
-#ifndef _OPTIMIZED_FUNCTIONS
-
-static void sumCAT_FLEX(int tipCase, double *sumtable, double *x1, double *x2, double *tipVector,
-			unsigned char *tipX1, unsigned char *tipX2, int n, const int states)
-{
-  int 
-    i, 
-    l;
-  
-  double 
-    *sum, 
-    *left, 
-    *right;
-
-  switch(tipCase)
-    {
-      
-      /* switch over possible configurations of the nodes p and q defining the branch */
-
-    case TIP_TIP:
-      for (i = 0; i < n; i++)
-	{
-	  left  = &(tipVector[states * tipX1[i]]);
-	  right = &(tipVector[states * tipX2[i]]);
-	  sum = &sumtable[states * i];
-
-	  /* just multiply the values with each other for each site, note the similarity with evaluate() 
-	     we precompute the product which will remain constant and then just multiply this pre-computed 
-	     product with the changing P matrix exponentaions that depend on the branch lengths */
-
-	  for(l = 0; l < states; l++)
-	    sum[l] = left[l] * right[l];
-	}
-      break;
-    case TIP_INNER:
-
-      /* same as for TIP_TIP only that 
-	 we now access on tip vector and one 
-	 inner vector. 
-
-	 You may also observe that we do not consider using scaling vectors anywhere here.
-
-	 This is because we are interested in the first and second derivatives of the likelihood and 
-	 hence the addition of the log() of the scaling factor times the number of scaling events
-	 becomes obsolete through the derivative */
-
-      for (i = 0; i < n; i++)
-	{
-	  left = &(tipVector[states * tipX1[i]]);
-	  right = &x2[states * i];
-	  sum = &sumtable[states * i];
-
-	  for(l = 0; l < states; l++)
-	    sum[l] = left[l] * right[l];
-	}
-      break;
-    case INNER_INNER:
-      for (i = 0; i < n; i++)
-	{
-	  left  = &x1[states * i];
-	  right = &x2[states * i];
-	  sum = &sumtable[states * i];
-
-	  for(l = 0; l < states; l++)
-	    sum[l] = left[l] * right[l];
-	}
-      break;
-    default:
-      assert(0);
-    }
-}
-
-
-/* same thing for GAMMA models. The only noteworthy thing here is that we have an additional inner loop over the 
-   number of discrete gamma rates. The data access pattern is also different since for tip vector accesses through our 
-   lookup table, we do not distnguish between rates 
-
-   Note the different access pattern in TIP_INNER:
-
-   left = &(tipVector[states * tipX1[i]]);	  
-   right = &(x2[span * i + l * states]);
-
-*/
-
-static void sumGAMMA_FLEX(int tipCase, double *sumtable, double *x1, double *x2, double *tipVector,
-			  unsigned char *tipX1, unsigned char *tipX2, int n, const int states)
-{
-  int 
-    i, 
-    l, 
-    k;
-  
-  const int 
-    span = 4 * states;
-
-  double 
-    *left, 
-    *right, 
-    *sum;
-
-  switch(tipCase)
-    {
-    case TIP_TIP:
-      for(i = 0; i < n; i++)
-	{
-	  left  = &(tipVector[states * tipX1[i]]);
-	  right = &(tipVector[states * tipX2[i]]);
-
-	  for(l = 0; l < 4; l++)
-	    {
-	      sum = &sumtable[i * span + l * states];
-
-	      for(k = 0; k < states; k++)
-		sum[k] = left[k] * right[k];
-
-	    }
-	}
-      break;
-    case TIP_INNER:
-      for(i = 0; i < n; i++)
-	{
-	  left = &(tipVector[states * tipX1[i]]);
-
-	  for(l = 0; l < 4; l++)
-	    {
-	      right = &(x2[span * i + l * states]);
-	      sum = &sumtable[i * span + l * states];
-
-	      for(k = 0; k < states; k++)
-		sum[k] = left[k] * right[k];
-
-	    }
-	}
-      break;
-    case INNER_INNER:
-      for(i = 0; i < n; i++)
-	{
-	  for(l = 0; l < 4; l++)
-	    {
-	      left  = &(x1[span * i + l * states]);
-	      right = &(x2[span * i + l * states]);
-	      sum   = &(sumtable[i * span + l * states]);
-
-
-	      for(k = 0; k < states; k++)
-		sum[k] = left[k] * right[k];
-	    }
-	}
-      break;
-    default:
-      assert(0);
-    }
-}
-
-#endif
-
 /* optimized functions for branch length optimization */
 
-
-#ifdef _OPTIMIZED_FUNCTIONS
 
 static void sumGAMMA_BINARY(int tipCase, double *sumtable, double *x1_start, double *x2_start, double *tipVector,
                             unsigned char *tipX1, unsigned char *tipX2, int n);
@@ -381,244 +220,6 @@ static void coreGTRGAMMAPROT(double *gammaRates, double *EIGN, double *sumtable,
 
 static void coreGTRCATPROT(double *EIGN, double lz, int numberOfCategories, double *rptr, int *cptr, int upper,
 			   int *wgt,  volatile double *ext_dlnLdlz,  volatile double *ext_d2lnLdlz2, double *sumtable);
-
-#endif
-
-
-#ifndef _OPTIMIZED_FUNCTIONS
-
-/* now this is the core function of the newton-Raphson based branch length optimization that actually computes 
-   the first and second derivative of the likelihood given a new proposed branch length lz */
-
-
-static void coreCAT_FLEX(int upper, int numberOfCategories, double *sum,
-			 volatile double *d1, volatile double *d2, int *wgt,
-			 double *rptr, double *EIGN, int *cptr, double lz, const int states)
-{
-  int 
-    i, 
-    l;
-  
-  double 
-    *d, 
-    
-    /* arrays to store stuff we can pre-compute */
-
-    *d_start = (double *)malloc_aligned(numberOfCategories * states * sizeof(double)),
-    *e =(double *)malloc_aligned(states * sizeof(double)),
-    *s = (double *)malloc_aligned(states * sizeof(double)),
-    *dd = (double *)malloc_aligned(states * sizeof(double)),
-    inv_Li, 
-    dlnLidlz, 
-    d2lnLidlz2,
-    dlnLdlz = 0.0,
-    d2lnLdlz2 = 0.0;
-
-  d = d_start;
-  
-  e[0] = 0.0;
-  s[0] = 0.0; 
-  dd[0] = 0.0;
-
-
-  /* we are pre-computing values for computing the first and second derivative of P(lz)
-     since this requires an exponetial that the only thing we really have to derive here */
-
-  for(l = 1; l < states; l++)
-    { 
-      s[l]  = EIGN[l];
-      e[l]  = EIGN[l] * EIGN[l];     
-      dd[l] = s[l] * lz;
-    }
-
-  /* compute the P matrices and their derivatives for 
-     all per-site rate categories */
-
-  for(i = 0; i < numberOfCategories; i++)
-    {      
-      d[states * i] = 1.0;
-      for(l = 1; l < states; l++)
-	d[states * i + l] = EXP(dd[l] * rptr[i]);
-    }
-
-
-  /* now loop over the sites in this partition to obtain the per-site 1st and 2nd derivatives */
-
-  for (i = 0; i < upper; i++)
-    {    
-      double 
-	r = rptr[cptr[i]],
-	wr1 = r * wgt[i],
-	wr2 = r * r * wgt[i];
-
-      /* get the correct p matrix for the rate at the current site i */
-      
-      d = &d_start[states * cptr[i]];      
-          
-      /* this is the likelihood at site i, NOT the log likelihood, we don't need the log 
-	 likelihood to compute derivatives ! */
-
-      inv_Li     = sum[states * i]; 
-      
-      /* those are for storing the first and second derivative of the Likelihood at site i */
-
-      dlnLidlz   = 0.0;
-      d2lnLidlz2 = 0.0;
-
-      /* now multiply the likelihood and the first and second derivative with the 
-	 appropriate derivatives of P(lz) */
-
-      for(l = 1; l < states; l++)
-	{
-	  double
-	    tmpv = d[l] * sum[states * i + l];
-	  
-	  inv_Li     += tmpv;	 	  
-	  dlnLidlz   += tmpv * s[l];       
-	  d2lnLidlz2 += tmpv * e[l];
-	}     
-      
-      /* below we are implementing the other mathematical operations that are required 
-	 to obtain the deirivatives */
-
-      inv_Li = 1.0/ FABS(inv_Li);
-
-      dlnLidlz   *= inv_Li;
-      d2lnLidlz2 *= inv_Li;
-
-      /* under the CAT model, wrptr[] and wr2ptr[] are pre-computed extension sof the weight pointer:
-	 wrptr[i]  = wgt[i] * rptr[cptr[i]].
-	 and 
-	 wr2ptr[i]  = wgt[i] * rptr[cptr[i]] * rptr[cptr[i]] 
-
-	 this is also something that is required for the derivatives because when computing the 
-	 derivative of the exponential() the rate must be multiplied with the 
-	 exponential 
-
-	 wgt is just the pattern site wieght 
-      */
-
-      /* compute the accumulated first and second derivatives of this site */
-
-      dlnLdlz  += wr1 * dlnLidlz;
-      d2lnLdlz2 += wr2 * (d2lnLidlz2 - dlnLidlz * dlnLidlz);
-    }
-
-  /* 
-     set the result values, i.e., the sum of the per-site first and second derivatives of the likelihood function 
-     for this partition. 
-   */
-
-  *d1  = dlnLdlz;
-  *d2 = d2lnLdlz2;
-
-  /* free the temporary arrays */
-
-  free(d_start);
-  free(e);
-  free(s);
-  free(dd);
-}
-
-static void coreGAMMA_FLEX(int upper, double *sumtable, volatile double *ext_dlnLdlz,  volatile double *ext_d2lnLdlz2, 
-			   double *EIGN, double *gammaRates, double lz, int *wgt, const int states)
-{
-   double  
-    *sum, 
-     diagptable[1024], /* TODO make this dynamic */
-    dlnLdlz = 0.0,
-    d2lnLdlz2 = 0.0,
-    ki, 
-    kisqr,
-    tmp,
-    inv_Li, 
-    dlnLidlz, 
-    d2lnLidlz2;
-
-  int     
-    i, 
-    j, 
-    l;  
-
-  const int 
-    gammaStates = 4 * states;
-
-  /* pre-compute the derivatives of the P matrix for all discrete GAMMA rates */
-
-  for(i = 0; i < 4; i++)
-    {
-      ki = gammaRates[i];
-      kisqr = ki * ki;
-
-      for(l = 1; l < states; l++)
-	{
-	  diagptable[i * gammaStates + l * 4]     = EXP(EIGN[l] * ki * lz);
-	  diagptable[i * gammaStates + l * 4 + 1] = EIGN[l] * ki;
-	  diagptable[i * gammaStates + l * 4 + 2] = EIGN[l] * EIGN[l] * kisqr;
-	}
-    }
-
-  /* loop over sites in this partition */
-
-  for (i = 0; i < upper; i++)
-    {
-      double 
-	r = rptr[cptr[i]],
-	wr1 = r * wgt[i],
-	wr2 = r * r * wgt[i];
-
-      /* access the array with pre-computed values */
-      sum = &sumtable[i * gammaStates];
-
-      /* initial per-site likelihood and 1st and 2nd derivatives */
-
-      inv_Li   = 0.0;
-      dlnLidlz = 0.0;
-      d2lnLidlz2 = 0.0;
-
-      /* loop over discrete GAMMA rates */
-
-      for(j = 0; j < 4; j++)
-	{
-	  inv_Li += sum[j * states];
-
-	  for(l = 1; l < states; l++)
-	    {
-	      inv_Li     += (tmp = diagptable[j * gammaStates + l * 4] * sum[j * states + l]);
-	      dlnLidlz   +=  tmp * diagptable[j * gammaStates + l * 4 + 1];
-	      d2lnLidlz2 +=  tmp * diagptable[j * gammaStates + l * 4 + 2];
-	    }
-	}
-
-      /* finalize derivative computation */
-      /* note that wrptr[] here unlike in CAT above is the 
-	 integer weight vector of the current site 
-
-	 The operations:
-
-	 EIGN[l] * ki;
-	 EIGN[l] * EIGN[l] * kisqr;
-
-	 that are hidden in CAT in wrptr (at least the * ki and * ki *ki part of them 
-	 are done explicitely here 
-
-      */
-
-      inv_Li = 1.0 / FABS(inv_Li);
-
-      dlnLidlz   *= inv_Li;
-      d2lnLidlz2 *= inv_Li;
-
-      dlnLdlz   += wr1 * dlnLidlz;
-      d2lnLdlz2 += wr2 * (d2lnLidlz2 - dlnLidlz * dlnLidlz);
-    }
-
-  *ext_dlnLdlz   = dlnLdlz;
-  *ext_d2lnLdlz2 = d2lnLdlz2;
-  
-}
-
-#endif
 
 /* the function below is called only once at the very beginning of each Newton-Raphson procedure for optimizing barnch lengths.
    It initially invokes an iterative newview call to get a consistent pair of vectors at the left and the right end of the 
@@ -721,15 +322,6 @@ void makenewzIterative(tree *tr)
 	  double
 	    *sumBuffer = tr->partitionData[model].sumBuffer + x_offset;
 	 
-#ifndef _OPTIMIZED_FUNCTIONS
-	  assert(!tr->saveMemory);
-	  if(tr->rateHetModel == CAT)
-	    sumCAT_FLEX(tipCase, sumBuffer, x1_start, x2_start, tr->partitionData[model].tipVector, tipX1, tipX2,
-			width, states);
-	  else
-	    sumGAMMA_FLEX(tipCase, sumBuffer, x1_start, x2_start, tr->partitionData[model].tipVector, tipX1, tipX2,
-			  width, states);
-#else
 	  switch(states)
 	    {
 	    case 2:
@@ -834,7 +426,6 @@ void makenewzIterative(tree *tr)
 	    default:
 	      assert(0);
 	    }
-#endif
 	}
     }  // for model
   }  // omp parallel region
@@ -977,19 +568,6 @@ void execCore(tree *tr, volatile double *_dlnLdlz, volatile double *_d2lnLdlz2)
 	    dlnLdlz   = 0.0,
 	    d2lnLdlz2 = 0.0;
 
-  #ifndef _OPTIMIZED_FUNCTIONS
-
-	    /* compute first and second derivatives with the slow generic functions */
-
-	    if(tr->rateHetModel == CAT)
-	      coreCAT_FLEX(width, tr->partitionData[model].numberOfCategories, sumBuffer,
-			   &dlnLdlz, &d2lnLdlz2, wgt,
-			   tr->partitionData[model].perSiteRates, tr->partitionData[model].EIGN, rateCategory, lz, states);
-	    else
-	      coreGAMMA_FLEX(width, sumBuffer,
-			     &dlnLdlz, &d2lnLdlz2, tr->partitionData[model].EIGN, tr->partitionData[model].gammaRates, lz,
-			     wgt, states);
-  #else
 	    switch(states)
 	      {
 	      case 2:
@@ -1068,7 +646,6 @@ void execCore(tree *tr, volatile double *_dlnLdlz, volatile double *_d2lnLdlz2)
 	      default:
 		assert(0);
 	      }
-  #endif
 
 	    /* store first and second derivative */
 
@@ -1401,8 +978,6 @@ void makenewzGeneric(tree *tr, nodeptr p, nodeptr q, double *z0, int maxiter, do
 
 
 /* below are, once again the optimized functions */
-
-#ifdef _OPTIMIZED_FUNCTIONS
 
 /**** binary ***/
 static void coreGTRCAT_BINARY(int upper, int numberOfCategories, double *sum,
@@ -2013,17 +1588,12 @@ static void sumGAMMAPROT_LG4(int tipCase, double *sumtable, double *x1, double *
 	      right = &(tipVector[l][20 * tipX2[i]]);
 
 	      sum = &sumtable[i * 80 + l * 20];
-#ifdef __SIM_SSE3
 	      for(k = 0; k < 20; k+=2)
 		{
 		  __m128d sumv = _mm_mul_pd(_mm_load_pd(&left[k]), _mm_load_pd(&right[k]));
 		  
 		  _mm_store_pd(&sum[k], sumv);		 
 		}
-#else
-	      for(k = 0; k < 20; k++)
-		sum[k] = left[k] * right[k];
-#endif
 	    }
 	}
       break;
@@ -2037,17 +1607,12 @@ static void sumGAMMAPROT_LG4(int tipCase, double *sumtable, double *x1, double *
 	      left = &(tipVector[l][20 * tipX1[i]]);
 	      right = &(x2[80 * i + l * 20]);
 	      sum = &sumtable[i * 80 + l * 20];
-#ifdef __SIM_SSE3
 	      for(k = 0; k < 20; k+=2)
 		{
 		  __m128d sumv = _mm_mul_pd(_mm_load_pd(&left[k]), _mm_load_pd(&right[k]));
 		  
 		  _mm_store_pd(&sum[k], sumv);		 
 		}
-#else
-	      for(k = 0; k < 20; k++)
-		sum[k] = left[k] * right[k];
-#endif
 	    }
 	}
       break;
@@ -2060,17 +1625,12 @@ static void sumGAMMAPROT_LG4(int tipCase, double *sumtable, double *x1, double *
 	      right = &(x2[80 * i + l * 20]);
 	      sum   = &(sumtable[i * 80 + l * 20]);
 
-#ifdef __SIM_SSE3
 	      for(k = 0; k < 20; k+=2)
 		{
 		  __m128d sumv = _mm_mul_pd(_mm_load_pd(&left[k]), _mm_load_pd(&right[k]));
 		  
 		  _mm_store_pd(&sum[k], sumv);		 
 		}
-#else
-	      for(k = 0; k < 20; k++)
-		sum[k] = left[k] * right[k];
-#endif
 	    }
 	}
       break;
@@ -2737,11 +2297,4 @@ static void coreGTRCATPROT(double *EIGN, double lz, int numberOfCategories, doub
 
   free(d_start);
 }
-
-
-
-
-#endif
-
-
 
