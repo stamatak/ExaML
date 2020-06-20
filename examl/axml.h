@@ -42,11 +42,8 @@
 #ifdef __MIC_NATIVE
 #define BYTE_ALIGNMENT 64
 #define VECTOR_PADDING 8
-#elif defined __AVX
-#define BYTE_ALIGNMENT 32
-#define VECTOR_PADDING 1
 #else
-#define BYTE_ALIGNMENT 16
+#define BYTE_ALIGNMENT 32
 #define VECTOR_PADDING 1
 #endif
 
@@ -1337,8 +1334,6 @@ extern void scaleLG4X_EIGN(tree *tr, int model);
 extern void myBinFwrite(void *ptr, size_t size, size_t nmemb, FILE *byteFile);
 extern void myBinFread(void *ptr, size_t size, size_t nmemb, FILE *byteFile);
 
-#ifdef __AVX
-
 extern void newviewGTRGAMMAPROT_AVX_LG4(int tipCase,
 					double *x1, double *x2, double *x3, double *extEV[4], double *tipVector[4],
 					int *ex3, unsigned char *tipX1, unsigned char *tipX2, int n, 
@@ -1401,7 +1396,6 @@ void newviewGTRGAMMAPROT_AVX_GAPPED_SAVE(int tipCase,
 					 double *left, double *right, int *wgt, int *scalerIncrement, const boolean useFastScaling,
 					 unsigned int *x1_gap, unsigned int *x2_gap, unsigned int *x3_gap, 
 					 double *x1_gapColumn, double *x2_gapColumn, double *x3_gapColumn); 
-#endif
 
 
 

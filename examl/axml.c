@@ -52,7 +52,9 @@
 
 #include <mpi.h>
 
-#if ! (defined(__ppc) || defined(__powerpc__) || defined(PPC))
+#define SIMDE_ENABLE_NATIVE_ALIASES
+#include "simde/x86/sse.h"
+#if defined(SIMDE_SSE_NATIVE)
 #include <xmmintrin.h>
 /*
   special bug fix, enforces denormalized numbers to be flushed to zero,
@@ -2591,7 +2593,8 @@ int main (int argc, char *argv[])
        substantial run-time differences for vectors of equal length.
     */
     
-#if ! (defined(__ppc) || defined(__powerpc__) || defined(PPC))
+#if defined(SIMDE_SSE_NATIVE)
+# include <xmmintrin.h>
     _mm_setcsr( _mm_getcsr() | _MM_FLUSH_ZERO_ON);
 #endif   
 

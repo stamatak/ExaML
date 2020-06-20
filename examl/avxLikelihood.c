@@ -10,9 +10,8 @@
 #include <limits.h>
 #include "axml.h"
 #include <stdint.h>
-#include <xmmintrin.h>
-#include <pmmintrin.h>
-#include <immintrin.h>
+#define SIMDE_ENABLE_NATIVE_ALIASES
+#include "simde/x86/avx2.h"
 
 #ifdef _FMA
 #include <x86intrin.h>

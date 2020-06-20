@@ -1,4 +1,5 @@
-#include <immintrin.h>
+#define SIMDE_ENABLE_NATIVE_ALIASES
+#include "simde/x86/avx2.h"
 #include <string.h>
 #include <math.h>
 
